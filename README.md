@@ -14,6 +14,11 @@ This bijection is used as the starting point for computing properties of the ell
 ## Repository structure
 
 ```
+notebooks/        # Jupyter notebooks (published)
+  userguide.ipynb     # Worked examples and basic use cases
+
+experiments/      # Local scratch notebooks (not tracked by git)
+
 pycode/           # Core Python library
   ecqf_tools.py       # Main tools: loading precomputed data, bijection utilities
   ecqf.py             # ECQFIsogenyClass — the primary class for a given (a,p)
@@ -40,7 +45,7 @@ pip install numpy pandas
 Open the user guide:
 
 ```bash
-jupyter notebook userguide.ipynb
+jupyter notebook notebooks/userguide.ipynb
 ```
 
 The notebook walks through:
