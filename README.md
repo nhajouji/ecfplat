@@ -34,12 +34,23 @@ pycode/           # Core Python library
 userguide.ipynb   # Jupyter notebook with worked examples
 ```
 
-## Getting started
+## Web app
+
+A Streamlit app provides a point-and-click interface:
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Enter a pair (a, p), load the isogeny class, browse the table of lattice classes and elliptic curves, click a row to see the lattice picture, and download the computed points as a text file.
+
+## Getting started (library)
 
 Install dependencies:
 
 ```bash
-pip install numpy pandas
+pip install -r requirements.txt
 ```
 
 Open the user guide:
