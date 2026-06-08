@@ -1,7 +1,9 @@
-from nt import quad_rec,discfac,divisors
-from ringclasses import IntegerSquareMatrix
+from nt import quad_rec,discfac,divisors,gcd,gcd_list
+from alg_classes import MatrixElement, Mat_n_Z
 from modularpolynomials import *
 from qfs import *
+
+M2Z = Mat_n_Z(2)
 import json
 from pathlib import Path
 
@@ -373,19 +375,19 @@ def get_j_to_qfs_dict(a:int,p:int,j0=None):
 # The following gives a matrix that represents
 # the action of Frobenius on the lattice,
 # relative to the basis 1, tau.
-def frobmat(ap:tuple[int],abc:tuple[int])->IntegerSquareMatrix:
+def frobmat(ap:tuple[int],abc:tuple[int])->MatrixElement:
     t,p = ap
     a,b,c = qf_make_prim(abc)
     df,cf = discfac(t*t-4*p)
     dt,ct = discfac(b*b-4*a*c)
     if dt!= df or cf % ct != 0:
-        raise ValueError('incompatible discriminants') 
+        raise ValueError('incompatible discriminants')
     cft = cf // ct
     trdiff = t+b*cft
     if trdiff%2 != 0:
         raise ValueError('Check trace')
     t0 = trdiff//2
-    return IntegerSquareMatrix([[t0,-a*c*cft],[cft,t0-b*cft]])
+    return MatrixElement(((t0,-a*c*cft),(cft,t0-b*cft)), M2Z)
 
 def kernel_gen_cyc(mat:list[list[int]])->dict:
     m00 = mat[0][0]
@@ -437,15 +439,21 @@ def divide_cyclic_gen(gen:dict,m:int)->dict:
 
 def mw_gens(ap:tuple[int],abc:tuple[int],n:int)->dict:
     fmat = frobmat(ap,abc)
-    cmat,m = (fmat**n - (fmat**0)).gcdfac()
-    mat = IntegerSquareMatrix(cmat.mat).mat
+    diff = fmat**n - fmat**0
+    m = gcd_list([x for row in diff.vec for x in row])
+    if m < 2:
+        cmat = diff
+        m = 1
+    else:
+        cmat = MatrixElement(tuple(tuple(x//m for x in row) for row in diff.vec), M2Z)
+    mat = cmat.vec
     cdet = mat[0][0]*mat[1][1]-mat[1][0]*mat[0][1]
     if abs(cdet) == 1:
         return {(1,0):m,(0,1):m}
     elif m == 1:
-        return kernel_gen_cyc(cmat.mat)
+        return kernel_gen_cyc(mat)
     else:
-        return divide_cyclic_gen(kernel_gen_cyc(cmat.mat),m)
+        return divide_cyclic_gen(kernel_gen_cyc(mat),m)
 
     
 
