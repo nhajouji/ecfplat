@@ -72,15 +72,9 @@ def mat_to_qf(m:MatrixElement)->tuple[int,int,int]:
         raise ValueError('Diagonal entries should be even')
     return (a//2, b1, c//2)
 
-def mat_adjugate(m:MatrixElement)->MatrixElement:
-    """Return the adjugate (classical adjoint) of a 2x2 MatrixElement."""
-    a,b = m.vec[0]
-    c,d = m.vec[1]
-    return MatrixElement(((d,-b),(-c,a)), m.grp)
-
 def act_qf(qf:tuple[int,int,int], m:MatrixElement):
     qfm = qf_to_mat(qf)
-    madj = mat_adjugate(m)
+    madj = m.adjugate
     qfm_new = madj.transpose * qfm * madj
     return mat_to_qf(qfm_new)
 
@@ -282,8 +276,7 @@ def cycs_from_ancestors(qf0):
 ##########
 
 def minv(m:MatrixElement)->MatrixElement:
-    """Adjugate (= inverse * det) of a 2x2 MatrixElement."""
-    return mat_adjugate(m)
+    return m.adjugate
 
 def find_rrep_g0(m:MatrixElement, l:int)->MatrixElement:
     reps = gamma_0_coset_reps(l)

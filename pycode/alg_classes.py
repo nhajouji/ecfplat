@@ -201,6 +201,11 @@ class MatrixElement(RingElement):
         product = self.grp.multiply_elements(self.vec, other.vec)
         return MatrixElement(product, self.grp)
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, MatrixElement):
+            return NotImplemented
+        return self.vec == other.vec
+
     def __repr__(self):
         rows = [' '.join(f'{x:4}' for x in row) for row in self.vec]
         return '\n'.join(rows)
@@ -217,6 +222,20 @@ class MatrixElement(RingElement):
     @property
     def diagonal(self) -> tuple:
         return tuple(self.vec[i][i] for i in range(self.n))
+
+    @property
+    def det(self) -> int:
+        if self.n != 2:
+            raise NotImplementedError('det only implemented for 2x2 matrices')
+        (a, b), (c, d) = self.vec
+        return a * d - b * c
+
+    @property
+    def adjugate(self) -> 'MatrixElement':
+        if self.n != 2:
+            raise NotImplementedError('adjugate only implemented for 2x2 matrices')
+        (a, b), (c, d) = self.vec
+        return MatrixElement(((d, -b), (-c, a)), self.grp)
 
 
                     ################
