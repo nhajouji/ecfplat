@@ -63,33 +63,32 @@ class AbGrElt:
     def __init__(self,xs:tuple,group:AbelianGroup):
         if xs not in group:
             raise ValueError('Element not in group')
-        is_zero =  (xs == group.zero_element)
         self.vec = xs
         self.grp = group
     def __repr__(self):
         return str(self.vec)
     def __add__(self,other:'AbGrElt'):
         group = self.grp
-        if type(other)!= AbGrElt or other.vec not in group:
+        if not isinstance(other, AbGrElt) or other.vec not in group:
             raise ValueError('Can only add elements of same group')
         t_sum = group.add_elements(self.vec,other.vec)
-        return AbGrElt(t_sum,group)
+        return type(self)(t_sum,group)
     def __neg__(self):
         group = self.grp
         t_neg = group.negate_element(self.vec)
-        return AbGrElt(t_neg,group)
+        return type(self)(t_neg,group)
     def __sub__(self,other:'AbGrElt'):
         group = self.grp
-        if other.vec not in group:
-            raise ValueError('Can only add elements of same group')
+        if not isinstance(other, AbGrElt) or other.vec not in group:
+            raise ValueError('Can only subtract elements of same group')
         t_diff = group.subtract_elements(self.vec,other.vec)
-        return AbGrElt(t_diff,group)
+        return type(self)(t_diff,group)
     def __rmul__(self,n:int):
         if type(n)!= int:
             raise ValueError('Can only scale by integers')
         group = self.grp
         tsc = group.scale_element(self.vec,n)
-        return AbGrElt(tsc,group)
+        return type(self)(tsc,group)
 
 class Ring(AbelianGroup):
     def __init__(
@@ -121,12 +120,12 @@ class RingElement(AbGrElt):
         if not isinstance(other, RingElement) or other.grp is not self.grp:
             raise ValueError('Can only multiply elements of the same ring')
         product = self.grp.multiply_elements(self.vec, other.vec)
-        return RingElement(product, self.grp)
+        return type(self)(product, self.grp)
 
     def __pow__(self, n: int):
         if n < 0:
             raise ValueError('Negative powers not supported (no division)')
-        result = RingElement(self.grp.one_element, self.grp)
+        result = type(self)(self.grp.one_element, self.grp)
         base = self
         while n > 0:
             if n % 2 == 1:
