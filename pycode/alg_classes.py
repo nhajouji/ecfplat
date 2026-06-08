@@ -68,7 +68,7 @@ class AbGrElt:
         self.grp = group
     def __repr__(self):
         return str(self.vec)
-    def __add__(self,other:AbGrElt):
+    def __add__(self,other:'AbGrElt'):
         group = self.grp
         if type(other)!= AbGrElt or other.vec not in group:
             raise ValueError('Can only add elements of same group')
@@ -78,7 +78,7 @@ class AbGrElt:
         group = self.grp
         t_neg = group.negate_element(self.vec)
         return AbGrElt(t_neg,group)
-    def __sub__(self,other:AbGrElt):
+    def __sub__(self,other:'AbGrElt'):
         group = self.grp
         if other.vec not in group:
             raise ValueError('Can only add elements of same group')

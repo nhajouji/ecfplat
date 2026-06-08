@@ -115,7 +115,7 @@ class IntegerSquareMatrix:
     def __neg__(self):
         return (-1)*self
     
-    def __add__(self,other:IntegerSquareMatrix):
+    def __add__(self,other:'IntegerSquareMatrix'):
         if isinstance(other,int):
             one = IntegerSquareMatrix([[int(i==j) for i in range(self.dim)]
                                        for j in range(self.dim)])
@@ -133,7 +133,7 @@ class IntegerSquareMatrix:
                 matsum[i][j]=x+mat2[i][j]
         return IntegerSquareMatrix(matsum)
     
-    def __mul__(self,other:IntegerSquareMatrix):
+    def __mul__(self,other:'IntegerSquareMatrix'):
         if isinstance(other,int):
             one = IntegerSquareMatrix([[int(i==j) for i in range(self.dim)]
                                        for j in range(self.dim)])
@@ -166,7 +166,7 @@ class IntegerSquareMatrix:
     
     
     
-    def __sub__(self,other:IntegerSquareMatrix)->IntegerSquareMatrix:
+    def __sub__(self,other:'IntegerSquareMatrix')->'IntegerSquareMatrix':
         return self+(-1)*other
     
     def polyeval(self,coefs_x0_to_xn:list[int]):
@@ -229,7 +229,7 @@ class Polynomial:
             return '0'
     def __repr__(self):
         return str(self)
-    def __add__(self,other:Polynomial):
+    def __add__(self,other:'Polynomial'):
         if isinstance(other,int):
             other = Polynomial([other],self.char)
         if not isinstance(other,Polynomial) or self.char!=other.char:
@@ -248,9 +248,9 @@ class Polynomial:
         if self.char!=0:
             csn = [c % self.char for c in csn]
         return Polynomial(csn,self.char)
-    def __sub__(self,other:Polynomial):
+    def __sub__(self,other:'Polynomial'):
         return self+(-1)*other
-    def __mul__(self,other:Polynomial):
+    def __mul__(self,other:'Polynomial'):
         if not isinstance(other,(Polynomial,int)):
             raise ValueError('Can only multiply by polynomials or integers')
         if isinstance(other,int):
@@ -292,7 +292,7 @@ class Polynomial:
             g = gcd_list(self.coefs)
             return Polynomial([c//g for c in self.coefs])
         
-    def __mod__(self,den:Polynomial)->Polynomial:
+    def __mod__(self,den:'Polynomial')->'Polynomial':
         if not isinstance(den,Polynomial) or den.char != self.char:
             raise ValueError('Can only mod polynomials of equal char')
         if den.deg <0:
