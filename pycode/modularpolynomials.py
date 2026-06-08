@@ -1,13 +1,16 @@
 ## Data loading
 
 import json
+from pathlib import Path
 from ringclasses import Polynomial
 
-with open('data/atkinpolys.json', 'r') as f:
+_DATA_DIR = Path(__file__).parent / 'data'
+
+with open(_DATA_DIR / 'atkinpolys.json', 'r') as f:
     atkin_polys_raw = json.load(f)
 atkin_polys_dict = {int(p):atkin_polys_raw[p] for p in atkin_polys_raw}
 
-with open('data/hilbpolys.json', 'r') as f:
+with open(_DATA_DIR / 'hilbpolys.json', 'r') as f:
     hilbpolys_raw = json.load(f)
 hilb_polys_dict = {int(d):hilbpolys_raw[d] for d in hilbpolys_raw}
 heeg_js = {d:-hilb_polys_dict[d][0] for d in hilb_polys_dict if len(hilb_polys_dict[d])==2}

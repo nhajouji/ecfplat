@@ -3,9 +3,11 @@ from ringclasses import IntegerSquareMatrix
 from modularpolynomials import *
 from qfs import *
 import json
+from pathlib import Path
 
+_DATA_DIR = Path(__file__).parent / 'data'
 
-with open('data/ssfp_pc_bij.json', 'r') as f:
+with open(_DATA_DIR / 'ssfp_pc_bij.json', 'r') as f:
     ssfpdata_raw = json.load(f)
 ss_precomputed_dictionary = {int(p):ssfpdata_raw[p]for p in ssfpdata_raw}
 

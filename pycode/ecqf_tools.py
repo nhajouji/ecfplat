@@ -1,12 +1,15 @@
 import numpy as np
 import pandas as pd
 import json
+from pathlib import Path
 
 from nt import *
 from alg_classes import *
 from qfs import *
 
 M2Z = Mat_n_Z(2)
+
+_DATA_DIR = Path(__file__).parent / 'data'
 
 ##################################
 # Loading precomputed bijections #
@@ -16,13 +19,13 @@ def strtup_to_tup(s):
     return tuple([int(s0) for s0 in s[1:-1].split(',')])
 
 
-with open('data/ecqf_ord_pcbij_4_1024.json', 'r') as f:
+with open(_DATA_DIR / 'ecqf_ord_pcbij_4_1024.json', 'r') as f:
     ecqf_ord_pcbij_1K_loaded = json.load(f)
 ecqf_ord_1K_pc = {strtup_to_tup(aps):{int(ns):tuple(ecqf_ord_pcbij_1K_loaded[aps][ns] )
-                                       for ns in ecqf_ord_pcbij_1K_loaded[aps]} 
+                                       for ns in ecqf_ord_pcbij_1K_loaded[aps]}
                                        for aps in ecqf_ord_pcbij_1K_loaded}
 
-with open('data/ecqf_ss_pcbij_4_1024_INC.json', 'r') as f:
+with open(_DATA_DIR / 'ecqf_ss_pcbij_4_1024_INC.json', 'r') as f:
     ecqf_ss_pcbij_1K_loaded = json.load(f)
 ecqf_ss_1K_pc = {int(ps):{strtup_to_tup(jss):tuple(ecqf_ss_pcbij_1K_loaded[ps][jss] )
                                        for jss in ecqf_ss_pcbij_1K_loaded[ps]} 

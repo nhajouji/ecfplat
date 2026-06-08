@@ -1,0 +1,5 @@
+[server]
+headless = true        # required for Streamlit Cloud
+
+[browser]
+gatherUsageStats = false

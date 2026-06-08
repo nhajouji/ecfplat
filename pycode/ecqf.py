@@ -1,9 +1,13 @@
 import itertools
+import json
+from pathlib import Path
 from qfs import *
 from nt import discfac,quad_rec,divisors,primesBetween
 from identities import *
 from ecfp import fp_isog_codomains, trfr_to_js
 from modularpolynomials import *
+
+_DATA_DIR = Path(__file__).parent / 'data'
 
 ssprimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 41, 47, 59, 71]
 heeg_dics = {}
@@ -27,7 +31,7 @@ import json
 def strtup_to_tup(s):
     return tuple([int(s0) for s0 in s[1:-1].split(',')])
 
-with open('ecc/data/ecqf_ord_pcbij_4to256.json', 'r') as f:
+with open(_DATA_DIR / 'ecqf_ord_pcbij_4to256.json', 'r') as f:
     ecqf_ord_pcbij_4to256_loaded = json.load(f)
 ecqf_ord_256_pc = {strtup_to_tup(aps):{int(ns):tuple(ecqf_ord_pcbij_4to256_loaded[aps][ns] )
                                        for ns in ecqf_ord_pcbij_4to256_loaded[aps]} 

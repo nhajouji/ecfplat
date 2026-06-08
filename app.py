@@ -1,13 +1,10 @@
 import sys
-import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "pycode"))
-os.chdir(os.path.join(os.path.dirname(__file__), "pycode"))
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent / "pycode"))
 
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-import io
 
 from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data, abc_to_tau
 
