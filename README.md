@@ -1,0 +1,72 @@
+# ecfplat
+
+Code supporting computations related to elliptic curves over finite fields via an explicit bijection between lattice classes and elliptic curves in a given isogeny class.
+
+## Overview
+
+Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the isogeny class of elliptic curves over **F**_p whose Frobenius has characteristic polynomial `x² - ax + p`. The central object is an explicit bijection between:
+
+- **Lattice classes** with CM by a root of `x² - ax + p` (equivalently, classes of positive definite binary quadratic forms of discriminant `a² - 4p`)
+- **Elliptic curves** in the corresponding isogeny class over **F**_p
+
+This bijection is used as the starting point for computing properties of the elliptic curves (e.g. Mordell–Weil group structure) by working on the lattice side.
+
+## Repository structure
+
+```
+pycode/           # Core Python library
+  ecqf_tools.py       # Main tools: loading precomputed data, bijection utilities
+  ecqf.py             # ECQFIsogenyClass — the primary class for a given (a,p)
+  ecfp.py             # Elliptic curve over F_p computations
+  qfs.py              # Quadratic form / lattice utilities
+  alg_classes.py      # General algebraic structures (abelian groups, rings, etc.)
+  ringclasses.py      # Ring class implementations
+  nt.py               # Number theory utilities
+  identities.py       # Algebraic identities
+  modularpolynomials.py  # Modular polynomial computations
+  data/               # Precomputed bijection data (JSON)
+
+userguide.ipynb   # Jupyter notebook with worked examples
+```
+
+## Getting started
+
+Install dependencies:
+
+```bash
+pip install numpy pandas
+```
+
+Open the user guide:
+
+```bash
+jupyter notebook userguide.ipynb
+```
+
+The notebook walks through:
+- Checking whether a pair `(a, p)` has precomputed data
+- Initializing an `ECQFIsogenyClass` object
+- Viewing the bijection as a pandas DataFrame
+- Visualizing lattice classes in the upper half-plane
+- Computing Mordell–Weil group data from the lattice side
+
+### Quick example
+
+```python
+import os
+os.chdir('pycode/')
+from ecqf_tools import *
+
+# Check if (a=22, p=1021) is in the precomputed data
+ap_in_pc_data((22, 1021))   # True
+
+# Load the isogeny class
+isoclass = ECQFIsogenyClass(22, 1021)
+
+# View all lattice classes and their corresponding elliptic curve data
+isoclass.ecqf_df()
+```
+
+## Precomputed data
+
+The `data/` directory contains precomputed bijections for ordinary pairs `(a, p)` and supersingular primes `p` with `4 ≤ p ≤ 1024`. Use `get_aps_pc()` and `get_ssps_pc()` to list all available pairs.
