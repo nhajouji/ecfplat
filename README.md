@@ -20,18 +20,18 @@ notebooks/        # Jupyter notebooks (published)
 experiments/      # Local scratch notebooks (not tracked by git)
 
 pycode/           # Core Python library
-  ecqf_tools.py       # Main tools: loading precomputed data, bijection utilities
-  ecqf.py             # ECQFIsogenyClass — the primary class for a given (a,p)
-  ecfp.py             # Elliptic curve over F_p computations
-  qfs.py              # Quadratic form / lattice utilities
-  alg_classes.py      # General algebraic structures (abelian groups, rings, etc.)
-  ringclasses.py      # Ring class implementations
-  nt.py               # Number theory utilities
-  identities.py       # Algebraic identities
-  modularpolynomials.py  # Modular polynomial computations
+  alg_classes.py      # General algebraic structures: AbGrp, Ring, RingElement,
+                      #   MatrixElement, ZnProduct, Mat_n_Z, Polynomial, PolyFp
+  nt.py               # Number theory utilities (gcd, primality, quadratic symbols, …)
+  identities.py       # Algebraic identities used in isogeny computations
+  qfs.py              # Quadratic form / lattice utilities and modular group action
+  modularpolynomials.py  # Atkin and Hilbert modular polynomial data and evaluation
+  ecfp.py             # Elliptic curve over F_p computations (j-invariants, models,
+                      #   isogeny graphs, Frobenius)
+  ecqf_tools.py       # Bijection utilities, Frobenius matrices, Mordell–Weil
+                      #   computations, ECQFIsogenyClass
+  ecqf.py             # Supporting bijection algorithms (ordinary and supersingular)
   data/               # Precomputed bijection data (JSON)
-
-userguide.ipynb   # Jupyter notebook with worked examples
 ```
 
 ## Web app
@@ -69,9 +69,9 @@ The notebook walks through:
 ### Quick example
 
 ```python
-import os
-os.chdir('pycode/')
-from ecqf_tools import *
+import sys
+sys.path.insert(0, 'pycode/')
+from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data
 
 # Check if (a=22, p=1021) is in the precomputed data
 ap_in_pc_data((22, 1021))   # True
