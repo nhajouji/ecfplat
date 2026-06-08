@@ -1,4 +1,5 @@
 from typing import Callable
+from nt import gcd_list
 
                 ###################
                 # General Classes #
@@ -216,4 +217,181 @@ class MatrixElement(RingElement):
     @property
     def diagonal(self) -> tuple:
         return tuple(self.vec[i][i] for i in range(self.n))
+
+
+                    ################
+                    # Polynomials  #
+                    ################
+
+def remove_lead_zeros(l, char=0):
+    if char != 0:
+        l = [c % char for c in l]
+    if len(l) == 0:
+        return [0]
+    while len(l) > 1 and l[-1] == 0:
+        l = l[:-1]
+    return l
+
+
+class Polynomial:
+    def __init__(self, coefs_0_to_n: list[int], char=0):
+        self.coefs = remove_lead_zeros(coefs_0_to_n, char)
+        self.char = char
+        self.lc = (self.coefs)[-1]
+        self.deg = len(self.coefs) - 1 - int(self.lc == 0)
+        self.const = (self.coefs)[0]
+
+    def __str__(self):
+        coefs = self.coefs
+        if len(coefs) == 1:
+            return str(coefs[0])
+        s = ''
+        for i, c in enumerate(coefs):
+            if c != 0:
+                if len(s) > 0:
+                    if s[0] == '-':
+                        s = f'{c} x^{i}' + s
+                    else:
+                        s = f'{c} x^{i}+' + s
+                else:
+                    s = f'{c} x^{i}'
+        return s if s else '0'
+
+    def __repr__(self):
+        return str(self)
+
+    def __add__(self, other: 'Polynomial'):
+        if isinstance(other, int):
+            other = Polynomial([other], self.char)
+        if not isinstance(other, Polynomial) or self.char != other.char:
+            raise ValueError('Can only add polynomials of equal char')
+        cs1 = self.coefs
+        cs2 = other.coefs
+        l1, l2 = len(cs1), len(cs2)
+        cs1 += max(l2 - l1, 0) * [0]
+        cs2 += max(l1 - l2, 0) * [0]
+        cssum = remove_lead_zeros([cs1[i] + cs2[i] for i in range(max(l1, l2))], self.char)
+        return Polynomial(cssum, self.char)
+
+    def __rmul__(self, n: int):
+        csn = [n * c for c in self.coefs]
+        if self.char != 0:
+            csn = [c % self.char for c in csn]
+        return Polynomial(csn, self.char)
+
+    def __sub__(self, other: 'Polynomial'):
+        return self + (-1) * other
+
+    def __mul__(self, other: 'Polynomial'):
+        if not isinstance(other, (Polynomial, int)):
+            raise ValueError('Can only multiply by polynomials or integers')
+        if isinstance(other, int):
+            return Polynomial([c * other for c in self.coefs], self.char)
+        if self.char != other.char:
+            raise ValueError('Characteristics must be equal')
+        cs1, cs2 = self.coefs, other.coefs
+        cs12 = [0] * (len(cs1) + len(cs2) - 1)
+        for i, c1 in enumerate(cs1):
+            for j, c2 in enumerate(cs2):
+                cs12[i + j] += c1 * c2
+        if self.char > 0:
+            cs12 = [c % self.char for c in cs12]
+        return Polynomial(cs12, self.char)
+
+    def __pow__(self, n):
+        if n < 0:
+            raise ValueError('Exponent must be nonnegative')
+        xn = Polynomial([1], self.char)
+        x2n = self
+        while n > 0:
+            if n % 2 == 1:
+                xn = xn * x2n
+            n = n // 2
+            x2n = x2n * x2n
+        return xn
+
+    def monic_associate(self):
+        if self.lc < 0:
+            self = (-1) * self
+        if self.deg == -1:
+            return self
+        elif self.lc == 1:
+            return self
+        elif self.char > 0 and self.lc != 0:
+            lcinv = pow(self.lc, -1, self.char)
+            return lcinv * self
+        else:
+            g = gcd_list(self.coefs)
+            return Polynomial([c // g for c in self.coefs])
+
+    def __mod__(self, den: 'Polynomial') -> 'Polynomial':
+        if not isinstance(den, Polynomial) or den.char != self.char:
+            raise ValueError('Can only mod polynomials of equal char')
+        if den.deg < 0:
+            raise ZeroDivisionError('Denominator must be nonzero')
+        if den.deg == 0:
+            return 0 * self
+        den0 = den.monic_associate()
+        rem0 = self.monic_associate()
+        px = Polynomial([0, 1], self.char)
+        while rem0.deg >= den0.deg:
+            lcr, lcd = rem0.lc, den0.lc
+            dd = rem0.deg - den0.deg
+            rem_new = (lcd * rem0 - (px ** dd) * lcr * den0).monic_associate()
+            if rem_new.deg < rem0.deg:
+                rem0 = rem_new
+            else:
+                return rem0
+        return rem0
+
+    def mod(self, p: int):
+        if self.char > 0 and self.char != p:
+            raise ValueError('Already in positive characteristic')
+        return PolyFp(self.coefs, char=p)
+
+    def eval(self, x):
+        p = self.char
+        coefs = self.coefs
+        evx = 0 * x
+        one = x ** 0
+        if p > 0:
+            for c in coefs[::-1]:
+                evx = (evx * x + c * one) % p
+        else:
+            for c in coefs[::-1]:
+                evx = evx * x + c * one
+        return evx
+
+    def dx(self):
+        if len(self.coefs) == 1:
+            return 0 * self
+        dcs = [i * c for i, c in enumerate(self.coefs)][1:]
+        return Polynomial(dcs, char=self.char)
+
+
+def poly_gcd(poly1, poly2):
+    r = poly2 % poly1
+    while r.deg >= 0:
+        poly2 = poly1
+        poly1 = r
+        r = poly2 % poly1
+    return poly1
+
+
+class PolyFp(Polynomial):
+    def __init__(self, coefs, char):
+        super().__init__(coefs, char)
+
+    def fp_factor(self):
+        p = self.char
+        xp = PolyFp([0, 1], p)
+        fpp = xp ** p - xp
+        return poly_gcd(self, fpp)
+
+    def no_fp_roots(self):
+        return self.fp_factor().deg
+
+    def find_roots_BrFo(self):
+        p = self.char
+        return [x for x in range(p) if self.eval(x) == 0]
 

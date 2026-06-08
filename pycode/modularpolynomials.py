@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from ringclasses import Polynomial
+from alg_classes import Polynomial
 
 _DATA_DIR = Path(__file__).parent / 'data'
 
