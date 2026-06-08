@@ -6,7 +6,7 @@ from typing import Callable
 
 
 
-class AbelianGroup:
+class AbGrp:
     def __init__(self,membership:Callable[[tuple],bool],zero:tuple,negation:Callable[[tuple],tuple],addition:Callable[[tuple,tuple],tuple]):
         self.zero_element = zero
         self.negation_map = negation
@@ -60,7 +60,7 @@ class AbelianGroup:
 
 
 class AbGrElt:
-    def __init__(self,xs:tuple,group:AbelianGroup):
+    def __init__(self,xs:tuple,group:AbGrp):
         if xs not in group:
             raise ValueError('Element not in group')
         self.vec = xs
@@ -90,7 +90,7 @@ class AbGrElt:
         tsc = group.scale_element(self.vec,n)
         return type(self)(tsc,group)
 
-class Ring(AbelianGroup):
+class Ring(AbGrp):
     def __init__(
         self,
         membership: Callable[[tuple], bool],
@@ -140,7 +140,7 @@ class RingElement(AbGrElt):
 
                 # Abelian group classes #
 
-def ZnProduct(ns: tuple[int, ...]) -> AbelianGroup:
+def ZnProduct(ns: tuple[int, ...]) -> AbGrp:
     k = len(ns)
 
     def membership(v: tuple) -> bool:
@@ -152,7 +152,7 @@ def ZnProduct(ns: tuple[int, ...]) -> AbelianGroup:
     def addition(v1: tuple, v2: tuple) -> tuple:
         return tuple((x1 + x2) % n for x1, x2, n in zip(v1, v2, ns))
 
-    return AbelianGroup(membership, tuple(0 for _ in ns), negation, addition)
+    return AbGrp(membership, tuple(0 for _ in ns), negation, addition)
 
 
 
