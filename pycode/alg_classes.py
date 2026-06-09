@@ -251,7 +251,7 @@ def remove_lead_zeros(l, char=0):
         l = l[:-1]
     return l
 
-
+# TODO: Rewrite this so that it follows previous pattern
 class Polynomial:
     def __init__(self, coefs_0_to_n: list[int], char=0):
         self.coefs = remove_lead_zeros(coefs_0_to_n, char)
