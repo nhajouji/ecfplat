@@ -443,27 +443,39 @@ class ECQFIsogenyClass(QFIsogenyClass):
         if self.js_to_qf == None:
             raise ValueError('No data available')
         jss = self.jsigs
+        if type(jss[0])==tuple:
+            jlist = [js[0] for js in jss]
+        else:
+            jlist = jss
         fgs = [(self.js_to_models)[js] for js in jss]
         qfs = [(self.js_to_qf)[js] for js in jss]
-        tau_xys = [abc_to_tau(qf) for qf in qfs]
-        tau_xs = [xy[0] for xy in tau_xys]
-        tau_ys = [xy[1] for xy in tau_xys]
+        frobmats = [self.qf_to_frob_mats[qf].vec for qf in qfs]
+        qfds = [qf_disc(qf) for qf in qfs]
+        qf_cs = [discfac(d)[1] for d in qfds]
+        qf_ccs = [self.cond//c for c in qf_cs]
+        tau_xys_arr = [abc_to_tau(qf) for qf in qfs]
+        tau_xys = [tuple([np.round(x,3) for x in xy]) for xy in tau_xys_arr]
         tau_strs = [abc_to_tau_str(qf) for qf in qfs]
-        return pd.DataFrame({'(j,sign)':jss,'EC_coefs':fgs,'qf_coefs':qfs,
-                             'tau_s':tau_strs,'tau_x':tau_xs,'tau_y':tau_ys})
+        return pd.DataFrame({'ec_invs':jss,'j_inv':jlist,'EC_coefs':fgs,'qf_coefs':qfs,
+                             'endo_disc':qfds,'endo_cond':qf_cs,'endo_cocond':qf_ccs,
+                             'frobmat':frobmats,'tau_s':tau_strs,'tau_xy':tau_xys})
     
     def ecqf_mw_df(self,k:int):
         if self.js_to_qf == None:
             raise ValueError('No data available')
         jss = self.jsigs
+        if type(jss[0])==tuple:
+            jlist = [js[0] for js in jss]
+        else:
+            jlist = jlist
         fgs = [(self.js_to_models)[js] for js in jss]
         qfs = [(self.js_to_qf)[js] for js in jss]
+        frmats = [self.qf_to_frob_mats[qf] for qf in qfs]
+        qfds = [qf_disc(qf) for qf in qfs]
+        qf_cs = [discfac(d)[1] for d in qfds]
+        qf_ccs = [self.cond//c for c in qf_cs]
         tau_xys = [abc_to_tau(qf) for qf in qfs]
-        tau_xs = [xy[0] for xy in tau_xys]
-        tau_ys = [xy[1] for xy in tau_xys]
         tau_strs = [abc_to_tau_str(qf) for qf in qfs]
-        qf_to_frm_dic = self.qf_to_frob_mats
-        frmats = [qf_to_frm_dic[qf] for qf in qfs]
         frmat_tups = [frm.vec for frm in frmats]
         mwgsets = []
         mwntups = []
@@ -473,10 +485,11 @@ class ECQFIsogenyClass(QFIsogenyClass):
             genvs.sort(key = lambda g:gendic[g],reverse = True)
             mwgsets.append(genvs)
             mwntups.append(tuple([gendic[g] for g in genvs]))
-        return pd.DataFrame({'(j,sign)':jss,'EC_coefs':fgs,'qf_coefs':qfs,
-                             'tau_s':tau_strs,'tau_x':tau_xs,'tau_y':tau_ys,
-                             'frob_matrix':frmat_tups,'MW_gens':mwgsets,
-                             'MW_iso_type':mwntups})
+        df = pd.DataFrame({'ec_invs':jss,'j_inv':jlist,'EC_coefs':fgs,'qf_coefs':qfs,
+                             'endo_disc':qfds,'endo_cond':qf_cs,'endo_cocond':qf_ccs,
+                             'frobmat':frmat_tups,'tau_s':tau_strs,'tau_xys':tau_xys,
+                             'MW_gens':mwgsets,'MW_iso_type':mwntups})
+        return df
     
 
     

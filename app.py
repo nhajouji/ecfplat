@@ -78,7 +78,7 @@ with tab_df:
         row = df.iloc[st.session_state.selected_row]
         st.success(
             f"Selected row {st.session_state.selected_row}:  "
-            f"j = {row['js']},  fg = {row['fg']},  abc = {row['abc']}"
+            f"j = {row['(j,sign)']},  fg = {row['EC_coefs']},  abc = {row['qf_coefs']}"
         )
 
 # ── Tab 2: Lattice picture ────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ with tab_lattice:
         st.stop()
 
     row = df.iloc[st.session_state.selected_row]
-    qf = tuple(row["abc"])
+    qf = tuple(row["qf_coefs"])
     a_qf, b_qf, c_qf = qf
 
     st.subheader(f"Lattice for abc = {qf}")
