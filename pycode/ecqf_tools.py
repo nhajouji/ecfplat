@@ -74,6 +74,29 @@ def abc_to_tau_str(abc):
     else:
         return num_str+'/'+str(den)
 
+def ec_eq_str(fg:tuple[int,int],p:int):
+    eqs = 'y^2 = x^3'
+    f,g = fg
+    if f!= 0:
+        if f>0:
+            if f == 1:
+                eqs+= ' + x'
+            else:
+                eqs+=f' + {f} x'
+        else:
+            f = -f
+            if f == 1:
+                eqs+= ' - x'
+            else:
+                eqs+=f' - {f} x'
+    if g != 0:
+        if g>0:
+            eqs+=f' + {g}'
+        else:
+            g = -g
+            eqs+=f' - {g}'
+    return eqs+(f' mod {p}')
+
 def export_points(grp:list,filename:str):
     file = open(filename,'a')
     for i in range((len(grp)//3)+1):
@@ -142,6 +165,31 @@ def qf_l_order(qf,mm = 64):
 def trace_frob(fg:tuple[int,int],p:int)->int:
     f,g = fg
     return - sum([quad_rec(x**3+f*x+g,p) for x in range(p)])
+def fg_to_j(fg:tuple[int,int],char =0):
+    f,g = fg
+    if f == 0 or char>0 and f%char ==0:
+        return 0
+    elif g == 0 or char>0 and g % char ==0:
+        return 1728
+    else:
+        f3 = 4*(f**3)
+        jnum = 1728 *f3
+        jden = f3+27*(g**2)
+        if char == 0:
+            if jden == 0:
+                raise ZeroDivisionError('Singular curve')
+            elif jnum % jden == 0:
+                return jnum//jden
+            else:
+                return jnum/jden
+        else:
+            jnum = jnum % char
+            jden = jden % char
+            if jden == 0:
+                raise ZeroDivisionError('Singular curve')
+            jdeninv = pow(jden,-1,char)
+            return (jnum*jdeninv)%char
+
 
 def j_to_fg(j:int,char = 0):
     if j == 0:
@@ -369,6 +417,42 @@ def mw_arr_from_gens(abc:tuple,gens:dict)->np.array:
         pts = [(pt0+m*np.array([x,y]))%den 
                for pt0 in pts for m in range(gens[gen])]
     return np.array([pt[0]*one+pt[1]*tau for pt in pts])/den
+
+
+                #####################
+                # Single Curve Data #
+                #####################
+
+def ec_look_up(fg:tuple[int,int],p:int)->dict:
+    a = trace_frob(fg,p)
+    f,g = fg
+    ecd = (4*pow(f,3,p)+27*pow(g,2,p))%p
+    if ecd == 0:
+        raise ValueError('This is a singular curve')    
+    if g == 0:
+        s = quad_rec(f,p)
+    else:
+        s = quad_rec(g,p)
+    j = fg_to_j(fg,p)
+    data = {'ap':(a,p),'ec_eq':ec_eq_str(fg,p),
+            'j':j,'s':s,'trfr':a,'has_pcqf':False,'qf':None}
+    if a == 0:
+        if p in get_ssps_pc():
+            data['has_pcqf'] = True
+            data['qf'] = ecqf_ss_1K_pc[p][(j,s)]
+    else:
+        ap = (abs(a),p)
+        if ap in get_aps_pc():
+            data['has_pcqf'] = True
+            data['qf'] = ecqf_ord_1K_pc[ap][j]
+    if not data['has_pcqf']:
+        return data
+    qf = data['qf']
+    fr_s = 1
+    if a < 0:
+        fr_s = -1
+    data['FrobmMat']= qf_ap_FrMat(qf,ap,s=fr_s)
+    return data
 
             ##############
             # ECQF Class #
