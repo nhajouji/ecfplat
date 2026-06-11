@@ -374,8 +374,13 @@ def qf_ap_FrMat(qf:tuple[int,int,int],ap:tuple[int,int],s=1)->MatrixElement:
     trace_diff = a- (tau_scalar * atau_mat.trace)
     assert trace_diff % 2 == 0
     one_scalar = trace_diff//2
-    frmat_tup = (one_scalar * I2m + tau_scalar * atau_mat).vec
-    return MatrixElement(frmat_tup,M2Z)
+    frmat = one_scalar * I2m + tau_scalar * atau_mat
+    if abs(frmat.trace)!= abs(a):
+        raise ValueError('Something went wrong in computation')
+    if frmat.trace == a:
+        return frmat
+    else:
+        return -frmat
 
 
 def frk_fxp_mat(frmat:MatrixElement,k:int)->tuple[tuple[int,int],tuple[int,int]]:
@@ -425,6 +430,8 @@ def mw_arr_from_gens(abc:tuple,gens:dict)->np.array:
 
 def ec_look_up(fg:tuple[int,int],p:int)->dict:
     a = trace_frob(fg,p)
+    ap0 = (abs(a),p)
+    ap = (a,p)
     f,g = fg
     ecd = (4*pow(f,3,p)+27*pow(g,2,p))%p
     if ecd == 0:
@@ -436,7 +443,7 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
     j = fg_to_j(fg,p) %p
     df = a*a-4*p
     d,cf = discfac(df)
-    data = {'ap':(a,p),'ec_eq':ec_eq_str(fg,p),
+    data = {'ap':ap,'ec_eq':ec_eq_str(fg,p),'coefs':fg,
             'j':j,'s':s,'frob_tr':a,'frob_disc':df,'frob_cond':cf,'endo_fun_disc':d,
             'has_pcqf':False,'qf':None}
     if a == 0:
@@ -444,17 +451,16 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
             data['has_pcqf'] = True
             data['qf'] = ecqf_ss_1K_pc[p][(j,s)]
     else:
-        ap = (abs(a),p)
-        if ap in get_aps_pc():
+        if ap0 in get_aps_pc():
             data['has_pcqf'] = True
-            data['qf'] = ecqf_ord_1K_pc[ap][j%p]
+            data['qf'] = ecqf_ord_1K_pc[ap0][j%p]
     if not data['has_pcqf']:
         return data
     qf = data['qf']
     fr_s = 1
     if a < 0:
         fr_s = -1
-    data['FrobmMat']= qf_ap_FrMat(qf,ap,s=fr_s)
+    data['FrobMat']= qf_ap_FrMat(qf,ap,s=fr_s)
     tau_arr = abc_to_tau(qf)
     data['tau_str'] = abc_to_tau_str(qf)
     data['tau_xy'] = tuple([np.round(x,3) for x in tau_arr])
@@ -484,6 +490,9 @@ class QFIsogenyClass:
 class ECQFIsogenyClass(QFIsogenyClass):
     def __init__(self,a:int,p:int):
         super().__init__(a*a-4*p)
+        self.a_sign = 1
+        if a <0:
+            self.a_sign = -1
         self.disc = a*a-4*p
         nonsquare = p-1
         self.ap = (a,p)
@@ -492,7 +501,7 @@ class ECQFIsogenyClass(QFIsogenyClass):
         while nonsquare>1 and quad_rec(nonsquare,p)>= 0:
             nonsquare-=1
         self.nonsquare = nonsquare
-        self.qf_to_frob_mats = {qf:qf_ap_FrMat(qf,(a,p)) for qf in self.qfs_all}
+        self.qf_to_frob_mats = {qf:qf_ap_FrMat(qf,(a,p),s=self.a_sign) for qf in self.qfs_all}
         self.js_to_qf = None
         self.js = None
         self.jsigs = None
@@ -550,6 +559,13 @@ class ECQFIsogenyClass(QFIsogenyClass):
                              'endo_disc':qfds,'endo_cond':qf_cs,'endo_cocond':qf_ccs,
                              'frobmat':frobmats,'tau_s':tau_strs,'tau_xy':tau_xys})
     
+    def qf_to_mwgr_arr_single(self,k:int,qf:tuple[int,int,int]):
+        if qf not in self.qf_to_frob_mats:
+            raise ValueError('Form not in dictionary')
+        frbmat = self.qf_to_frob_mats[qf]
+        mw_gens =  frob_to_mw_gens(frbmat,k)
+        return mw_arr_from_gens(qf,mw_gens)
+
     def ecqf_mw_df(self,k:int):
         if self.js_to_qf == None:
             raise ValueError('No data available')

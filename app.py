@@ -1,141 +1,29 @@
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent / "pycode"))
-
 import streamlit as st
-import numpy as np
-import matplotlib.pyplot as plt
 
-from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data, abc_to_tau
+st.set_page_config(page_title="ecfplat", layout="centered")
 
-st.set_page_config(page_title="ecfplat", layout="wide")
+st.title("ecfplat")
+st.markdown(
+    "A visual tool for exploring the bijection between elliptic curves over finite fields "
+    "and lattice classes. Choose an entry point below."
+)
 
-# ── Session state ────────────────────────────────────────────────────────────
-if "isoclass" not in st.session_state:
-    st.session_state.isoclass = None
-if "selected_row" not in st.session_state:
-    st.session_state.selected_row = None
+st.divider()
 
-# ── Sidebar: (a, p) input ────────────────────────────────────────────────────
-with st.sidebar:
-    st.title("ecfplat")
-    st.markdown("Enter a pair *(a, p)* with *p* prime and *a² < 4p*.")
-    a_input = st.number_input("a", value=22, step=1)
-    p_input = st.number_input("p", value=1021, step=1, min_value=2)
-    load = st.button("Load isogeny class", use_container_width=True)
+col1, col2 = st.columns(2)
 
-    if load:
-        a, p = int(a_input), int(p_input)
-        if not ap_in_pc_data((a, p)):
-            st.error(
-                f"(a, p) = ({a}, {p}) is not in the precomputed data.\n\n"
-                "Check that p is prime, a² < 4p, and the pair is within "
-                "the precomputed range (4 ≤ p ≤ 1024)."
-            )
-            st.session_state.isoclass = None
-            st.session_state.selected_row = None
-        else:
-            with st.spinner("Loading…"):
-                st.session_state.isoclass = ECQFIsogenyClass(a, p)
-                st.session_state.selected_row = None
-            st.success(f"Loaded (a, p) = ({a}, {p})")
-
-# ── Main area ────────────────────────────────────────────────────────────────
-isoclass = st.session_state.isoclass
-
-if isoclass is None:
-    st.info("Enter a pair (a, p) in the sidebar and click **Load isogeny class**.")
-    st.stop()
-
-a, p = isoclass.ap
-st.header(f"Isogeny class  (a, p) = ({a}, {p})")
-st.caption(f"Discriminant: {isoclass.disc}   |   # lattice classes: {len(isoclass.qfs_all)}")
-
-# ── DataFrame tab / Lattice tab ───────────────────────────────────────────────
-tab_df, tab_lattice = st.tabs(["Isogeny class table", "Lattice picture"])
-
-# ── Tab 1: DataFrame ──────────────────────────────────────────────────────────
-with tab_df:
+with col1:
+    st.subheader("Isogeny Class")
     st.markdown(
-        "Click a row to select it, then switch to the **Lattice picture** tab."
+        "Start from a pair *(a, p)* to load an entire isogeny class. "
+        "Browse the bijection table and inspect lattice pictures for each curve."
     )
-    df = isoclass.ecqf_df()
+    st.page_link("pages/1_Isogeny_Class.py", label="Go to Isogeny Class →")
 
-    # st.dataframe with row selection (Streamlit ≥ 1.35)
-    event = st.dataframe(
-        df,
-        use_container_width=True,
-        hide_index=True,
-        on_select="rerun",
-        selection_mode="single-row",
+with col2:
+    st.subheader("EC Search")
+    st.markdown(
+        "Start from a specific elliptic curve *y² = x³ + fx + g* over **F**_p. "
+        "Look up its trace of Frobenius, associated lattice, and view classical and lattice pictures."
     )
-
-    selected_rows = event.selection.rows
-    if selected_rows:
-        st.session_state.selected_row = selected_rows[0]
-
-    if st.session_state.selected_row is not None:
-        row = df.iloc[st.session_state.selected_row]
-        st.success(
-            f"Selected row {st.session_state.selected_row}:  "
-            f"j = {row['(j,sign)']},  fg = {row['EC_coefs']},  abc = {row['qf_coefs']}"
-        )
-
-# ── Tab 2: Lattice picture ────────────────────────────────────────────────────
-with tab_lattice:
-    if st.session_state.selected_row is None:
-        st.info("Select a row in the **Isogeny class table** tab first.")
-        st.stop()
-
-    row = df.iloc[st.session_state.selected_row]
-    qf = tuple(row["qf_coefs"])
-    a_qf, b_qf, c_qf = qf
-
-    st.subheader(f"Lattice for abc = {qf}")
-
-    k = st.number_input(
-        "Frobenius power k (computes Fp^k–rational points)",
-        min_value=1, value=1, step=1
-    )
-
-    # ── Compute points ────────────────────────────────────────────────────────
-    pts = isoclass.qf_to_mwgr_arr_single(int(k), qf)
-    pts_arr = np.array(pts)
-
-    # ── Draw parallelogram + points ───────────────────────────────────────────
-    tau = abc_to_tau(qf)
-    one = np.array([1.0, 0.0])
-    verts = [
-        np.array([0.0, 0.0]),
-        one,
-        one + tau,
-        tau,
-    ]
-    xs = [v[0] for v in verts]
-    ys = [v[1] for v in verts]
-
-    fig, ax = plt.subplots(figsize=(5, 5 * tau[1]))
-    poly = plt.Polygon(verts, facecolor=[0.85, 0.85, 0.95, 0.4], edgecolor="steelblue", linewidth=1.5)
-    ax.add_patch(poly)
-    if len(pts_arr) > 0:
-        ax.scatter(pts_arr[:, 0], pts_arr[:, 1], s=18, color="steelblue", zorder=3)
-    ax.set_xlim(min(xs) - 0.1, max(xs) + 0.1)
-    ax.set_ylim(-0.1, max(ys) + 0.1)
-    ax.set_aspect("equal")
-    ax.set_title(f"abc = {qf},  k = {k},  {len(pts_arr)} point(s)")
-    st.pyplot(fig)
-    plt.close(fig)
-
-    # ── Export points ─────────────────────────────────────────────────────────
-    st.markdown(f"**{len(pts_arr)} point(s)** in the fundamental parallelogram.")
-
-    lines = [f"[{pt[0]:.10f}, {pt[1]:.10f}]" for pt in pts_arr]
-    export_text = "\n".join(lines)
-
-    st.download_button(
-        label="Download points as .txt",
-        data=export_text,
-        file_name=f"points_a{a}_p{p}_abc{a_qf}_{b_qf}_{c_qf}_k{k}.txt",
-        mime="text/plain",
-        use_container_width=True,
-    )
+    st.page_link("pages/2_EC_Search.py", label="Go to EC Search →")

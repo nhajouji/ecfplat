@@ -19,6 +19,10 @@ notebooks/        # Jupyter notebooks (published)
 
 experiments/      # Local scratch notebooks (not tracked by git)
 
+pages/            # Streamlit multi-page app pages
+  1_Isogeny_Class.py  # Isogeny class browser (table + lattice picture)
+  2_EC_Search.py      # Single-curve lookup (classical + lattice picture)
+
 pycode/           # Core Python library
   alg_classes.py      # General algebraic structures: AbGrp, Ring, RingElement,
                       #   MatrixElement, ZnProduct, Mat_n_Z, Polynomial, PolyFp
@@ -43,7 +47,10 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Enter a pair (a, p), load the isogeny class, browse the table of lattice classes and elliptic curves, click a row to see the lattice picture, and download the computed points as a text file.
+The app has two entry points, accessible from the home page:
+
+- **Isogeny Class** — enter a pair `(a, p)`, load the isogeny class, browse the full bijection table, click a row to see its lattice picture, and download the computed points as a text file.
+- **EC Search** — enter coefficients `(f, g, p)` for a curve `y² = x³ + fx + g (mod p)`, look up its trace of Frobenius and associated lattice data, and view both the classical affine point picture and the lattice picture.
 
 ## Getting started (library)
 
