@@ -3,7 +3,7 @@ import pandas as pd
 import json
 from pathlib import Path
 
-from nt import *
+from nt import primesBetween,discfac,find_prim_root,quad_rec,gcd,hall_multiplier,axby
 from alg_classes import *
 from qfs import *
 
