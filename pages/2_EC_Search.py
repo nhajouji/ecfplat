@@ -8,9 +8,7 @@ import matplotlib.pyplot as plt
 
 from ecqf_tools import ec_look_up, abc_to_tau, frob_to_mw_gens, mw_arr_from_gens
 
-st.set_page_config(page_title="EC Search – ecfplat", layout="wide")
-
-# ── Helpers (ported from notebook) ───────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def fp_to_sym_fd(x: int, p: int) -> int:
     xr = x % p
@@ -42,9 +40,7 @@ def classical_plot(ecdata: dict):
     fig, ax = plt.subplots()
     ax.scatter(ax_s, ay_s, color="gray", alpha=0.3, s=8)
     ax.scatter(xs, ys, color="purple", s=18, zorder=3)
-    # mark point at infinity symbolically in top-right corner
-    ax.scatter([(p + 1) // 2], [(p + 1) // 2], color="olive", s=30, zorder=4,
-               label="∞")
+    ax.scatter([(p + 1) // 2], [(p + 1) // 2], color="olive", s=30, zorder=4, label="∞")
     ax.set_xticks([x for x in range(-(p // 2), (p + 1) // 2)])
     ax.set_yticks([y for y in range(-(p // 2), (p + 1) // 2)])
     ax.set_xlim(-(p + 3) // 2, (p + 3) // 2)
@@ -96,6 +92,9 @@ def lattice_plot(ecdata: dict, k: int):
 if "ecdata" not in st.session_state:
     st.session_state.ecdata = None
 
+# ── Pre-fill from Isogeny Class navigation ────────────────────────────────────
+prefill = st.session_state.pop("ec_prefill", None)
+
 # ── Sidebar: curve input ──────────────────────────────────────────────────────
 with st.sidebar:
     st.title("EC Search")
@@ -103,10 +102,14 @@ with st.sidebar:
         "Enter coefficients *(f, g)* and prime *p* for the curve\n\n"
         "**y² = x³ + fx + g  (mod p)**"
     )
-    f_input = st.number_input("f", value=3, step=1)
-    g_input = st.number_input("g", value=0, step=1)
-    p_input = st.number_input("p", value=5, step=1, min_value=5)
+    f_input = st.number_input("f", value=prefill["f"] if prefill else 3, step=1)
+    g_input = st.number_input("g", value=prefill["g"] if prefill else 0, step=1)
+    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=5)
     search = st.button("Look up curve", use_container_width=True)
+
+    # Auto-lookup when arriving via navigation link
+    if prefill:
+        search = True
 
     if search:
         f, g, p = int(f_input), int(g_input), int(p_input)
@@ -127,7 +130,7 @@ if ecdata is None:
 
 st.header(ecdata["ec_eq"])
 
-# ── Summary table ─────────────────────────────────────────────────────────────
+# ── Summary ───────────────────────────────────────────────────────────────────
 col_l, col_r = st.columns(2)
 with col_l:
     st.markdown(f"**j-invariant:** {ecdata['j']}")
@@ -143,6 +146,10 @@ with col_r:
         st.markdown(f"**τ:** {ecdata['tau_str']}")
         st.markdown(f"**τ coordinates:** {ecdata['tau_xy']}")
         st.markdown(f"**Frobenius matrix:** {ecdata['FrobMat'].vec}")
+        a_frob, p_char = ecdata["ap"]
+        if st.button("View isogeny class →", use_container_width=True):
+            st.session_state.ic_prefill = {"a": a_frob, "p": p_char}
+            st.switch_page("pages/1_Isogeny_Class.py")
     else:
         st.warning(
             "No precomputed quadratic form found for this curve. "
