@@ -1,7 +1,7 @@
 from nt import discfac, gcd
 from identities import *
 from alg_classes import MatrixElement, Mat_n_Z
-from modularpolynomials import *
+# from modularpolynomials import *
 
 M2Z = Mat_n_Z(2)
 

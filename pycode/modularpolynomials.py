@@ -3,6 +3,8 @@
 import json
 from pathlib import Path
 from alg_classes import Polynomial
+from nt import discfac
+from qfs import class_group_id
 
 _DATA_DIR = Path(__file__).parent / 'data'
 
@@ -15,6 +17,19 @@ with open(_DATA_DIR / 'hilbpolys.json', 'r') as f:
 hilb_polys_dict = {int(d):hilbpolys_raw[d] for d in hilbpolys_raw}
 heeg_js = {d:-hilb_polys_dict[d][0] for d in hilb_polys_dict if len(hilb_polys_dict[d])==2}
 
+heeg_js_to_qfs_dics = {}
+for d in heeg_js:
+    d0 = discfac(d)[0]
+    if d0 == d:
+        heeg_js_to_qfs_dics[d]={heeg_js[d]:class_group_id(d)}
+    else:
+        heeg_js_to_qfs_dics[d] = {heeg_js[d0]:class_group_id(d0),heeg_js[d]:class_group_id(d)}
+
+def small_bij_check(d:int)->dict:
+    if d in heeg_js_to_qfs_dics:
+        return heeg_js_to_qfs_dics[d]
+    else:
+        return {}
 
 ## Polynomials and Rational Functions
 

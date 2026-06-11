@@ -36,7 +36,9 @@ def get_aps_pc():
     return [ap for ap in ecqf_ord_1K_pc]
 
 def get_ssps_pc():
-    return [p for p in ecqf_ss_1K_pc]
+    ps = [p for p in ecqf_ss_1K_pc]
+    ps.sort()
+    return ps
 
 def ap_in_pc_data(ap:tuple[int,int])->bool:
     if ap[0]==0:
@@ -443,7 +445,12 @@ class ECQFIsogenyClass(QFIsogenyClass):
         jss = self.jsigs
         fgs = [(self.js_to_models)[js] for js in jss]
         qfs = [(self.js_to_qf)[js] for js in jss]
-        return pd.DataFrame({'js':jss,'fg':fgs,'abc':qfs})
+        tau_xys = [abc_to_tau(qf) for qf in qfs]
+        tau_xs = [xy[0] for xy in tau_xys]
+        tau_ys = [xy[1] for xy in tau_xys]
+        tau_strs = [abc_to_tau_str(qf) for qf in qfs]
+        return pd.DataFrame({'(j,sign)':jss,'EC_coefs':fgs,'qf_coefs':qfs,
+                             'tau_s':tau_strs,'tau_x':tau_xs,'tau_y':tau_ys})
     
     def ecqf_mw_df(self,k:int):
         if self.js_to_qf == None:
@@ -451,6 +458,10 @@ class ECQFIsogenyClass(QFIsogenyClass):
         jss = self.jsigs
         fgs = [(self.js_to_models)[js] for js in jss]
         qfs = [(self.js_to_qf)[js] for js in jss]
+        tau_xys = [abc_to_tau(qf) for qf in qfs]
+        tau_xs = [xy[0] for xy in tau_xys]
+        tau_ys = [xy[1] for xy in tau_xys]
+        tau_strs = [abc_to_tau_str(qf) for qf in qfs]
         qf_to_frm_dic = self.qf_to_frob_mats
         frmats = [qf_to_frm_dic[qf] for qf in qfs]
         frmat_tups = [frm.vec for frm in frmats]
@@ -462,7 +473,10 @@ class ECQFIsogenyClass(QFIsogenyClass):
             genvs.sort(key = lambda g:gendic[g],reverse = True)
             mwgsets.append(genvs)
             mwntups.append(tuple([gendic[g] for g in genvs]))
-        return pd.DataFrame({'js':jss,'fg':fgs,'abc':qfs,'frob_matrix':frmat_tups,'MW_gens':mwgsets,'MW_iso_type':mwntups})
+        return pd.DataFrame({'(j,sign)':jss,'EC_coefs':fgs,'qf_coefs':qfs,
+                             'tau_s':tau_strs,'tau_x':tau_xs,'tau_y':tau_ys,
+                             'frob_matrix':frmat_tups,'MW_gens':mwgsets,
+                             'MW_iso_type':mwntups})
     
 
     
