@@ -433,9 +433,12 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
         s = quad_rec(f,p)
     else:
         s = quad_rec(g,p)
-    j = fg_to_j(fg,p)
+    j = fg_to_j(fg,p) %p
+    df = a*a-4*p
+    d,cf = discfac(df)
     data = {'ap':(a,p),'ec_eq':ec_eq_str(fg,p),
-            'j':j,'s':s,'trfr':a,'has_pcqf':False,'qf':None}
+            'j':j,'s':s,'frob_tr':a,'frob_disc':df,'frob_cond':cf,'endo_fun_disc':d,
+            'has_pcqf':False,'qf':None}
     if a == 0:
         if p in get_ssps_pc():
             data['has_pcqf'] = True
@@ -444,7 +447,7 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
         ap = (abs(a),p)
         if ap in get_aps_pc():
             data['has_pcqf'] = True
-            data['qf'] = ecqf_ord_1K_pc[ap][j]
+            data['qf'] = ecqf_ord_1K_pc[ap][j%p]
     if not data['has_pcqf']:
         return data
     qf = data['qf']
@@ -452,6 +455,9 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
     if a < 0:
         fr_s = -1
     data['FrobmMat']= qf_ap_FrMat(qf,ap,s=fr_s)
+    tau_arr = abc_to_tau(qf)
+    data['tau_str'] = abc_to_tau_str(qf)
+    data['tau_xy'] = tuple([np.round(x,3) for x in tau_arr])
     return data
 
             ##############
