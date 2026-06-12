@@ -2,6 +2,8 @@
 
 Code supporting computations related to elliptic curves over finite fields via an explicit bijection between lattice classes and elliptic curves in a given isogeny class.
 
+The lattice point data produced here is used as input for shader-rendered artwork by Nadir Hajouji and Steve Trettel, displayed at [elliptic-curves.art](https://elliptic-curves.art/).
+
 ## Overview
 
 Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the isogeny class of elliptic curves over **F**_p whose Frobenius has characteristic polynomial `x² - ax + p`. The central object is an explicit bijection between:
@@ -20,8 +22,13 @@ notebooks/        # Jupyter notebooks (published)
 experiments/      # Local scratch notebooks (not tracked by git)
 
 pages/            # Streamlit multi-page app pages
-  1_Isogeny_Class.py  # Isogeny class browser (table + lattice picture)
-  2_EC_Search.py      # Single-curve lookup (classical + lattice picture)
+  0_Homepage.py       # Landing page with project description and navigation
+  1_Isogeny_Class.py  # Isogeny class browser: bijection table, isogeny graph,
+                      #   and cross-navigation to EC Search
+  2_EC_Search.py      # Single-curve lookup: classical and lattice pictures,
+                      #   point download, cross-navigation to Isogeny Class
+  3_Background.py     # Crash course: interactive lecture tabs covering elliptic
+                      #   curves over ℝ/𝔽ₚ/ℂ, isogenies, CM, and Frobenius
 
 pycode/           # Core Python library
   alg_classes.py      # General algebraic structures: AbGrp, Ring, RingElement,
@@ -35,6 +42,8 @@ pycode/           # Core Python library
   ecqf_tools.py       # Bijection utilities, Frobenius matrices, Mordell–Weil
                       #   computations, ECQFIsogenyClass
   ecqf.py             # Supporting bijection algorithms (ordinary and supersingular)
+  graph_tools.py      # Isogeny graph utilities: adjacency matrices, cycle/tree
+                      #   decompositions, bijection algorithms
   data/               # Precomputed bijection data (JSON)
 ```
 
@@ -47,10 +56,12 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app has two entry points, accessible from the home page:
+The app has four pages:
 
-- **Isogeny Class** — enter a pair `(a, p)`, load the isogeny class, browse the full bijection table, click a row to see its lattice picture, and download the computed points as a text file.
-- **EC Search** — enter coefficients `(f, g, p)` for a curve `y² = x³ + fx + g (mod p)`, look up its trace of Frobenius and associated lattice data, and view both the classical affine point picture and the lattice picture.
+- **Homepage** — project description and links to the two main tools.
+- **Background** — crash course on the underlying mathematics, with interactive applets. Currently implemented: chord-tangent group law on elliptic curves over ℝ, and a τ explorer for the complex lattice ℂ/Λ.
+- **EC Search** — enter coefficients `(f, g, p)` for a curve `y² = x³ + fx + g (mod p)`, look up its trace of Frobenius and associated lattice data, view classical and lattice pictures, and navigate directly to its isogeny class.
+- **Isogeny Class** — enter a pair `(a, p)`, browse the full bijection table, view degree-ℓ isogeny graphs (adjacency matrix + concentric-ring picture with horizontal/vertical edges distinguished by colour), and navigate to any individual curve in EC Search.
 
 ## Getting started (library)
 
@@ -88,6 +99,9 @@ isoclass = ECQFIsogenyClass(22, 1021)
 
 # View all lattice classes and their corresponding elliptic curve data
 isoclass.ecqf_df()
+
+# Compute the degree-5 isogeny graph adjacency matrix
+isoclass.adjacency_matrix(5)
 ```
 
 ## Precomputed data
