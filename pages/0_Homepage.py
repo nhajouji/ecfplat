@@ -5,7 +5,9 @@ LOGO = Path(__file__).parent / "ec_logo.jpg"
 
 title_col, logo_col = st.columns([3, 1])
 with title_col:
-    st.markdown("# Elliptic Curves over $\\mathbb{F}_p$  \nvia CM Lattices")
+    st.markdown("<style>h1 { text-align: center; }</style>", unsafe_allow_html=True)
+    st.markdown("# Elliptic Curves over $\\mathbb{F}_p$")
+    st.markdown("# via CM Lattices")
 with logo_col:
     st.image(str(LOGO), use_container_width=True)
 st.markdown(
