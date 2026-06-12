@@ -5,16 +5,11 @@ LOGO = Path(__file__).parent / "ec_logo.jpg"
 
 title_col, logo_col = st.columns([3, 1])
 with title_col:
-    st.markdown(
-        "<h1 style='text-align: center;'>"
-        "Elliptic Curves over $\\mathbb{F}_p$<br>via CM Lattices"
-        "</h1>",
-        unsafe_allow_html=True,
-    )
+    st.markdown("# Elliptic Curves over $\\mathbb{F}_p$  \nvia CM Lattices")
 with logo_col:
     st.image(str(LOGO), use_container_width=True)
 st.markdown(
-    "Tools for visualizing various aspects of categories of elliptic curves over **F**_p "
+    "Tools for visualizing various aspects of categories of elliptic curves over $\\mathbb{F}_p$ "
     "using precomputed equivalences with a category of CM lattices."
 )
 
@@ -23,6 +18,7 @@ st.markdown(
     "by Nadir Hajouji and Steve Trettel. You can view the results at "
     "[elliptic-curves.art](https://elliptic-curves.art/)."
 )
+
 
 st.divider()
 
