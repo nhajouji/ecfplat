@@ -7,7 +7,7 @@ title_col, logo_col = st.columns([3, 1])
 with title_col:
     st.markdown(
         "<h1 style='text-align: center;'>"
-        "Elliptic Curves over F_p<br>via CM Lattices"
+        "Elliptic Curves over $\\mathbb{F}_p$<br>via CM Lattices"
         "</h1>",
         unsafe_allow_html=True,
     )
