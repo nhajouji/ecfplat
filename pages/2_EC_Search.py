@@ -41,8 +41,12 @@ def classical_plot(ecdata: dict):
     ax.scatter(ax_s, ay_s, color="gray", alpha=0.3, s=8)
     ax.scatter(xs, ys, color="purple", s=18, zorder=3)
     ax.scatter([(p + 1) // 2], [(p + 1) // 2], color="olive", s=30, zorder=4, label="∞")
-    ax.set_xticks([x for x in range(-(p // 2), (p + 1) // 2)])
-    ax.set_yticks([y for y in range(-(p // 2), (p + 1) // 2)])
+    if p <15:
+        ax.set_xticks([x for x in range(-(p // 2), (p + 1) // 2)])
+        ax.set_yticks([y for y in range(-(p // 2), (p + 1) // 2)])
+    else:
+        ax.set_xticks([])
+        ax.set_yticks([])
     ax.set_xlim(-(p + 3) // 2, (p + 3) // 2)
     ax.set_ylim(-(p + 3) // 2, (p + 3) // 2)
     ax.set_aspect("equal")
