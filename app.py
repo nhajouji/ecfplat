@@ -1,10 +1,7 @@
 import streamlit as st
-from pathlib import Path
 
 st.set_page_config(page_title="ecfplat", layout="wide")
 
-LOGO = Path(__file__).parent / "pages" / "ec_logo.jpg"
-st.sidebar.image(str(LOGO), use_container_width=True)
 
 pg = st.navigation([
     st.Page("pages/0_Homepage.py",      title="Homepage",       icon="🏠"),

@@ -3,8 +3,16 @@ from pathlib import Path
 
 LOGO = Path(__file__).parent / "ec_logo.jpg"
 
-st.image(str(LOGO), width=220)
-st.title("Elliptic Curves over F_p via CM Lattices: Tools, Data and Basic Pictures")
+title_col, logo_col = st.columns([3, 1])
+with title_col:
+    st.markdown(
+        "<h1 style='text-align: center;'>"
+        "Elliptic Curves over F_p via CM Lattices:<br>Tools, Data and Basic Pictures"
+        "</h1>",
+        unsafe_allow_html=True,
+    )
+with logo_col:
+    st.image(str(LOGO), use_container_width=True)
 st.markdown(
     "Tools for visualizing various aspects of categories of elliptic curves over **F**_p "
     "using precomputed equivalences with a category of CM lattices."
