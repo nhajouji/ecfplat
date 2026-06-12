@@ -6,6 +6,12 @@ st.markdown(
     "using precomputed equivalences with a category of CM lattices."
 )
 
+st.markdown(
+    "The lattice point data produced here is used as input for shader-rendered artwork "
+    "by Nadir Hajouji and Steve Trettel. You can view the results at "
+    "[elliptic-curves.art](https://elliptic-curves.art/)."
+)
+
 st.divider()
 
 col1, col2 = st.columns(2)
