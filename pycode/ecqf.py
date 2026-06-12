@@ -118,6 +118,18 @@ def gen_qfs_d_ls(d,lset):
         qfs = list(set(qfs_new))
     return qfs
 
+def minimize_lset(d,ls):
+    ls = [l for l in ls]
+    n1 = len(gen_qfs_d_ls(d,ls))
+    l0s= [ls[:i]+ls[i+1:] for i in range(len(ls))]
+    l0s_g =[l0 for l0 in l0s if len(gen_qfs_d_ls(d,l0))==n1]
+    while len(l0s_g)>0:
+        l0s_g.sort(key = max)
+        ls = l0s_g[0]
+        l0s= [ls[:i]+ls[i+1:] for i in range(len(ls))]
+        l0s_g =[l0 for l0 in l0s if len(gen_qfs_d_ls(d,l0))==n1]
+    return tuple(ls)
+
 def score_tuple(ls,scores):
     prod = 1
     for l in ls:
@@ -134,17 +146,7 @@ def check_lset(d,ls):
         prd*=nl
     return [cld,lgr_size,prd]
 
-def minimize_lset(d,ls):
-    ls = [l for l in ls]
-    n1 = len(gen_qfs_d_ls(d,ls))
-    l0s= [ls[:i]+ls[i+1:] for i in range(len(ls))]
-    l0s_g =[l0 for l0 in l0s if len(gen_qfs_d_ls(d,l0))==n1]
-    while len(l0s_g)>0:
-        l0s_g.sort(key = max)
-        ls = l0s_g[0]
-        l0s= [ls[:i]+ls[i+1:] for i in range(len(ls))]
-        l0s_g =[l0 for l0 in l0s if len(gen_qfs_d_ls(d,l0))==n1]
-    return tuple(ls)
+
 
 def get_spanl2s(d):
     l2s = [ln[0] for ln in disc_to_ssls(d).items() if ln[1]==2]
@@ -222,6 +224,7 @@ def qf_trios_from_ltrio(d,l123):
             if len(qfs_l123)>0:
                 qftrios.append([qf1,qf2,qfs_l123[0]])
     return qftrios
+
 
 def qf_nn_rig_basis(d,ldata=None):
     if ldata == None:

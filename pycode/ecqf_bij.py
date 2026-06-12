@@ -8,11 +8,73 @@ from misctools import *
 
 ssprimes = primesBetween(2,36)+[41]+[47+12*k for k in range(3)]
 
-###############
-# QF Iso data #
-###############
 
-# This pulls up all of the necessary neighbor data
+
+                ######################
+                # Rigid l-set search #
+                ######################
+
+from nt import primesBetween, discfac, quad_rec
+from qfs import get_qfs_all, qf_isogs,qf_isogs_hor,qf_parents,qf_isog_cycle,class_group_id,qf_evs_inrange
+from ecqf import qf_reps_pm
+
+def qfs_in_conn_comp(qf0,ls):
+    qfs = [qf0]
+    n_ls = 1
+    for l in ls:
+        n_l = len(qf_isog_cycle(qf0,l))
+        if n_l>1:
+            n_ls*= n_l
+            qfs_new = []
+            for qf in qfs:
+                qfs_new+=qf_isog_cycle(qf,l)
+            qfs = list(set(qfs_new))
+    return qfs,n_ls
+
+def qfd_lgr_sizes(d,ls):
+    qf0 = class_group_id(d)
+    qfs,n = qfs_in_conn_comp(qf0,ls)
+    return len(qfs),n
+
+def qf_mimimize_ls(d,ls):
+    gr_s1, gr_s2 = qfd_lgr_sizes(d,ls)
+    lls= list(ls)
+    i = 0
+    while i < len(lls) and gr_s1 != gr_s2:
+        lls_0 = lls[:i]+lls[i+1:]
+        gr_s10,gr_s20 = qfd_lgr_sizes(d,tuple(lls_0))
+        if gr_s10 == gr_s1:
+            lls = lls_0
+            gr_s1 = gr_s10
+            gr_s2 = gr_s20
+        else:
+            i+=1
+    return ls
+
+        
+def disc_to_ssls_all(d):
+    ssprimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 41, 47, 59, 71]
+    qfsfound = {l:[] for l in ssprimes}
+    qf_reps = qf_reps_pm(d)
+    ls = {}
+    qf0 = class_group_id(d)
+    for qf in qf_reps:
+        qfls = [l for l in qf_evs_inrange(qf,10) if l in ssprimes]
+        if len(qfls)>0:
+            l0 = min(qfls)
+            ls[l0]=len(qf_isog_cycle(qf0,l0))
+    return ls
+
+def disc_to_ssls_gens(d):
+    return qf_mimimize_ls(d,[l for l in disc_to_ssls_all(d)])
+
+
+        #########################################
+        # Step 2: Collect Relevant Isogeny Data #
+        #########################################
+
+# Quadratic form/lattice data
+
 def qf_isog_data(d,ls):
     qfs = get_qfs_strict(d)
     return {l:{qf:qf_isogs_hor(qf,l) for qf in qfs} for l in ls}
