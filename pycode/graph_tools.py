@@ -1,6 +1,19 @@
 from misctools import *
 
+####################
+# Adjacency Matrix #
+####################
 
+def nbrdata_to_isomat(nbrdata:dict,verts_ordered:list):
+    v_to_i = {v:i for i,v in enumerate(verts_ordered)}
+    assert len({v for v in v_to_i if v not in nbrdata}) == 0
+    dim = len(v_to_i)
+    mat = [[0 for _ in range(dim)] for _ in range(dim)]
+    for i1,v1 in enumerate(verts_ordered):
+        for v2 in nbrdata[v1]:
+            i2 = v_to_i[v2]
+            mat[i1][i2]+=1
+    return mat
 
 ##########################
 # Tree search algorithms #
@@ -113,6 +126,15 @@ def oriented_cycle_from_nbdata(v01, nbrdata):
         cyc.append(nxt)
         prev, cur = cur, nxt
 
+def cycle_from_neighbor_data(v0,nbrdata):
+    if v0 not in nbrdata:
+        raise KeyError('Vertices must be in dictionary')
+    v0_nbrs = nbrdata[v0]
+    if len(v0_nbrs)<=1:
+        return [v0]+v0_nbrs
+    else:
+        v1 = v0_nbrs[0]
+        return oriented_cycle_from_nbdata(v01=(v0,v1),nbrdata=nbrdata)
 
 def extend_bijection_zn1(initF, nbrdata):
     """Extend initF (defined on the 0/1 cube) to all of A.

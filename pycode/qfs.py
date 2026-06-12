@@ -140,6 +140,10 @@ def get_qfs_all(d:int):
 def get_qfs_strict(d:int):
     return [qf for qf in get_qfs_all(d) if qf_disc(qf)==d]
 
+def qfs_ordered_by_cond(d):
+    qfs = get_qfs_all(d)
+    qfs.sort(key = lambda qf:discfac(qf_disc(qf))[1])
+    return qfs
 
 def class_group_id(d:int):
     if d % 4 > 1:

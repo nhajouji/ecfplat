@@ -6,6 +6,7 @@ from pathlib import Path
 from nt import primesBetween,discfac,find_prim_root,quad_rec,gcd,hall_multiplier,axby
 from alg_classes import *
 from qfs import *
+from graph_tools import nbrdata_to_isomat,cycle_from_neighbor_data
 
 M2Z = Mat_n_Z(2)
 
@@ -469,15 +470,24 @@ def ec_look_up(fg:tuple[int,int],p:int)->dict:
             ##############
             # ECQF Class #
             ##############
+
 class QFIsogenyClass:
     def __init__(self,d:int):
+        if d >= 0 or (d % 4 >1):
+            raise ValueError(f'{d} must be a negative discriminant')
+        self.qfs_all = qfs_ordered_by_cond(d)
+        self.qfs_ordered = tuple(self.qfs_all)
+        self.neighbor_data_horz = {}
+        self.vert_isog_data = {}
+        self.neighbor_data = {}
         self.disc = d
         d0,c = discfac(d)
         self.field_disc = d0
         self.cond = c
-        self.qfs_all = get_qfs_all(d)
         self.qfs_leaves = [qf for qf in self.qfs_all if qf_disc(qf)==d]
+        # This stores the discriminant of the endomorphism ring of the quadratic form
         self.endo_disc_dict = {qf:qf_disc(qf) for qf in self.qfs_all}
+        # This stores the conductor of the endomorphism ring of the quadratic form
         self.endo_cond_dict = {qf:discfac(qf_disc(qf))[1] for qf in self.qfs_all}
         self.l_dict = {}
         self.ord_dict = {}
@@ -485,7 +495,77 @@ class QFIsogenyClass:
             l,n = qf_l_order(qf)
             self.l_dict[qf]=l
             self.ord_dict[qf]=n
+
+
+    def get_isog_neighbors_horz(self,l:int):
+        if l in self.neighbor_data_horz:
+            return self.neighbor_data_horz[l]
+        else:
+            qfs = self.qfs_ordered
+            data= {qf:qf_isogs_hor(qf,l) for qf in qfs}
+            self.neighbor_data_horz[l] = data
+            return data
+
+    def get_isog_neighbors_asc(self,l:int):
+        c = self.cond
+        if c % l != 0:
+            return {}
+        elif l in self.vert_isog_data:
+            return self.vert_isog_data[l]
+        else:
+            asc_data = {}
+            qfs = self.qfs_ordered
+            for qf in qfs:
+                d_qf = qf_disc(qf)
+                c_qf = discfac(d_qf)[1]
+                if c_qf % l == 0:
+                    asc_data[qf] = qf_parents(qf,l)[0]
+            self.vert_isog_data[l] = asc_data
+            return asc_data
+        
+    def get_neighbor_data_all(self,l):
+        if l in self.neighbor_data:
+            return self.neighbor_data[l]
+        neighbors_data_l = self.get_isog_neighbors_horz(l)
+        c = self.cond
+        if c % l == 0:
+            vert_data = self.get_isog_neighbors_asc(l)
+            for qf0 in vert_data:
+                qf1 = vert_data[qf0]
+                neighbors_data_l[qf0].append(qf1)
+                neighbors_data_l[qf1].append(qf0)
+        self.neighbor_data[l] = neighbors_data_l
+        return neighbors_data_l
     
+    def adjacency_matrix(self,l):
+        data = self.get_neighbor_data_all(l)
+        return nbrdata_to_isomat(nbrdata=data,verts_ordered=self.qfs_ordered)
+    
+    def isog_cycle(self,qf0:tuple[int,int,int],l:int):
+        if qf0 not in self.qfs_all:
+            raise ValueError(f'{qf0} is not in isogeny class')
+        lnbr_data = self.get_isog_neighbors_horz(l)
+        return cycle_from_neighbor_data(qf0,lnbr_data)
+    
+    def isog_cycle_partition(self,l):
+        cond_dict = self.endo_cond_dict
+        qfs_by_cond = {c:[] for c in cond_dict.values()}
+        for qf,c in cond_dict.items():
+            qfs_by_cond[c].append(qf)
+        cycles_by_cond = {c:[] for c in qfs_by_cond if c % l != 0}
+        for c in cycles_by_cond:
+            qfs_c = qfs_by_cond[c]
+            while len(qfs_c)>0:
+                cyc_new = self.isog_cycle(qfs_c[0],l)
+                assert len(cyc_new)>0
+                cycles_by_cond[c].append(cyc_new)
+                qfs_c_new = [qf for qf in qfs_c if qf not in cyc_new]
+                assert len(qfs_c_new)+len(cyc_new) == len(qfs_c)
+                qfs_c = qfs_c_new
+        return qfs_by_cond
+            
+        
+
     
 class ECQFIsogenyClass(QFIsogenyClass):
     def __init__(self,a:int,p:int):
