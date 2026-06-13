@@ -963,4 +963,89 @@ with tab4:
         "$\\Lambda = \\mathbb{Z} + \\tau\\mathbb{Z}$ where $\\tau$ is a quadratic "
         "irrational — a root of a quadratic equation with integer coefficients."
     )
-    st.info("An interactive applet will be added here.")
+    st.divider()
+    st.markdown(
+        "The applet below illustrates the difference between an endomorphism and a "
+        "non-endomorphism. Two lattices are shown: $\\mathbb{Z}[i]$ (square grid) and "
+        "$\\mathbb{Z}[2i]$ (rectangular grid with even imaginary parts). "
+        "Enter $\\alpha = a + bi$ to see where $\\alpha$ sends each lattice point. "
+        "Because $\\mathbb{Z}[i]$ has CM by $\\mathbb{Z}[i]$ itself, every "
+        "$\\alpha \\in \\mathbb{Z}[i]$ is an endomorphism — all images land in the lattice "
+        "(blue). For $\\mathbb{Z}[2i]$, this only works when $b$ is even; "
+        "when $b$ is odd some images fall outside the lattice (red)."
+    )
+
+    endo_col, _ = st.columns([1, 3])
+    with endo_col:
+        a_end = int(st.number_input("a", value=1, step=1, key="endo_a"))
+        b_end = int(st.number_input("b", value=1, step=1, key="endo_b"))
+
+    # ── Compute images ────────────────────────────────────────────────────────
+    # Source: a patch of each lattice; images may land anywhere
+    SRC = 3   # source range: |m|,|n| ≤ SRC
+
+    # Z[i]: z = m + ni;  α·z = (am-bn) + (an+bm)i
+    zi_src = [(m, n) for m in range(-SRC, SRC+1) for n in range(-SRC, SRC+1)]
+    zi_img = list({(a_end*m - b_end*n, a_end*n + b_end*m) for m, n in zi_src})
+
+    # Z[2i]: z = m + 2ni;  α·z = (am-2bn) + (bm+2an)i
+    z2i_src = [(m, n) for m in range(-SRC, SRC+1) for n in range(-SRC//2, SRC//2+1)]
+    z2i_good, z2i_bad = [], []
+    for m, n in z2i_src:
+        rx = a_end*m - b_end*(2*n)
+        ry = b_end*m + a_end*(2*n)
+        (z2i_good if ry % 2 == 0 else z2i_bad).append((rx, ry))
+    z2i_good = list(set(z2i_good))
+    z2i_bad  = list(set(z2i_bad))
+
+    # Dynamic display range
+    all_coords = [c for pt in zi_img + z2i_good + z2i_bad for c in pt]
+    disp_R = max(5, min(14, max((abs(c) for c in all_coords), default=5) + 1))
+
+    # Background lattice points within display window
+    BG = int(disp_R) + 1
+    zi_bg  = [(m, n)   for m in range(-BG, BG+1) for n in range(-BG, BG+1)
+              if abs(m) <= disp_R and abs(n) <= disp_R]
+    z2i_bg = [(m, 2*n) for m in range(-BG, BG+1) for n in range(-BG, BG+1)
+              if abs(m) <= disp_R and abs(2*n) <= disp_R]
+
+    # ── Plot ──────────────────────────────────────────────────────────────────
+    sign_str = f"{b_end:+d}".replace("+", "+").replace("-", "-")
+    alpha_str = f"{a_end}{sign_str}i"
+
+    fig_endo, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(10, 5))
+
+    for ax, bg, imgs_blue, imgs_red, title in [
+        (ax_l, zi_bg,   zi_img,    [],        f"$\\mathbb{{Z}}[i]$"),
+        (ax_r, z2i_bg,  z2i_good,  z2i_bad,   f"$\\mathbb{{Z}}[2i]$"),
+    ]:
+        ax.scatter([p[0] for p in bg], [p[1] for p in bg],
+                   color="gray", alpha=0.25, s=8, zorder=1)
+        if imgs_blue:
+            ax.scatter([p[0] for p in imgs_blue], [p[1] for p in imgs_blue],
+                       color="steelblue", s=30, zorder=3)
+        if imgs_red:
+            ax.scatter([p[0] for p in imgs_red], [p[1] for p in imgs_red],
+                       color="red", s=30, zorder=3)
+        ax.axhline(0, color="k", lw=0.4)
+        ax.axvline(0, color="k", lw=0.4)
+        ax.set_xlim(-disp_R, disp_R)
+        ax.set_ylim(-disp_R, disp_R)
+        ax.set_aspect("equal")
+        ax.set_frame_on(False)
+        ax.set_title(f"{title},  $\\alpha = {alpha_str}$", fontsize=11)
+
+    fig_endo.tight_layout()
+    st.pyplot(fig_endo)
+    plt.close(fig_endo)
+
+    if z2i_bad:
+        st.caption(
+            f"$\\alpha = {alpha_str}$ is **not** an endomorphism of $\\mathbb{{Z}}[2i]$: "
+            f"{len(set(z2i_bad))} image(s) fall outside the lattice (shown in red)."
+        )
+    else:
+        st.caption(
+            f"$\\alpha = {alpha_str}$ **is** an endomorphism of both lattices: "
+            "all images land back in the lattice."
+        )
