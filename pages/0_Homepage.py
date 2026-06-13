@@ -41,3 +41,21 @@ with col2:
         "Look up its trace of Frobenius, associated lattice, and view classical and lattice pictures."
     )
     st.page_link("pages/2_EC_Search.py", label="Go to EC Search →")
+
+st.divider()
+
+st.markdown("### Acknowledgements")
+st.markdown(
+    "This website was built with substantial assistance from "
+    "[Claude](https://claude.ai) (Anthropic), which contributed to the codebase, "
+    "the app architecture, and the background lessons throughout. "
+    "Precomputed data was obtained and verified in part using "
+    "[SageMath](https://www.sagemath.org/); the existence of Sage as an open-source "
+    "mathematical computing library was part of the inspiration for making this project "
+    "publicly accessible.\n\n"
+    "The shader-rendered artwork is the work of "
+    "[Steve Trettel](https://stevejtrettel.site/). "
+    "This project grew out of conversations at the conference "
+    "*[Integrating Research and Illustration in Number Theory](https://indico.math.cnrs.fr/event/16261/)*, "
+    "and I am grateful to the illustrating mathematics community for the inspiration."
+)
