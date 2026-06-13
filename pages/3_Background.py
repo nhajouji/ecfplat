@@ -391,17 +391,226 @@ with tab1:
         plt.close(fig1)
 
 
-# ── Tab 2: Elliptic curves over 𝔽ₚ (algebraically) ──────────────────────────
+# ── Tab 2: Elliptic curves over 𝔽ₚ ──────────────────────────────────────────
 with tab2:
-    st.subheader("Elliptic Curves over 𝔽ₚ — Algebraic Viewpoint")
+    st.subheader("Elliptic Curves over $\\mathbb{F}_p$")
+
+    # ── Explanation ───────────────────────────────────────────────────────────
     st.markdown(
-        "Over the finite field 𝔽ₚ the same equation y² = x³ + fx + g defines a "
-        "**finite** set of points, and the chord-tangent law still makes the set into "
-        "an abelian group — but now all arithmetic is done mod p. "
-        "The EC Search page already lets you plot the affine points of any such curve."
+        "Everything from the previous two lessons carries over to the finite field "
+        "$\\mathbb{F}_p = \\{0, 1, \\ldots, p-1\\}$, with one change: "
+        "instead of the real numbers, all coordinates and all arithmetic are taken **mod $p$**."
     )
-    st.info("An interactive group-law applet for 𝔽ₚ will be added here.")
-    st.page_link("pages/2_EC_Search.py", label="Go to EC Search →")
+    st.markdown(
+        "The **ambient space** is no longer the continuous real plane — it becomes a "
+        "discrete $p \\times p$ grid of points $\\mathbb{F}_p^2$. "
+        "An algebraic curve over $\\mathbb{F}_p$ is the zero set"
+    )
+    st.latex(r"\{(x, y) \in \mathbb{F}_p^2 : f(x, y) \equiv 0 \pmod{p}\}.")
+    st.markdown(
+        "Every curve we studied over $\\mathbb{R}$ has an exact analogue here. "
+        "We represent elements of $\\mathbb{F}_p$ using integers in "
+        "$\\{-\\lfloor p/2 \\rfloor, \\ldots, \\lfloor p/2 \\rfloor\\}$ "
+        "so the grid is centred at the origin."
+    )
+
+    # ── Familiar curves over F17 ──────────────────────────────────────────────
+    st.markdown("#### Familiar curves over $\\mathbb{F}_{17}$")
+    st.markdown(
+        "Here are the same five curves from the first lesson, now over $\\mathbb{F}_{17}$. "
+        "The full $17 \\times 17$ ambient grid is shown in gray."
+    )
+
+    def _fp_sym(x, p):
+        xr = x % p
+        return xr if 2 * xr < p else xr - p
+
+    def _fp_curve_pts(poly_fn, p):
+        h = p // 2
+        return [(x, y)
+                for x in range(-h, h + 1)
+                for y in range(-h, h + 1)
+                if poly_fn(x, y) % p == 0]
+
+    _P17   = 17
+    _AMB17 = [(_fp_sym(x, _P17), _fp_sym(y, _P17))
+              for x in range(_P17) for y in range(_P17)]
+
+    _EX17 = [
+        ("Line",      r"$y = x$",          _fp_curve_pts(lambda x, y: y - x,           _P17)),
+        ("Parabola",  r"$y = x^2$",        _fp_curve_pts(lambda x, y: y - x*x,         _P17)),
+        ("Hyperbola", r"$xy = 1$",         _fp_curve_pts(lambda x, y: x*y - 1,         _P17)),
+        ("Circle",    r"$x^2+y^2=1$",      _fp_curve_pts(lambda x, y: x*x + y*y - 1,  _P17)),
+        ("Ellipse",   r"$x^2+4y^2=4$",     _fp_curve_pts(lambda x, y: x*x+4*y*y-4,    _P17)),
+    ]
+
+    fig17, axes17 = plt.subplots(1, 5, figsize=(11, 2.5))
+    _ax17 = [a for a in axes17]
+    _ax17 = list(axes17)
+    for ax_i, (name, eq, pts) in zip(_ax17, _EX17):
+        ax_i.scatter([p[0] for p in _AMB17], [p[1] for p in _AMB17],
+                     color="gray", alpha=0.25, s=5, zorder=1)
+        ax_i.scatter([p[0] for p in pts], [p[1] for p in pts],
+                     color="steelblue", s=12, zorder=3)
+        ax_i.set_xlim(-9, 9); ax_i.set_ylim(-9, 9)
+        ax_i.set_aspect("equal"); ax_i.set_frame_on(False)
+        ax_i.set_xticks([]); ax_i.set_yticks([])
+        ax_i.set_title(f"{name}\n{eq}", fontsize=9, linespacing=1.6)
+    fig17.tight_layout(pad=0.5)
+    st.pyplot(fig17)
+    plt.close(fig17)
+
+    # ── Group law ─────────────────────────────────────────────────────────────
+    st.markdown("#### Elliptic curves and the group law")
+    st.markdown(
+        "An elliptic curve over $\\mathbb{F}_p$ is the set of solutions to"
+    )
+    st.latex(r"y^2 \equiv x^3 + fx + g \pmod{p}")
+    st.markdown(
+        "together with a point at infinity $\\mathcal{O}$, provided the curve is smooth "
+        "($\\Delta = -16(4f^3 + 27g^2) \\not\\equiv 0 \\pmod{p}$). "
+        "The **group law is identical** to the real case: three points sum to "
+        "$\\mathcal{O}$ if and only if they are collinear, where lines are now "
+        "$\\mathbb{F}_p$-lines (solutions to $ax + by \\equiv c \\pmod{p}$). "
+        "Use the applet below to explore."
+    )
+
+    st.divider()
+
+    # ── Fp helpers ────────────────────────────────────────────────────────────
+    def _ec_pts(f, g, p):
+        """All affine points on y^2 = x^3+fx+g over Fp (symmetric coords)."""
+        h   = p // 2
+        pts = []
+        for x in range(-h, h + 1):
+            y2 = (pow(x, 3, p) + f * x + g) % p
+            for y in range(p):
+                if pow(y, 2, p) == y2:
+                    pts.append((x, _fp_sym(y, p)))
+        return pts
+
+    def _chord_pts(x1, y1, x2, y2, p):
+        """All Fp points on the line through (x1,y1) and (x2,y2)."""
+        if (x2 - x1) % p == 0:                        # vertical line
+            return [(_fp_sym(x1, p), _fp_sym(y, p)) for y in range(p)]
+        m = (y2 - y1) * pow((x2 - x1) % p, -1, p) % p
+        b = (y1 - m * x1) % p
+        return [(_fp_sym(x, p), _fp_sym((m * x + b) % p, p)) for x in range(p)]
+
+    def _tangent_pts(x0, y0, f, p):
+        """All Fp points on the tangent to y^2=x^3+fx+g at (x0,y0), y0≠0."""
+        m = (3 * pow(x0, 2, p) + f) * pow((2 * y0) % p, -1, p) % p
+        b = (y0 - m * x0) % p
+        return [(_fp_sym(x, p), _fp_sym((m * x + b) % p, p)) for x in range(p)]
+
+    # ── Applet controls ───────────────────────────────────────────────────────
+    _PRIMES = [n for n in range(5, 72)
+               if n > 1 and all(n % d != 0 for d in range(2, n))]
+
+    # initialise so variables are always defined
+    _p_valid = _q_valid = False
+    _x1 = _y1 = _x2 = _y2 = 0
+    _pts   = []
+    _curve_ok = False
+
+    app_left, app_right = st.columns([1, 2])
+
+    with app_left:
+        st.markdown("**Field**")
+        _p = st.selectbox("p", _PRIMES,
+                          index=_PRIMES.index(17), key="bg2_p")
+
+        st.markdown("**Curve**  $y^2 = x^3 + fx + g$")
+        _f = int(st.number_input("f", value=0, step=1, key="bg2_f"))
+        _g = int(st.number_input("g", value=1, step=1, key="bg2_g"))
+
+        _disc = (-16 * (4 * pow(_f, 3) + 27 * pow(_g, 2))) % _p
+        if _disc == 0:
+            st.warning("Singular curve mod p — adjust f or g.")
+        else:
+            st.success("Smooth curve ✓")
+            _curve_ok = True
+            _pts      = _ec_pts(_f, _g, _p)
+            _xs       = sorted(set(pt[0] for pt in _pts))
+
+            if _xs:
+                st.markdown("**Point P**")
+                _x1      = st.select_slider("x (P)", options=_xs, key="bg2_x1")
+                _y1_opts = sorted(pt[1] for pt in _pts if pt[0] == _x1)
+                if len(_y1_opts) == 1:
+                    _y1 = _y1_opts[0]; _p_valid = True
+                    st.caption(f"y = {_y1}")
+                elif len(_y1_opts) >= 2:
+                    _y1 = st.radio("y (P)", _y1_opts,
+                                   horizontal=True, key="bg2_y1")
+                    _p_valid = True
+
+                st.markdown("**Point Q**")
+                _x2      = st.select_slider("x (Q)", options=_xs, key="bg2_x2")
+                _y2_opts = sorted(pt[1] for pt in _pts if pt[0] == _x2)
+                if len(_y2_opts) == 1:
+                    _y2 = _y2_opts[0]; _q_valid = True
+                    st.caption(f"y = {_y2}")
+                elif len(_y2_opts) >= 2:
+                    _y2 = st.radio("y (Q)", _y2_opts,
+                                   horizontal=True, key="bg2_y2")
+                    _q_valid = True
+            else:
+                st.caption("No affine points on this curve mod p.")
+
+    # ── Plot ──────────────────────────────────────────────────────────────────
+    with app_right:
+        if not _curve_ok:
+            st.info("Adjust f and g to get a smooth curve.")
+        else:
+            _h    = _p // 2
+            _amb  = [(_fp_sym(x, _p), _fp_sym(y, _p))
+                     for x in range(_p) for y in range(_p)]
+
+            # Compute line/tangent
+            _line = []
+            if _p_valid and _q_valid:
+                if _x1 == _x2 and _y1 == _y2:
+                    if _y1 == 0:
+                        st.info("P is a 2-torsion point: 2P = 𝒪.")
+                    else:
+                        _line = _tangent_pts(_x1, _y1, _f, _p)
+                else:
+                    _line = _chord_pts(_x1, _y1, _x2, _y2, _p)
+
+            fig_app, ax_app = plt.subplots(figsize=(5, 5))
+            # Ambient
+            ax_app.scatter([q[0] for q in _amb], [q[1] for q in _amb],
+                           color="gray", alpha=0.25, s=8, zorder=1)
+            # Fp line (slightly darker gray)
+            if _line:
+                ax_app.scatter([q[0] for q in _line], [q[1] for q in _line],
+                               color="gray", alpha=0.6, s=10, zorder=2)
+            # Curve points
+            ax_app.scatter([q[0] for q in _pts], [q[1] for q in _pts],
+                           color="steelblue", s=18, zorder=3)
+            # P and Q
+            if _p_valid:
+                ax_app.scatter([_x1], [_y1], color="red", s=60, zorder=5)
+                ax_app.annotate("P", (_x1, _y1), xytext=(5, 5),
+                                textcoords="offset points",
+                                color="red", fontsize=10, fontweight="bold")
+            if _q_valid:
+                ax_app.scatter([_x2], [_y2], color="green", s=60, zorder=5)
+                ax_app.annotate("Q", (_x2, _y2), xytext=(5, 5),
+                                textcoords="offset points",
+                                color="green", fontsize=10, fontweight="bold")
+
+            ax_app.set_xlim(-_h - 0.5, _h + 0.5)
+            ax_app.set_ylim(-_h - 0.5, _h + 0.5)
+            ax_app.set_aspect("equal")
+            ax_app.set_frame_on(False)
+            ax_app.set_title(
+                f"$y^2 = x^3 + {_f % _p}x + {_g % _p}$  (mod {_p})",
+                fontsize=10,
+            )
+            st.pyplot(fig_app)
+            plt.close(fig_app)
 
 
 # ── Tab 3: Elliptic curves over ℂ (analytically) ─────────────────────────────
