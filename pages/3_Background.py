@@ -17,11 +17,9 @@ with st.expander("### Algebraic Curves", expanded=False):
     ])
 
 with st.expander("### Analytic Methods", expanded=False):
-    (tab3, tab4, tab5, tab6) = st.tabs([
-        "EC over ℂ (analytic)",
-        "EC over ℝ (analytic)",
-        "Isogenies, Endomorphisms & CM",
-        "EC over 𝔽ₚ via Frobenius",
+    (tab3, tab4) = st.tabs([
+        "Elliptic Curves over ℂ",
+        "Endomorphisms and Complex Multiplication",
     ])
 
 with st.expander("### Modular Curves", expanded=False):
@@ -873,35 +871,7 @@ with tab_moduli:
         plt.close(fig3)
 
 
-# ── Tab 4: Elliptic curves over ℝ (analytically) ─────────────────────────────
+# ── Tab 4: Endomorphisms and Complex Multiplication ───────────────────────────
 with tab4:
-    st.subheader("Elliptic Curves over ℝ — Analytic Viewpoint")
-    st.info(
-        "This section will explain how the real locus of an elliptic curve sits inside "
-        "the complex torus ℂ/Λ, and how the real and imaginary periods determine the "
-        "real geometry of the curve."
-    )
-
-
-# ── Tab 5: Isogenies, Endomorphisms & CM ─────────────────────────────────────
-with tab5:
-    st.subheader("Isogenies, Endomorphisms and Complex Multiplication")
-    st.info(
-        "This section will cover: isogenies as group homomorphisms between elliptic "
-        "curves, the endomorphism ring End(E), and the special case of complex "
-        "multiplication where End(E) is strictly larger than ℤ."
-    )
-
-
-# ── Tab 6: EC over 𝔽ₚ via Frobenius ─────────────────────────────────────────
-with tab6:
-    st.subheader("Elliptic Curves over 𝔽ₚ via Lifts of Frobenius")
-    st.info(
-        "This section will explain the central bijection behind this project: how the "
-        "Frobenius endomorphism of E/𝔽ₚ determines a CM lattice class, giving an "
-        "explicit correspondence between isogeny classes and classes of binary "
-        "quadratic forms. The tools in the main app are built on this bijection."
-    )
-    st.markdown("**Explore the bijection in the main app:**")
-    st.page_link("pages/1_Isogeny_Class.py", label="Go to Isogeny Class →")
-    st.page_link("pages/2_EC_Search.py",     label="Go to EC Search →")
+    st.subheader("Endomorphisms and Complex Multiplication")
+    st.info("Content coming soon.")
