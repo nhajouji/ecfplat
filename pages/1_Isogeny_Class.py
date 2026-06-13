@@ -4,114 +4,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 
 import streamlit as st
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from collections import defaultdict
 
 from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data
+from graphic_tools import isogeny_graph_figure
 from nt import primeQ
 
-# ── Isogeny graph layout & plot ───────────────────────────────────────────────
-
-def isogeny_graph_figure(isoclass, l, qf_to_label):
-    """
-    Draw the degree-l isogeny graph with a concentric-ring layout:
-    - lowest conductor (floor) nearest the centre
-    - higher conductors on outer rings
-    - horizontal (cycle) edges in steelblue, vertical (tree) edges in orange
-
-    Layout: each conductor ring is laid out independently over 0→2π.
-    Nodes with ascending parents are sorted by their parent's angle so that
-    children land angularly near their parent; roots keep qfs_ordered order.
-    """
-    horz_data = isoclass.get_isog_neighbors_horz(l)
-    asc_data  = isoclass.get_isog_neighbors_asc(l)
-
-    qfs = list(isoclass.qfs_ordered)
-    n   = len(qfs)
-    qf_idx = {qf: i for i, qf in enumerate(qfs)}
-    cond_dict = isoclass.endo_cond_dict
-
-    # ── Ring radii: one per distinct conductor value, floor at centre ─────────
-    conds_sorted = sorted(set(cond_dict.values()))
-    ring_radii   = {c: 1.8 + 2.2 * i for i, c in enumerate(conds_sorted)}
-
-    # ── Assign positions ring by ring, inside out ─────────────────────────────
-    node_angle = {}   # qf -> assigned angle (radians)
-    positions  = {}
-
-    for cond in conds_sorted:
-        nodes = [qf for qf in qfs if cond_dict[qf] == cond]
-        m     = len(nodes)
-        r     = ring_radii[cond]
-
-        # Sort: nodes with ascending parents first (by parent angle),
-        # then roots in their original qfs_ordered position.
-        def sort_key(qf):
-            if qf in asc_data:
-                return (0, node_angle.get(asc_data[qf], 0), qf_idx[qf])
-            return (1, 0, qf_idx[qf])
-
-        nodes_sorted = sorted(nodes, key=sort_key)
-
-        for i, qf in enumerate(nodes_sorted):
-            angle          = 2 * np.pi * i / m
-            node_angle[qf] = angle
-            positions[qf]  = (r * np.cos(angle), r * np.sin(angle))
-
-    # ── Figure ────────────────────────────────────────────────────────────────
-    node_r  = max(0.12, min(0.38, 4.5 / max(n, 12)))
-    fs      = max(5, min(9, int(36 / max(n, 8))))
-    fig, ax = plt.subplots(figsize=(8, 8))
-
-    # Vertical edges
-    for child, parent in asc_data.items():
-        x1, y1 = positions[child]
-        x2, y2 = positions[parent]
-        ax.plot([x1, x2], [y1, y2], color="orange", lw=1.5, zorder=1)
-
-    # Horizontal edges (deduplicate; draw self-loops as arcs)
-    drawn = set()
-    for qf, nbrs in horz_data.items():
-        n_self = nbrs.count(qf)
-        if n_self:
-            x, y = positions[qf]
-            offset = node_r * 2.2
-            loop = mpatches.Arc((x + offset, y + offset),
-                                width=node_r * 2.8, height=node_r * 2.8,
-                                angle=45, theta1=0, theta2=330,
-                                color="steelblue", lw=1.5, zorder=1)
-            ax.add_patch(loop)
-        for nbr in nbrs:
-            if nbr == qf:
-                continue
-            edge = frozenset([qf, nbr])
-            if edge not in drawn:
-                drawn.add(edge)
-                x1, y1 = positions[qf]
-                x2, y2 = positions[nbr]
-                ax.plot([x1, x2], [y1, y2], color="steelblue", lw=1.5, zorder=1)
-
-    # Nodes and labels
-    for qf in qfs:
-        x, y = positions[qf]
-        circle = plt.Circle((x, y), node_r, color="white", ec="black",
-                             lw=1.0, zorder=2)
-        ax.add_patch(circle)
-        ax.text(x, y, qf_to_label[qf], ha="center", va="center",
-                fontsize=fs, zorder=3)
-
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title(f"Degree-ℓ = {l} isogeny graph", fontsize=11)
-
-    h_line = plt.Line2D([0], [0], color="steelblue", lw=2, label="Horizontal (cycle)")
-    v_line = plt.Line2D([0], [0], color="orange",    lw=2, label="Vertical (tree)")
-    ax.legend(handles=[h_line, v_line], loc="upper right", fontsize=9)
-
-    plt.tight_layout()
-    return fig
 
 
 # ── Session state ─────────────────────────────────────────────────────────────
@@ -247,6 +145,6 @@ with tab_isograph:
                 if qf not in qf_to_label:
                     qf_to_label[qf] = str(qfs_ordered.index(qf))
 
-        fig = isogeny_graph_figure(isoclass, l, qf_to_label)
+        fig, _ = isogeny_graph_figure(isoclass, l, qf_to_label)
         st.pyplot(fig)
         plt.close(fig)
