@@ -616,10 +616,202 @@ with tab2:
             plt.close(fig_app)
 
 
-# ── Tab 3: Elliptic curves over ℂ (analytically) ─────────────────────────────
+# ── Tab 3: Elliptic curves over ℂ ────────────────────────────────────────────
 with tab3:
-    st.subheader("Elliptic Curves over ℂ — Analytic Viewpoint")
-    st.info("Content coming soon.")
+    st.subheader("Elliptic Curves over ℂ")
+
+    # ── Same definition, new problem ──────────────────────────────────────────
+    st.markdown(
+        "An elliptic curve over $\\mathbb{C}$ is defined by exactly the same equation"
+    )
+    st.latex(r"y^2 = x^3 + fx + g, \qquad f, g \in \mathbb{C},")
+    st.markdown(
+        "with the same smoothness condition $\\Delta \\neq 0$. "
+        "But there is an immediate obstacle to making pictures: the solution set lives in "
+        "$\\mathbb{C}^2 \\cong \\mathbb{R}^4$, which requires four real dimensions to draw. "
+        "We need a different approach."
+    )
+
+    # ── The bijection ─────────────────────────────────────────────────────────
+    st.markdown("#### A different perspective: complex tori")
+    st.markdown(
+        "Fortunately, there is a completely different way to think about elliptic curves "
+        "over $\\mathbb{C}$. Every elliptic curve over $\\mathbb{C}$ is isomorphic, "
+        "as a complex manifold, to a **complex torus**"
+    )
+    st.latex(r"\mathbb{C}/\Lambda, \qquad \Lambda = \mathbb{Z} + \tau\,\mathbb{Z},")
+    st.markdown(
+        "for some $\\tau$ in the upper half-plane (Im $\\tau > 0$). "
+        "The torus $\\mathbb{C}/\\Lambda$ is the complex plane with points identified "
+        "whenever they differ by an element of $\\Lambda$: every point has an equivalent "
+        "representative in the fundamental parallelogram with vertices $0, 1, 1+\\tau, \\tau$.\n\n"
+        "The bijection goes in both directions via the **Weierstrass $\\wp$-function**: "
+        "given a lattice $\\Lambda$, the map"
+    )
+    st.latex(r"z \;\longmapsto\; \bigl(\wp(z),\; \wp'(z)\bigr)")
+    st.markdown(
+        "sends $\\mathbb{C}/\\Lambda$ isomorphically onto an algebraic elliptic curve, "
+        "with specific coefficients $f$ and $g$ determined by the lattice. "
+        "Conversely, every algebraic elliptic curve arises this way. "
+        "The isomorphism class of the torus is determined by $\\tau$ up to the action of "
+        "$\\mathrm{SL}(2,\\mathbb{Z})$ by Möbius transformations, so the space of "
+        "isomorphism classes of elliptic curves over $\\mathbb{C}$ is parametrised by"
+    )
+    st.latex(r"\mathfrak{h} / \mathrm{SL}(2,\mathbb{Z}),")
+    st.markdown("where $\\mathfrak{h}$ is the upper half-plane.")
+
+    # ── Why we can't compute exactly ─────────────────────────────────────────
+    st.markdown("#### Why we can't compute the bijection exactly")
+    st.markdown(
+        "The functions involved — the Weierstrass $\\wp$-function, the Eisenstein series "
+        "$g_2$ and $g_3$ — are defined by infinite series and are **transcendental**: "
+        "they cannot be expressed in terms of elementary functions. "
+        "Going from the algebraic to the analytic picture requires computing integrals of the form"
+    )
+    st.latex(r"\int \frac{dx}{\sqrt{x^3 + fx + g}},")
+    st.markdown(
+        "known as **elliptic integrals**. These are famously impossible to evaluate "
+        "in closed form using elementary functions — and this is precisely where elliptic "
+        "curves get their name. The arc length of an ellipse leads to exactly such an "
+        "integral, and the impossibility of evaluating it 'nicely' was one of the driving "
+        "problems of 19th-century mathematics."
+    )
+
+    # ── Why analytic models are better ───────────────────────────────────────
+    st.markdown("#### Why the analytic picture is so useful")
+    st.markdown(
+        "Even though we cannot go back and forth between the two pictures by hand, "
+        "the complex torus $\\mathbb{C}/\\Lambda$ offers two major advantages over "
+        "the algebraic model:\n\n"
+        "**1. We can make pictures.** The torus is a genuine 2-dimensional surface, "
+        "and its fundamental domain is just a parallelogram — something we can draw.\n\n"
+        "**2. The group law becomes trivial.** On $\\mathbb{C}/\\Lambda$, the group "
+        "law is simply complex addition mod $\\Lambda$:"
+    )
+    st.latex(
+        r"z_1 + z_2 \;=\; z_1 + z_2 \pmod{\Lambda}."
+    )
+    st.markdown(
+        "The identity is $0$, the inverse of $z$ is $-z$, and there is no need for "
+        "chord-tangent constructions. The complicated geometry of the algebraic group law "
+        "is an artefact of the algebraic presentation — it becomes invisible in the "
+        "analytic picture."
+    )
+    st.markdown(
+        "Use the applet below to explore the group law on a torus. "
+        "Points $z_1$ and $z_2$ are specified by their fractional coordinates "
+        "$(s, t)$ in the parallelogram: $z = s \\cdot 1 + t \\cdot \\tau$, with $s, t \\in [0, 1)$. "
+        "When their sum falls outside the fundamental domain, it is translated back in — "
+        "this is the 'wrapping around' of the torus."
+    )
+
+    st.divider()
+
+    # ── Group law applet ──────────────────────────────────────────────────────
+    ctrl3, plot3 = st.columns([1, 2])
+
+    with ctrl3:
+        st.markdown("**Lattice**")
+        tau_re3 = st.slider("Re(τ)", -0.5, 0.5, 0.2, 0.01, key="bg3c_re")
+        tau_im3 = st.slider("Im(τ)",  0.1, 3.0, 1.2, 0.05, key="bg3c_im")
+        _sign3  = "+" if tau_re3 >= 0 else "-"
+        st.latex(rf"\tau = {tau_re3:.2f} {_sign3} {abs(tau_im3):.2f}\,i")
+
+        st.markdown("**Point $z_1 = s_1 + t_1\\,\\tau$**")
+        s1 = st.slider("s₁", 0.0, 1.0, 0.2, 0.02, key="bg3c_s1")
+        t1 = st.slider("t₁", 0.0, 1.0, 0.3, 0.02, key="bg3c_t1")
+
+        st.markdown("**Point $z_2 = s_2 + t_2\\,\\tau$**")
+        s2 = st.slider("s₂", 0.0, 1.0, 0.5, 0.02, key="bg3c_s2")
+        t2 = st.slider("t₂", 0.0, 1.0, 0.4, 0.02, key="bg3c_t2")
+
+        # Compute sum
+        s3_raw = s1 + s2
+        t3_raw = t1 + t2
+        s3 = s3_raw % 1.0
+        t3 = t3_raw % 1.0
+        wrapped = (s3_raw >= 1.0) or (t3_raw >= 1.0)
+
+        st.markdown("**Result $z_1 + z_2$**")
+        st.latex(
+            rf"s_3 = {s3:.2f},\quad t_3 = {t3:.2f}"
+        )
+        if wrapped:
+            st.caption("(wrapped back into the fundamental domain)")
+
+    with plot3:
+        tau3 = np.array([tau_re3, tau_im3])
+        one3 = np.array([1.0, 0.0])
+
+        def _frac_to_xy(s, t, tau):
+            return s * one3 + t * tau
+
+        z1_xy     = _frac_to_xy(s1, t1, tau3)
+        z2_xy     = _frac_to_xy(s2, t2, tau3)
+        z3_xy     = _frac_to_xy(s3, t3, tau3)        # reduced
+        z3_raw_xy = _frac_to_xy(s3_raw, t3_raw, tau3)  # unreduced
+
+        # Vertices of fundamental domain
+        verts3 = [np.zeros(2), one3, one3 + tau3, tau3]
+
+        fig3c, ax3c = plt.subplots(figsize=(6, 6))
+
+        # Draw adjacent copies of the parallelogram (torus context)
+        for dm in range(-1, 3):
+            for dn in range(-1, 3):
+                if dm == 0 and dn == 0:
+                    continue
+                shift = dm * one3 + dn * tau3
+                adj_verts = [v + shift for v in verts3]
+                ax3c.add_patch(MplPolygon(
+                    adj_verts,
+                    facecolor=[0.9, 0.9, 0.9, 0.25],
+                    edgecolor="gray", lw=0.8, zorder=1,
+                ))
+
+        # Fundamental domain
+        ax3c.add_patch(MplPolygon(
+            verts3,
+            facecolor=[0.85, 0.85, 0.95, 0.5],
+            edgecolor="steelblue", lw=2, zorder=2,
+        ))
+
+        # If wrapped: show unreduced position and translation arrow
+        if wrapped:
+            ax3c.scatter(*z3_raw_xy, color="orange", s=80, alpha=0.35,
+                         zorder=4, marker="o")
+            ax3c.annotate(
+                "", xy=z3_xy, xytext=z3_raw_xy,
+                arrowprops=dict(arrowstyle="->", color="orange",
+                                lw=1.5, linestyle="dashed"),
+                zorder=5,
+            )
+
+        # Points
+        for xy, lbl, col in [
+            (z1_xy, "$z_1$", "red"),
+            (z2_xy, "$z_2$", "green"),
+            (z3_xy, "$z_1+z_2$", "orange"),
+        ]:
+            ax3c.scatter(*xy, color=col, s=90, zorder=6)
+            ax3c.annotate(lbl, xy, xytext=(6, 5),
+                          textcoords="offset points",
+                          color=col, fontsize=11, fontweight="bold")
+
+        # Axis limits: cover fundamental domain plus context copies
+        pad3 = 0.3
+        all_x = [v[0] for v in verts3] + [z3_raw_xy[0]]
+        all_y = [v[1] for v in verts3] + [z3_raw_xy[1]]
+        ax3c.set_xlim(min(all_x) - pad3, max(all_x) + pad3 + 1)
+        ax3c.set_ylim(-pad3, max(all_y) + pad3 + tau3[1] * 0.5)
+        ax3c.set_aspect("equal")
+        ax3c.set_frame_on(False)
+        ax3c.axhline(0, color="k", lw=0.4)
+        ax3c.axvline(0, color="k", lw=0.4)
+        ax3c.set_title("Group law on $\\mathbb{C}/\\Lambda$", fontsize=11)
+
+        st.pyplot(fig3c)
+        plt.close(fig3c)
 
 
 # ── Modular Curves / Moduli space of lattices ─────────────────────────────────
