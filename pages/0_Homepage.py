@@ -14,7 +14,7 @@ st.markdown(
     "Tools for visualizing various aspects of categories of elliptic curves over $\\mathbb{F}_p$ "
     "using precomputed equivalences with a category of CM lattices."
 )
-st.caption("Created by Nadir Hajouji")
+st.caption("Created by Nadir Hajouji · Work in progress")
 
 st.markdown(
     "The lattice point data produced here is used as input for shader-rendered artwork "
@@ -42,6 +42,17 @@ with col2:
         "Look up its trace of Frobenius, associated lattice, and view classical and lattice pictures."
     )
     st.page_link("pages/2_EC_Search.py", label="Go to EC Search →")
+
+st.divider()
+
+st.markdown("### Updates")
+st.markdown(
+    "**June 2026** — Public beta release. "
+    "Isogeny class browser, EC search, isogeny graph visualisation, "
+    "and Background lessons (algebraic curves, real and $\\mathbb{F}_p$ elliptic curves, "
+    "analytic viewpoint, endomorphisms and CM). "
+    "Data and features currently available for primes $p \\leq 251$."
+)
 
 st.divider()
 
