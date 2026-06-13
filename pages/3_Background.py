@@ -22,8 +22,6 @@ with st.expander("### Analytic Methods", expanded=False):
         "Endomorphisms and Complex Multiplication",
     ])
 
-with st.expander("### Modular Curves", expanded=False):
-    (tab_moduli,) = st.tabs(["Moduli space of lattices"])
 
 
 # ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
@@ -810,65 +808,6 @@ with tab3:
 
         st.pyplot(fig3c)
         plt.close(fig3c)
-
-
-# ── Modular Curves / Moduli space of lattices ─────────────────────────────────
-with tab_moduli:
-    st.subheader("Moduli Space of Lattices")
-    st.markdown("Every elliptic curve over ℂ is isomorphic, as a complex manifold, to a **complex torus**")
-    st.latex(r"\mathbb{C}/\Lambda, \qquad \Lambda = \mathbb{Z} + \tau\,\mathbb{Z},")
-    st.markdown(
-        "where τ lies in the **upper half-plane** (Im τ > 0). "
-        "Two values of τ give isomorphic tori if and only if they are related by a "
-        "Möbius transformation in SL(2,ℤ).\n\n"
-        "Use the sliders below to move τ and watch the fundamental parallelogram — "
-        "the basic building block of the lattice — change shape."
-    )
-    st.divider()
-
-    ctrl3, plot3 = st.columns([1, 2])
-    with ctrl3:
-        tau_re = st.slider("Re(τ)", -0.5, 0.5,  0.2, 0.01, key="bg3_re")
-        tau_im = st.slider("Im(τ)",  0.1, 3.0,   1.2, 0.05, key="bg3_im")
-        sign   = "+" if tau_re >= 0 else "-"
-        st.latex(rf"\tau = {tau_re:.2f} {sign} {abs(tau_im):.2f}\,i")
-
-    with plot3:
-        tau  = np.array([tau_re, tau_im])
-        one  = np.array([1.0, 0.0])
-        verts = [np.zeros(2), one, one + tau, tau]
-
-        N  = 5
-        lx = [m + n*tau_re for m in range(-N, N+1) for n in range(-N, N+1)]
-        ly = [n*tau_im      for m in range(-N, N+1) for n in range(-N, N+1)]
-
-        fig3, ax3 = plt.subplots(figsize=(6, 6))
-        ax3.scatter(lx, ly, s=14, color="steelblue", alpha=0.4, zorder=2)
-
-        poly3 = MplPolygon(verts, facecolor=[0.85, 0.85, 0.95, 0.5],
-                           edgecolor="steelblue", lw=2, zorder=3)
-        ax3.add_patch(poly3)
-
-        for pt, lbl, col in [
-            (np.zeros(2), "0",   "red"),
-            (one,         "1",   "black"),
-            (tau,         "τ",   "orange"),
-            (one + tau,   "1+τ", "black"),
-        ]:
-            ax3.scatter(*pt, color=col, s=55, zorder=5)
-            ax3.annotate(lbl, pt, xytext=(5, 5),
-                         textcoords="offset points", fontsize=11, color=col)
-
-        pad = 0.4
-        ax3.set_xlim(min(lx) - pad, max(lx) + pad)
-        ax3.set_ylim(-pad,           max(ly) + pad)
-        ax3.set_aspect("equal")
-        ax3.set_frame_on(False)
-        ax3.axhline(0, color="k", lw=0.4)
-        ax3.axvline(0, color="k", lw=0.4)
-        ax3.set_title("Lattice  Λ = ℤ + τℤ", fontsize=11)
-        st.pyplot(fig3)
-        plt.close(fig3)
 
 
 # ── Tab 4: Endomorphisms and Complex Multiplication ───────────────────────────
