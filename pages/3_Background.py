@@ -11,7 +11,7 @@ st.markdown(
 
 (tab0, tab1, tab2, tab3, tab4, tab5, tab6) = st.tabs([
     "Algebraic curves over ℝ",
-    "EC over ℝ (algebraic)",
+    "Real Elliptic Curves",
     "EC over 𝔽ₚ (algebraic)",
     "EC over ℂ (analytic)",
     "EC over ℝ (analytic)",
@@ -152,23 +152,145 @@ with tab0:
         plt.close(fig0)
 
 
-# ── Tab 1: Elliptic curves over ℝ (algebraically) ────────────────────────────
+# ── Tab 1: Real Elliptic Curves ───────────────────────────────────────────────
 with tab1:
-    st.subheader("Elliptic Curves over ℝ — Algebraic Viewpoint")
-    st.markdown("An **elliptic curve** over ℝ is the set of points satisfying")
-    st.latex(r"y^2 = x^3 + fx + g, \qquad f, g \in \mathbb{R},")
+    st.subheader("Real Elliptic Curves")
+
+    # ── Not ellipses ──────────────────────────────────────────────────────────
     st.markdown(
-        "together with a distinguished 'point at infinity' 𝒪. "
-        "The curve is **smooth** when the discriminant Δ = −16(4f³ + 27g²) ≠ 0.\n\n"
-        "The set of points forms an **abelian group** with 𝒪 as the identity. "
-        "Given two points P and Q, their sum P + Q is constructed by the "
-        "**chord-tangent law**:\n"
-        "1. Draw the line through P and Q (or the tangent at P if P = Q).\n"
-        "2. This line meets the curve in a third point R.\n"
-        "3. Reflect R over the x-axis to obtain P + Q."
+        "Despite the name, **elliptic curves are not ellipses**. "
+        "The name is historical: elliptic curves arise when computing the arc length "
+        "of an ellipse, but the curves themselves are a different object entirely. "
+        "What they share with ellipses is that they are a *family* of curves, each "
+        "defined by an equation of a specific form. For elliptic curves, that form is"
     )
+    st.latex(r"y^2 = x^3 + fx + g, \qquad f, g \in \mathbb{R}.")
+    st.markdown(
+        "Different choices of $f$ and $g$ give different curves — "
+        "but they all belong to the same family."
+    )
+
+    # ── Singular curves ───────────────────────────────────────────────────────
+    st.markdown("#### Singular curves")
+    st.markdown(
+        "Not every choice of $f$ and $g$ gives a well-behaved curve. "
+        "When the cubic $x^3 + fx + g$ has a repeated root, the curve develops "
+        "a **singularity** — a point where it crosses or pinches itself. "
+        "Singular curves are excluded from the definition of an elliptic curve. "
+        "There are two types:\n\n"
+        "- **Node** ($f = -3,\\, g = 2$): the cubic has a double root at $x = 1$, "
+        "and the curve self-intersects there.\n"
+        "- **Cusp** ($f = 0,\\, g = 0$): the cubic has a triple root at $x = 0$, "
+        "and the curve has a sharp pinch point at the origin."
+    )
+
+    def _plot_ec(ax, f, g, xlim, ylim, title, singular_pt=None):
+        """Plot y^2 = x^3 + fx + g on ax."""
+        xs = np.linspace(xlim[0], xlim[1], 2000)
+        y2 = xs**3 + f*xs + g
+        yp = np.where(y2 >= 0, np.sqrt(np.clip(y2, 0, None)), np.nan)
+        ax.plot(xs,  yp, color="steelblue", lw=2)
+        ax.plot(xs, -yp, color="steelblue", lw=2)
+        ax.axhline(0, color="k", lw=0.4)
+        ax.axvline(0, color="k", lw=0.4)
+        ax.set_xlim(*xlim)
+        ax.set_ylim(*ylim)
+        ax.set_aspect("equal")
+        ax.set_frame_on(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(title, fontsize=10)
+        if singular_pt is not None:
+            ax.scatter(*singular_pt, color="red", s=60, zorder=5)
+
+    fig_sing, (ax_nd, ax_cu) = plt.subplots(1, 2, figsize=(8, 3.5))
+    _plot_ec(ax_nd, -3, 2, (-2.3, 2.8), (-2.5, 2.5),
+             "Node:  $y^2 = x^3 - 3x + 2$", singular_pt=(1, 0))
+    _plot_ec(ax_cu,  0, 0, (-0.5, 2.5), (-2.5, 2.5),
+             "Cusp:  $y^2 = x^3$",          singular_pt=(0, 0))
+    fig_sing.tight_layout()
+    st.pyplot(fig_sing)
+    plt.close(fig_sing)
+
+    # ── Two smooth flavors ────────────────────────────────────────────────────
+    st.markdown("#### Two visual flavors")
+    st.markdown(
+        "When $f$ and $g$ are chosen so that the curve is smooth, it always comes "
+        "in one of two shapes, determined by whether the cubic $x^3 + fx + g$ has "
+        "one or three real roots:\n\n"
+        "- **One component** (one real root, $\\Delta < 0$): a single unbounded branch.\n"
+        "- **Two components** (three real roots, $\\Delta > 0$): an unbounded branch "
+        "plus a compact oval.\n\n"
+        "Here $\\Delta = -16(4f^3 + 27g^2)$ is the discriminant."
+    )
+
+    fig_smth, (ax_one, ax_two) = plt.subplots(1, 2, figsize=(8, 3.5))
+    _plot_ec(ax_one, 0,  1, (-1.3, 2.5), (-2.5, 2.5),
+             "One component:  $y^2 = x^3 + 1$")
+    _plot_ec(ax_two, -1, 0, (-1.3, 2.5), (-2.5, 2.5),
+             "Two components:  $y^2 = x^3 - x$")
+    fig_smth.tight_layout()
+    st.pyplot(fig_smth)
+    plt.close(fig_smth)
+
+    # ── Curve explorer ────────────────────────────────────────────────────────
+    st.markdown("#### Explore")
+    ex_col, ex_plot = st.columns([1, 2])
+    with ex_col:
+        f_ex    = st.slider("f", -5.0, 5.0, -1.0, 0.1, key="bg1_f_ex")
+        g_ex    = st.slider("g", -5.0, 5.0,  1.0, 0.1, key="bg1_g_ex")
+        disc_ex = -16 * (4*f_ex**3 + 27*g_ex**2)
+        if abs(disc_ex) < 1e-4:
+            st.warning("Singular curve (Δ ≈ 0)")
+        elif disc_ex > 0:
+            st.info("Two components (Δ > 0)")
+        else:
+            st.info("One component (Δ < 0)")
+
+    with ex_plot:
+        xs_ex = np.linspace(-3.3, 3.3, 3000)
+        y2_ex = xs_ex**3 + f_ex*xs_ex + g_ex
+        yp_ex = np.where(y2_ex >= 0, np.sqrt(np.clip(y2_ex, 0, None)), np.nan)
+        fig_ex2, ax_ex2 = plt.subplots(figsize=(5, 4))
+        ax_ex2.plot(xs_ex,  yp_ex, color="steelblue", lw=2)
+        ax_ex2.plot(xs_ex, -yp_ex, color="steelblue", lw=2)
+        ax_ex2.axhline(0, color="k", lw=0.4)
+        ax_ex2.axvline(0, color="k", lw=0.4)
+        ax_ex2.set_xlim(-3.3, 3.3)
+        ax_ex2.set_ylim(-4.5, 4.5)
+        ax_ex2.set_title(f"$y^2 = x^3 {f_ex:+.1f}x {g_ex:+.1f}$", fontsize=11)
+        ax_ex2.set_frame_on(False)
+        st.pyplot(fig_ex2)
+        plt.close(fig_ex2)
+
     st.divider()
 
+    # ── Group law ─────────────────────────────────────────────────────────────
+    st.markdown("#### The group law")
+    st.markdown(
+        "What makes elliptic curves remarkable is that the points on a smooth curve "
+        "— together with one extra 'hidden' point called the **point at infinity**, "
+        "written $\\mathcal{O}$ — form an **abelian group**.\n\n"
+        "$\\mathcal{O}$ is the identity element: $P + \\mathcal{O} = P$ for every point $P$. "
+        "Geometrically it lives 'at the end of every vertical line', infinitely far in "
+        "the $y$-direction.\n\n"
+        "The group law has a clean geometric description: "
+        "**three points sum to $\\mathcal{O}$ if and only if they are collinear.** "
+        "To compute $P + Q$:"
+    )
+    st.markdown(
+        "1. Draw the line through $P$ and $Q$ "
+        "(or the tangent to the curve at $P$ if $P = Q$).\n"
+        "2. This line meets the curve in a third point $R$.\n"
+        "3. Reflect $R$ over the $x$-axis to obtain $P + Q$.\n\n"
+        "*(Reflection gives the inverse: since $P + Q + R = \\mathcal{O}$, "
+        "we get $P + Q = -R$, and the inverse of $(x, y)$ is $(x, -y)$.)*"
+    )
+    st.markdown("Use the applet below to see this in action.")
+
+    st.divider()
+
+    # ── Chord-tangent applet ──────────────────────────────────────────────────
     ctrl1, plot1 = st.columns([1, 2])
 
     with ctrl1:
