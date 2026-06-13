@@ -13,7 +13,7 @@ with st.expander("### Algebraic Curves", expanded=False):
     (tab0, tab1, tab2) = st.tabs([
         "Algebraic curves over ℝ",
         "Real Elliptic Curves",
-        "EC over 𝔽ₚ (algebraic)",
+        "Elliptic curves over $\\mathbb{F}_p$",
     ])
 
 with st.expander("### Analytic Methods", expanded=False):
