@@ -24,6 +24,9 @@ with st.expander("### Analytic Methods", expanded=False):
         "EC over 𝔽ₚ via Frobenius",
     ])
 
+with st.expander("### Modular Curves", expanded=False):
+    (tab_moduli,) = st.tabs(["Moduli space of lattices"])
+
 
 # ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
 with tab0:
@@ -616,6 +619,12 @@ with tab2:
 # ── Tab 3: Elliptic curves over ℂ (analytically) ─────────────────────────────
 with tab3:
     st.subheader("Elliptic Curves over ℂ — Analytic Viewpoint")
+    st.info("Content coming soon.")
+
+
+# ── Modular Curves / Moduli space of lattices ─────────────────────────────────
+with tab_moduli:
+    st.subheader("Moduli Space of Lattices")
     st.markdown("Every elliptic curve over ℂ is isomorphic, as a complex manifold, to a **complex torus**")
     st.latex(r"\mathbb{C}/\Lambda, \qquad \Lambda = \mathbb{Z} + \tau\,\mathbb{Z},")
     st.markdown(
