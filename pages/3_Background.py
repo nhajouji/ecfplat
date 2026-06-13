@@ -35,21 +35,50 @@ with tab0:
 
     st.markdown("#### Familiar examples")
     st.markdown(
-        "Graphs of functions $y = f(x)$ are algebraic curves: just rewrite as $y - f(x) = 0$."
+        "Graphs of functions $y = g(x)$ are algebraic curves: just rewrite as $y - g(x) = 0$. "
+        "But algebraic curves don't have to be function graphs — circles and ellipses aren't, "
+        "yet they're still zero sets of polynomials."
     )
+
+    # ── Small example plots ───────────────────────────────────────────────────
+    N = 300
+    u = np.linspace(-2.2, 2.2, N)
+    X0, Y0 = np.meshgrid(u, u)
+
+    examples = [
+        ("Line",      r"$y = x$",          Y0 - X0),
+        ("Parabola",  r"$y = x^2$",        Y0 - X0**2),
+        ("Hyperbola", r"$xy = 1$",         X0 * Y0 - 1),
+        ("Circle",    r"$x^2+y^2=1$",      X0**2 + Y0**2 - 1),
+        ("Ellipse",   r"$x^2/4+y^2=1$",   X0**2 / 4 + Y0**2 - 1),
+    ]
+
+    fig_ex, axes = plt.subplots(1, 5, figsize=(11, 2.2))
+    for ax_ex, (name, eq, Z_ex) in zip(axes, examples):
+        ax_ex.contour(X0, Y0, Z_ex, levels=[0], colors=["steelblue"], linewidths=2)
+        ax_ex.axhline(0, color="k", lw=0.4)
+        ax_ex.axvline(0, color="k", lw=0.4)
+        ax_ex.set_xlim(-2.2, 2.2)
+        ax_ex.set_ylim(-2.2, 2.2)
+        ax_ex.set_aspect("equal")
+        ax_ex.set_frame_on(False)
+        ax_ex.set_xticks([])
+        ax_ex.set_yticks([])
+        ax_ex.set_title(f"{name}\n{eq}", fontsize=9, linespacing=1.6)
+
+    fig_ex.tight_layout(pad=0.5)
+    st.pyplot(fig_ex)
+    plt.close(fig_ex)
+
     st.markdown(
-        "| Curve | Familiar form | As $p(x,y) = 0$ |\n"
+        "| Curve | Familiar form | As $f(x,y) = 0$ |\n"
         "|---|---|---|\n"
-        "| Line | $y = mx + k$ | $y - mx - k = 0$ |\n"
+        "| Line | $y = x$ | $y - x = 0$ |\n"
         "| Parabola | $y = x^2$ | $y - x^2 = 0$ |\n"
         "| Hyperbola | $y = 1/x$ | $xy - 1 = 0$ |\n"
         "| Circle | $x^2 + y^2 = 1$ | $x^2 + y^2 - 1 = 0$ |\n"
-        "| Ellipse | $\\frac{x^2}{a^2} + \\frac{y^2}{b^2} = 1$ |"
-        " $b^2 x^2 + a^2 y^2 - a^2 b^2 = 0$ |"
-    )
-    st.markdown(
-        "Notice that a circle or ellipse is *not* the graph of a function — "
-        "it fails the vertical line test. But it is still an algebraic curve."
+        "| Ellipse | $\\frac{x^2}{4} + y^2 = 1$ |"
+        " $\\frac{x^2}{4} + y^2 - 1 = 0$ |"
     )
 
     st.markdown("#### Quadratic forms and ellipses")
