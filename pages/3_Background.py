@@ -874,4 +874,93 @@ with tab_moduli:
 # ── Tab 4: Endomorphisms and Complex Multiplication ───────────────────────────
 with tab4:
     st.subheader("Endomorphisms and Complex Multiplication")
-    st.info("Content coming soon.")
+
+    # ── Definition ────────────────────────────────────────────────────────────
+    st.markdown(
+        "An **endomorphism** of an elliptic curve $E$ is a morphism $\\psi: E \\to E$ "
+        "that sends the identity point $\\mathcal{O}$ to itself. "
+        "Every elliptic curve has an endomorphism for each integer $n$: "
+        "the **multiplication-by-$n$ map** $[n]: P \\mapsto P + P + \\cdots + P$ ($n$ times). "
+        "The question is whether there are any others."
+    )
+
+    # ── Algebraic description ─────────────────────────────────────────────────
+    st.markdown("#### On algebraic models")
+    st.markdown(
+        "On the algebraic model $y^2 = x^3 + fx + g$, an endomorphism takes the form"
+    )
+    st.latex(r"\psi(x, y) = \bigl(\psi_1(x,y),\; \psi_2(x,y)\bigr),")
+    st.markdown(
+        "where $\\psi_1$ and $\\psi_2$ are rational functions. "
+        "The condition that $\\psi$ maps the curve to itself is that"
+    )
+    st.latex(
+        r"\psi_2(x_0, y_0)^2 = \psi_1(x_0, y_0)^3 + f\,\psi_1(x_0, y_0) + g"
+    )
+    st.markdown(
+        "holds whenever $y_0^2 = x_0^3 + fx_0 + g$, "
+        "i.e. whenever $(x_0, y_0)$ lies on $E$."
+    )
+    st.markdown(
+        "**Example — the duplication map $[2]$.** "
+        "The chord-tangent construction gives an explicit formula for $[2]$. "
+        "At a point $(x, y)$ on $E$, the tangent line has slope "
+        "$m = (3x^2 + f)/(2y)$, and"
+    )
+    st.latex(
+        r"[2](x, y) \;=\; \left(\frac{x^4 - 2fx^2 - 8gx + f^2}{4(x^3+fx+g)},\quad "
+        r"m\!\left(x - \psi_1(x,y)\right) - y\right)."
+    )
+    st.markdown(
+        "This is a rational function in $x$ and $y$, defined wherever $y \\neq 0$ "
+        "(i.e. away from the 2-torsion points). It has **degree 2**: "
+        "each point of $E$ has exactly 2 preimages under $[2]$, "
+        "counted with multiplicity."
+    )
+
+    # ── Analytic description ──────────────────────────────────────────────────
+    st.markdown("#### On analytic models")
+    st.markdown(
+        "The analytic picture makes the structure of endomorphisms completely transparent. "
+        "A holomorphic group homomorphism $\\psi: \\mathbb{C}/\\Lambda \\to \\mathbb{C}/\\Lambda$ "
+        "must lift to a holomorphic map on $\\mathbb{C}$, and one can show that any "
+        "such map is multiplication by a fixed complex number. That is, every endomorphism "
+        "has the form"
+    )
+    st.latex(
+        r"[\alpha]_\Lambda : z \pmod{\Lambda} \;\longmapsto\; \alpha z \pmod{\Lambda}"
+    )
+    st.markdown(
+        "for some $\\alpha \\in \\mathbb{C}$ satisfying $\\alpha\\Lambda \\subseteq \\Lambda$. "
+        "The condition $\\alpha\\Lambda \\subseteq \\Lambda$ means that $\\alpha$ sends "
+        "every lattice point to another lattice point — it must map the generators "
+        "$1$ and $\\tau$ of $\\Lambda$ back into $\\Lambda$."
+    )
+    st.markdown(
+        "The integer endomorphisms $[n]$ correspond to $\\alpha = n \\in \\mathbb{Z}$, "
+        "which trivially satisfies $n\\Lambda \\subseteq \\Lambda$ for any lattice."
+    )
+
+    # ── Endomorphism ring and CM ──────────────────────────────────────────────
+    st.markdown("#### The endomorphism ring and complex multiplication")
+    st.markdown(
+        "The set of all $\\alpha \\in \\mathbb{C}$ with $\\alpha\\Lambda \\subseteq \\Lambda$ "
+        "forms a ring under addition and multiplication — the **endomorphism ring** "
+        "$\\mathrm{End}(E)$. It always contains $\\mathbb{Z}$."
+    )
+    st.markdown(
+        "For a 'generic' lattice $\\Lambda$, the only $\\alpha$ satisfying "
+        "$\\alpha\\Lambda \\subseteq \\Lambda$ are the integers: $\\mathrm{End}(E) = \\mathbb{Z}$. "
+        "When $\\mathrm{End}(E)$ is strictly larger than $\\mathbb{Z}$, the curve $E$ "
+        "— and the lattice $\\Lambda$ — is said to have **complex multiplication** (CM). "
+        "In this case one can show that any non-integer $\\alpha \\in \\mathrm{End}(E)$ "
+        "must lie in an imaginary quadratic field $K = \\mathbb{Q}(\\sqrt{-d})$, and "
+        "$\\mathrm{End}(E)$ is an order in $K$."
+    )
+    st.markdown(
+        "The two conditions are equivalent: $\\Lambda$ has CM if and only if "
+        "$\\mathbb{C}/\\Lambda$ has CM. The CM lattices are precisely those of the form "
+        "$\\Lambda = \\mathbb{Z} + \\tau\\mathbb{Z}$ where $\\tau$ is a quadratic "
+        "irrational — a root of a quadratic equation with integer coefficients."
+    )
+    st.info("An interactive applet will be added here.")
