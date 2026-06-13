@@ -9,20 +9,20 @@ st.markdown(
     "Each section pairs a short conceptual overview with an interactive applet."
 )
 
-st.markdown("### Algebraic Curves")
-(tab0, tab1, tab2) = st.tabs([
-    "Algebraic curves over ℝ",
-    "Real Elliptic Curves",
-    "EC over 𝔽ₚ (algebraic)",
-])
+with st.expander("### Algebraic Curves", expanded=False):
+    (tab0, tab1, tab2) = st.tabs([
+        "Algebraic curves over ℝ",
+        "Real Elliptic Curves",
+        "EC over 𝔽ₚ (algebraic)",
+    ])
 
-st.markdown("### Analytic Methods")
-(tab3, tab4, tab5, tab6) = st.tabs([
-    "EC over ℂ (analytic)",
-    "EC over ℝ (analytic)",
-    "Isogenies, Endomorphisms & CM",
-    "EC over 𝔽ₚ via Frobenius",
-])
+with st.expander("### Analytic Methods", expanded=False):
+    (tab3, tab4, tab5, tab6) = st.tabs([
+        "EC over ℂ (analytic)",
+        "EC over ℝ (analytic)",
+        "Isogenies, Endomorphisms & CM",
+        "EC over 𝔽ₚ via Frobenius",
+    ])
 
 
 # ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
