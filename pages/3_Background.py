@@ -27,9 +27,9 @@ with tab0:
         "An **algebraic curve** over ℝ is the set of points $(x, y) \\in \\mathbb{R}^2$ "
         "satisfying an equation"
     )
-    st.latex(r"p(x, y) = 0")
+    st.latex(r"f(x, y) = 0")
     st.markdown(
-        "for some polynomial $p$ in two variables. "
+        "for some polynomial $f$ in two variables. "
         "This is a very broad family — most of the curves you encountered in school fit this definition."
     )
 
