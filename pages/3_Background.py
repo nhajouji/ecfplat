@@ -9,10 +9,15 @@ st.markdown(
     "Each section pairs a short conceptual overview with an interactive applet."
 )
 
-(tab0, tab1, tab2, tab3, tab4, tab5, tab6) = st.tabs([
+st.markdown("### Algebraic Curves")
+(tab0, tab1, tab2) = st.tabs([
     "Algebraic curves over ℝ",
     "Real Elliptic Curves",
     "EC over 𝔽ₚ (algebraic)",
+])
+
+st.markdown("### Analytic Methods")
+(tab3, tab4, tab5, tab6) = st.tabs([
     "EC over ℂ (analytic)",
     "EC over ℝ (analytic)",
     "Isogenies, Endomorphisms & CM",
