@@ -9,7 +9,8 @@ st.markdown(
     "Each section pairs a short conceptual overview with an interactive applet."
 )
 
-(tab1, tab2, tab3, tab4, tab5, tab6) = st.tabs([
+(tab0, tab1, tab2, tab3, tab4, tab5, tab6) = st.tabs([
+    "Algebraic curves over ℝ",
     "EC over ℝ (algebraic)",
     "EC over 𝔽ₚ (algebraic)",
     "EC over ℂ (analytic)",
@@ -17,6 +18,109 @@ st.markdown(
     "Isogenies, Endomorphisms & CM",
     "EC over 𝔽ₚ via Frobenius",
 ])
+
+
+# ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
+with tab0:
+    st.subheader("Algebraic Curves over ℝ")
+    st.markdown(
+        "An **algebraic curve** over ℝ is the set of points $(x, y) \\in \\mathbb{R}^2$ "
+        "satisfying an equation"
+    )
+    st.latex(r"p(x, y) = 0")
+    st.markdown(
+        "for some polynomial $p$ in two variables. "
+        "This is a very broad family — most of the curves you encountered in school fit this definition."
+    )
+
+    st.markdown("#### Familiar examples")
+    st.markdown(
+        "Graphs of functions $y = f(x)$ are algebraic curves: just rewrite as $y - f(x) = 0$."
+    )
+    st.markdown(
+        "| Curve | Familiar form | As $p(x,y) = 0$ |\n"
+        "|---|---|---|\n"
+        "| Line | $y = mx + k$ | $y - mx - k = 0$ |\n"
+        "| Parabola | $y = x^2$ | $y - x^2 = 0$ |\n"
+        "| Hyperbola | $y = 1/x$ | $xy - 1 = 0$ |\n"
+        "| Circle | $x^2 + y^2 = 1$ | $x^2 + y^2 - 1 = 0$ |\n"
+        "| Ellipse | $\\frac{x^2}{a^2} + \\frac{y^2}{b^2} = 1$ |"
+        " $b^2 x^2 + a^2 y^2 - a^2 b^2 = 0$ |"
+    )
+    st.markdown(
+        "Notice that a circle or ellipse is *not* the graph of a function — "
+        "it fails the vertical line test. But it is still an algebraic curve."
+    )
+
+    st.markdown("#### Quadratic forms and ellipses")
+    st.markdown(
+        "A **quadratic form** in two variables is a degree-2 polynomial with no linear or constant terms:"
+    )
+    st.latex(r"q(x, y) = ax^2 + bxy + cy^2.")
+    st.markdown(
+        "When $q$ is **positive definite** — meaning $q(x,y) > 0$ for all $(x,y) \\neq (0,0)$ — "
+        "the level set $q(x,y) = 1$ is an ellipse. "
+        "Positive definiteness is equivalent to $a > 0$ and $4ac - b^2 > 0$."
+        "\n\n"
+        "Use the controls below to explore how the shape of the ellipse depends on $(a, b, c)$. "
+        "This family of curves is central to the rest of the project."
+    )
+
+    st.divider()
+
+    ctrl0, plot0 = st.columns([1, 2])
+    with ctrl0:
+        st.markdown("**Quadratic form coefficients**")
+        a_qf = st.number_input("a", value=2.0, step=0.1, key="bg0_a")
+        b_qf = st.number_input("b", value=1.0, step=0.1, key="bg0_b")
+        c_qf = st.number_input("c", value=2.0, step=0.1, key="bg0_c")
+
+        disc = 4 * a_qf * c_qf - b_qf ** 2
+        if a_qf <= 0 or disc <= 0:
+            st.error(
+                "The form is not positive definite. "
+                "You need $a > 0$ and $4ac - b^2 > 0$."
+            )
+            qf_ok = False
+        else:
+            st.success(f"Positive definite  ✓  ($4ac - b^2 = {disc:.2f}$)")
+            qf_ok = True
+
+    with plot0:
+        R = 2.5
+        grid_n = 400
+        xs = np.linspace(-R, R, grid_n)
+        ys = np.linspace(-R, R, grid_n)
+        X, Y = np.meshgrid(xs, ys)
+        Z = a_qf * X**2 + b_qf * X * Y + c_qf * Y**2
+
+        fig0, ax0 = plt.subplots(figsize=(5, 5))
+
+        if qf_ok:
+            # Background family of level sets for context
+            for level, alpha in [(0.25, 0.15), (0.5, 0.2), (2.0, 0.2), (4.0, 0.15)]:
+                ax0.contour(X, Y, Z, levels=[level],
+                            colors=["steelblue"], alpha=alpha, linewidths=1)
+            # Main level set q = 1
+            ax0.contour(X, Y, Z, levels=[1.0],
+                        colors=["steelblue"], linewidths=2.5)
+            ax0.set_title(
+                f"$q(x,y) = {a_qf}x^2 + {b_qf}xy + {c_qf}y^2 = 1$",
+                fontsize=10,
+            )
+        else:
+            ax0.text(0, 0, "Not positive definite",
+                     ha="center", va="center", fontsize=12, color="gray")
+            ax0.set_title("q(x, y) = 1")
+
+        ax0.axhline(0, color="k", lw=0.5)
+        ax0.axvline(0, color="k", lw=0.5)
+        ax0.set_xlim(-R, R)
+        ax0.set_ylim(-R, R)
+        ax0.set_aspect("equal")
+        ax0.set_frame_on(False)
+        st.pyplot(fig0)
+        plt.close(fig0)
 
 
 # ── Tab 1: Elliptic curves over ℝ (algebraically) ────────────────────────────
