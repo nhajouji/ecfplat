@@ -14,6 +14,7 @@ st.markdown(
     "Tools for visualizing various aspects of categories of elliptic curves over $\\mathbb{F}_p$ "
     "using precomputed equivalences with a category of CM lattices."
 )
+st.caption("Created by Nadir Hajouji")
 
 st.markdown(
     "The lattice point data produced here is used as input for shader-rendered artwork "
