@@ -176,14 +176,6 @@ def qf_isogenies_all(qf:tuple[int,int,int],l:int,normalize=True):
         return isoqfs
     return [qf_mod_gamma(qf0) for qf0 in isoqfs]
 
-def qf_isogenies_hor(qf:tuple[int,int,int],l:int):
-    d = qf_disc(qf)
-    return [qf0 for qf0 in qf_isogenies_all(qf,l) if qf_disc(qf0)==d]
-
-def qf_isogenies_down(qf:tuple[int,int,int],l:int):
-    d = qf_disc(qf)
-    return [qf0 for qf0 in qf_isogenies_all(qf,l) if qf_disc(qf0)<d]
-
 def qf_parents(qf:tuple[int,int,int],l:int):
     d = qf_disc(qf)
     return [qf0 for qf0 in qf_isogenies_all(qf,l) if qf_disc(qf0)>d]
@@ -220,6 +212,12 @@ def qf_isogs(qf0,l):
 def qf_isogs_hor(qf0,l):
     return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)==qf_disc(qf0)]
 
+def qf_isogs_asc(qf0,l):
+    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)>qf_disc(qf0)]
+
+def qf_isogs_des(qf0,l):
+    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)<qf_disc(qf0)]
+
 def qfs_isogs_int(qfl1,qfl2):
     qf1,l1 = qfl1
     qf2,l2 = qfl2
@@ -229,6 +227,15 @@ def qfs_isogs_int(qfl1,qfl2):
     else:
         return qf3s
 
+def qf_isog_parent(qf,l):
+    d,c = discfac(qf_disc(qf))
+    if c % l != 0:
+        raise ValueError(f'No parents in degree {l}')
+    else:
+        cands = [qf0 for qf0 in qf_isogs(qf,l) if discfac(qf_disc(qf0))[1]*l == c]
+        assert len(cands)==1
+        return cands[0]
+    
 # Computing isogeny cycles
 def qf_isog_cycle(qf0,l):
     cyc = qf_isogs(qf0,l)
@@ -258,7 +265,7 @@ def qf_isog_cycle_power(qf0,lk):
     return [cyc[(k*i) % n] for i in range(nm)]
 
 def qf_sibs(qf0:tuple[int,int,int],l:int):
-    sibs = qf_isogenies_down(qf_parents(qf0,l)[0],l)
+    sibs = qf_isogs_des(qf_parents(qf0,l)[0],l)
     return [qf0]+[qf for qf in sibs if qf != qf0]
 
 def cycs_from_ancestors(qf0):

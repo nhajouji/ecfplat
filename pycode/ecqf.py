@@ -84,7 +84,6 @@ def qf_reps_pm(d):
 
 def disc_to_ssls(d):
     ssprimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 41, 47, 59, 71]
-    qfsfound = {l:[] for l in ssprimes}
     qf_reps = qf_reps_pm(d)
     ls = {}
     qf0 = class_group_id(d)
