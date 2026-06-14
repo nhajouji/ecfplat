@@ -4,7 +4,6 @@ from ecfp import trfr_to_js
 from graph_tools import compute_bijection_zn
 from modularpolynomials import eval_atk,small_bij_check
 from misctools import *
-from ecqf import qf_reps_pm
 
 import itertools
 ssprimes = primesBetween(2,36)+[41]+[47+12*k for k in range(3)]

@@ -154,13 +154,17 @@ def get_zn_to_qf(d, cache=None, path=DEFAULT_CACHE, **kw):
 # End-to-end (cached)  #
 ########################
 
-def ecqf_ord_bij_cached(ap, cache=None, path=DEFAULT_CACHE, compute_if_missing=True):
-    """Ordinary j -> qf bijection for ap=(a,p), reusing the per-discriminant cache.
+def ecqf_ord_bij_cached(ap, use_cache=True, cache=None, path=DEFAULT_CACHE,
+                        compute_if_missing=True):
+    """Ordinary j -> qf bijection for ap=(a,p) -- the replacement for the old
+    ecqf.ecqf_ord_bij, built on ecqf_bij's pipeline.
 
-    Pulls ls_rig and the qf-side labelling (zn_to_qf) from the cache, so only the
-    (a, p)-specific j-invariant side is computed here.  Falls back to an on-the-fly
-    search when d is absent (unless compute_if_missing=False).  Raises a clear
-    error if no rigid l-set exists for d in the current prime pool."""
+    use_cache=True (default): reuse the per-discriminant cache, so only the
+    (a, p)-specific j-invariant side is computed here; falls back to an on-the-fly
+    search when d is absent (unless compute_if_missing=False).
+    use_cache=False: ignore the JSON cache entirely and compute live every call
+    (disc_rigid_lset_search + ecqf_full_bijection_ord).
+    Raises a clear error if no rigid l-set exists for d in the current prime pool."""
     a, p = ap
     if a == 0:
         raise ValueError('Use the supersingular algorithm for a = 0')
@@ -168,6 +172,11 @@ def ecqf_ord_bij_cached(ap, cache=None, path=DEFAULT_CACHE, compute_if_missing=T
     hd = small_bij_check(d)
     if len(hd) > 0:                       # tiny class number: closed-form table
         return {j % p: hd[j] for j in hd}
+    if not use_cache:
+        res = disc_rigid_lset_search(d)
+        if not res['success']:
+            raise ValueError(f"No rigid l-set for d = {d}: {res['message']}")
+        return ecqf_full_bijection_ord(a, p, res['ls_rig'])
     entry = get_disc_entry(d, cache, path=path, compute_if_missing=compute_if_missing)
     if entry is None:
         raise KeyError(f'd = {d} is not in the cache and compute_if_missing=False')
