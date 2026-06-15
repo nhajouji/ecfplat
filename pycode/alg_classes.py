@@ -135,6 +135,46 @@ class RingElement(AbGrElt):
             n //= 2
         return result
 
+
+class Field(Ring):
+    def __init__(
+        self,
+        membership: Callable[[tuple], bool],
+        zero: tuple,
+        negation: Callable[[tuple], tuple],
+        addition: Callable[[tuple, tuple], tuple],
+        one: tuple,
+        multiplication: Callable[[tuple, tuple], tuple],
+        inverse: Callable[[tuple], tuple],
+    ):
+        super().__init__(membership, zero, negation, addition, one, multiplication)
+        self.inverse_map = inverse
+
+    def invert_element(self, t: tuple) -> tuple:
+        if t == self.zero_element:
+            raise ZeroDivisionError('Zero has no inverse')
+        if t not in self:
+            raise ValueError('Element not in field')
+        return self.inverse_map(t)
+
+    def divide_elements(self, t1: tuple, t2: tuple) -> tuple:
+        return self.multiply_elements(t1, self.invert_element(t2))
+
+
+class FieldElement(RingElement):
+    def inverse(self) -> 'FieldElement':
+        return type(self)(self.grp.invert_element(self.vec), self.grp)
+
+    def __truediv__(self, other: 'FieldElement') -> 'FieldElement':
+        if not isinstance(other, FieldElement) or other.grp is not self.grp:
+            raise ValueError('Can only divide elements of the same field')
+        return self * other.inverse()
+
+    def __pow__(self, n: int) -> 'FieldElement':
+        if n < 0:
+            return self.inverse() ** (-n)
+        return super().__pow__(n)
+
                 #######################
                 ### Special Classes ###
                 #######################
@@ -236,6 +276,104 @@ class MatrixElement(RingElement):
             raise NotImplementedError('adjugate only implemented for 2x2 matrices')
         (a, b), (c, d) = self.vec
         return MatrixElement(((d, -b), (-c, a)), self.grp)
+
+
+                        # Fields #
+
+# --- Prime field F_p ---
+# Elements are 1-tuples (x,) with 0 <= x < p, so F_p slots into the same
+# coefficient-tuple convention as F_{p^n} below.
+
+def GF_p(p: int) -> Field:
+    def membership(v: tuple) -> bool:
+        return (isinstance(v, tuple) and len(v) == 1
+                and isinstance(v[0], int) and 0 <= v[0] < p)
+
+    def negation(v: tuple) -> tuple:
+        return ((-v[0]) % p,)
+
+    def addition(v1: tuple, v2: tuple) -> tuple:
+        return ((v1[0] + v2[0]) % p,)
+
+    def multiplication(v1: tuple, v2: tuple) -> tuple:
+        return ((v1[0] * v2[0]) % p,)
+
+    def inverse(v: tuple) -> tuple:
+        return (pow(v[0], p - 2, p),)            # Fermat: x^(p-2) = x^{-1}
+
+    return Field(membership, (0,), negation, addition, (1,), multiplication, inverse)
+
+
+# --- Extension field F_{p^n} = F_p[x]/(modpoly) ---
+# Elements are coefficient n-tuples (a_0, ..., a_{n-1}) for a_0 + a_1 x + ...
+# modpoly is a monic irreducible of degree n (low-to-high coefficients); supply a
+# Conway polynomial for a canonical, compatible model of F_{p^n}.
+
+def _poly_rem_fp(coefs: list, modpoly: list, p: int) -> list:
+    """Exact remainder of a polynomial (low-to-high coefs) modulo a monic modpoly,
+    over F_p.  Unlike Polynomial.__mod__ this keeps the true remainder, not its
+    monic associate, which is what field reduction needs."""
+    r = [c % p for c in coefs]
+    m = len(modpoly) - 1                          # deg(modpoly), monic
+    while len(r) - 1 >= m:
+        while len(r) > 1 and r[-1] == 0:
+            r.pop()
+        if len(r) - 1 < m:
+            break
+        lc, shift = r[-1], len(r) - 1 - m
+        for i, c in enumerate(modpoly):
+            r[i + shift] = (r[i + shift] - lc * c) % p
+        r.pop()                                   # leading coefficient is now 0
+    return r
+
+
+def GF_pn(p: int, modpoly: list[int]) -> Field:
+    n = len(modpoly) - 1
+    if modpoly[-1] != 1:
+        raise ValueError('modpoly must be monic')
+    order = p ** n
+    zero = tuple(0 for _ in range(n))
+    one = (1,) + tuple(0 for _ in range(n - 1))
+
+    def membership(v: tuple) -> bool:
+        return (isinstance(v, tuple) and len(v) == n
+                and all(isinstance(x, int) and 0 <= x < p for x in v))
+
+    def negation(v: tuple) -> tuple:
+        return tuple((-x) % p for x in v)
+
+    def addition(v1: tuple, v2: tuple) -> tuple:
+        return tuple((x + y) % p for x, y in zip(v1, v2))
+
+    def multiplication(v1: tuple, v2: tuple) -> tuple:
+        prod = [0] * (2 * n - 1)
+        for i, a in enumerate(v1):
+            for j, b in enumerate(v2):
+                prod[i + j] += a * b
+        rem = _poly_rem_fp(prod, modpoly, p)
+        return tuple((rem + [0] * n)[:n])
+
+    def inverse(v: tuple) -> tuple:               # v^(p^n - 2) = v^{-1}
+        e, result, base = order - 2, one, v
+        while e > 0:
+            if e & 1:
+                result = multiplication(result, base)
+            base = multiplication(base, base)
+            e >>= 1
+        return result
+
+    return Field(membership, zero, negation, addition, one, multiplication, inverse)
+
+
+def GF_p2(p: int, modpoly: list[int] = None) -> Field:
+    """F_{p^2}.  With no modpoly, uses x^2 - s for the least non-residue s (p odd)."""
+    if modpoly is None:
+        if p == 2:
+            modpoly = [1, 1, 1]                   # x^2 + x + 1
+        else:
+            s = next(t for t in range(2, p) if pow(t, (p - 1) // 2, p) == p - 1)
+            modpoly = [(-s) % p, 0, 1]            # x^2 - s
+    return GF_pn(p, modpoly)
 
 
                     ################
