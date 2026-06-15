@@ -342,3 +342,86 @@ def int_sqrt(n:int)->int:
             b*=2
         r+= (b//2)
     return r
+
+
+#####################################
+# Isogeny kernel extension degrees  #
+#####################################
+
+def mult_order_mod(x:int, m:int)->int:
+    """Multiplicative order of x in (Z/m)^* (x must be a unit mod m)."""
+    x %= m
+    if gcd(x, m) != 1:
+        raise ValueError(f'{x} is not a unit mod {m}')
+    k, cur = 1, x
+    while cur != 1:
+        cur = (cur * x) % m
+        k += 1
+    return k
+
+
+def sqrt_mod(d:int, l:int):
+    """A square root of d mod l (l prime), or None if d is a non-residue.
+    Brute force -- intended for small l."""
+    d %= l
+    for r in range(l):
+        if (r * r) % l == d:
+            return r
+    return None
+
+
+def _order_in_fl2(a:int, p:int, l:int)->int:
+    """Order of t (a Frobenius eigenvalue) in F_l[t]/(t^2 - a t + p), the inert
+    case.  t^2 = a t - p, so multiplication reduces explicitly -- pure mod-l
+    arithmetic, no field object needed.  Result divides l^2 - 1."""
+    def mul(u, v):
+        c0 = (u[0]*v[0]) % l
+        c1 = (u[0]*v[1] + u[1]*v[0]) % l
+        c2 = (u[1]*v[1]) % l                 # coefficient of t^2 = a t - p
+        return ((c0 - c2*p) % l, (c1 + c2*a) % l)
+    one, t = (1, 0), (0, 1)
+    k, cur = 1, t
+    while cur != one:
+        cur = mul(cur, t)
+        k += 1
+    return k
+
+
+def frob_ext_degrees(a:int, p:int, l:int)->dict:
+    """Extension degrees needed to compute the l-isogenies of an ordinary curve.
+
+    For an ordinary elliptic curve of trace a over F_p (l prime, l != p), Frobenius
+    pi acts on E[l] = (Z/l)^2 with characteristic polynomial x^2 - a x + p (mod l).
+    An l-isogeny kernel is a pi-eigenline; a generator P of the eigenline for
+    eigenvalue lambda satisfies pi(P) = lambda*P, so P is defined over F_{p^k} with
+        k = ord(lambda)   (multiplicative order of the eigenvalue).
+
+    Returns {'kind', 'eigenvalues', 'degrees', 'min_degree'} where kind is:
+        'split'    - two distinct eigenvalues in F_l (l splits: two horizontal
+                     l-isogenies, the +-x_l directions),
+        'ramified' - a repeated eigenvalue,
+        'inert'    - eigenvalues in F_{l^2} (no horizontal l-isogeny); the single
+                     degree is the order in F_{l^2}^*, dividing l^2 - 1.
+    For split/ramified, eigenvalues and degrees are aligned lists over F_l, and
+    min_degree is the cheapest direction to compute.
+    """
+    if p % l == 0:
+        raise ValueError(f'l = {l} must differ from the characteristic p = {p}')
+    a0, p0 = a % l, p % l
+    disc = (a0 * a0 - 4 * p0) % l
+    if l == 2:
+        eigs = sorted({x for x in range(2) if (x*x - a0*x + p0) % 2 == 0})
+        kind = 'split' if len(eigs) == 2 else ('ramified' if len(eigs) == 1 else 'inert')
+    else:
+        r = sqrt_mod(disc, l)
+        if r is None:
+            kind, eigs = 'inert', []
+        else:
+            inv2 = pow(2, l - 2, l)
+            eigs = sorted({((a0 + r) * inv2) % l, ((a0 - r) * inv2) % l})
+            kind = 'ramified' if r == 0 else 'split'
+    if kind == 'inert':
+        k = _order_in_fl2(a0, p0, l)
+        return {'kind': 'inert', 'eigenvalues': None, 'degrees': [k], 'min_degree': k}
+    degrees = [mult_order_mod(lam, l) for lam in eigs]
+    return {'kind': kind, 'eigenvalues': eigs, 'degrees': degrees, 'min_degree': min(degrees)}
