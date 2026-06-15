@@ -6,7 +6,31 @@ from modularpolynomials import eval_atk,small_bij_check
 from misctools import *
 
 import itertools
+import json
+from pathlib import Path
+
 ssprimes = [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 41, 47, 59, 71]
+
+_DATA_DIR = Path(__file__).parent / 'data'
+
+###################################
+# Loading precomputed l-set data  #
+###################################
+# Precomputed disc_rigid_lset_search(d) output keyed by discriminant d, so the
+# (moderately expensive) class-group l-set search need not be rerun for cached d.
+# Mirrors the precomputed-bijection loading in ecqf_tools.py.  Read it through
+# disc_ldata(d) (defined below) for an automatic fall-back to a live search.
+
+def _ldata_to_tuples(entry):
+    out = dict(entry)
+    for key in ('ls_rig', 'ls_basis', 'ls_2tors', 'ls', 'ns', 'best'):
+        if isinstance(out.get(key), list):
+            out[key] = tuple(out[key])
+    return out
+
+with open(_DATA_DIR / 'qf_ldata.json') as f:
+    _qf_ldata_loaded = json.load(f)
+qf_ldata = {int(d): _ldata_to_tuples(_qf_ldata_loaded[d]) for d in _qf_ldata_loaded}
 
 
 def qf_reps_pm(d:int):
@@ -206,6 +230,19 @@ def disc_rigid_lset_search(d, ls=ssprimes):
                ns=tuple(cand[l] for l in longs) + tuple(cand[l] for l in twos),
                ls_rig=ls_rig)
     return out
+
+
+def disc_ldata(d, ls=None):
+    """disc_rigid_lset_search(d) result, served from qf_ldata.json when available.
+
+    With the default prime pool (ls=None) a precomputed entry is returned if d is
+    in qf_ldata, otherwise the search is run live.  Pass an explicit ls to force a
+    live search against a custom pool (the cache assumes the default pool)."""
+    if ls is None:
+        if d in qf_ldata:
+            return qf_ldata[d]
+        return disc_rigid_lset_search(d)
+    return disc_rigid_lset_search(d, ls)
 
 
         #########################################
