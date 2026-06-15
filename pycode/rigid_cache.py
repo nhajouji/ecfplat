@@ -49,6 +49,11 @@ DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 DEFAULT_CACHE = os.path.join(DATA_DIR, 'rigid_lset_cache.json')
 
 
+def _ls_descs(ls):
+    """Restore generator descriptors from JSON: a power [l,k] -> (l,k)."""
+    return tuple(tuple(x) if isinstance(x, list) else x for x in ls)
+
+
 #################
 # Serialization #
 #################
@@ -145,7 +150,7 @@ def get_zn_to_qf(d, cache=None, path=DEFAULT_CACHE, **kw):
         return None
     if 'zn_to_qf' in entry:
         return _bij_from_json(entry['zn_to_qf'])
-    ls = tuple(entry['ls_rig'])
+    ls = _ls_descs(entry['ls_rig'])
     return canonicalize_qf_labelling(
         compute_bijection_zn(ls, qf_isog_data(d, ls), class_group_id(d)))
 
@@ -182,7 +187,7 @@ def ecqf_ord_bij_cached(ap, use_cache=True, cache=None, path=DEFAULT_CACHE,
         raise KeyError(f'd = {d} is not in the cache and compute_if_missing=False')
     if not entry['success']:
         raise ValueError(f"No rigid l-set for d = {d}: {entry['message']}")
-    ls = tuple(entry['ls_rig'])
+    ls = _ls_descs(entry['ls_rig'])
     zn_to_qf = _bij_from_json(entry['zn_to_qf']) if 'zn_to_qf' in entry else None
     return ecqf_full_bijection_ord(a, p, ls, zn_to_qf=zn_to_qf)
 
