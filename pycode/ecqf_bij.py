@@ -28,9 +28,13 @@ def _ldata_to_tuples(entry):
             out[key] = tuple(out[key])
     return out
 
-with open(_DATA_DIR / 'qf_ldata.json') as f:
-    _qf_ldata_loaded = json.load(f)
-qf_ldata = {int(d): _ldata_to_tuples(_qf_ldata_loaded[d]) for d in _qf_ldata_loaded}
+try:
+    with open(_DATA_DIR / 'qf_ldata.json') as f:
+        _qf_ldata_loaded = json.load(f)
+    qf_ldata = {int(d): _ldata_to_tuples(_qf_ldata_loaded[d]) for d in _qf_ldata_loaded}
+except FileNotFoundError:
+    qf_ldata = {}     # not generated yet -> disc_ldata falls back to a live search
+                      # (regenerate with: python ldata_cache.py --min -4096)
 
 
 def qf_reps_pm(d:int):
