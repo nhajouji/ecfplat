@@ -175,6 +175,14 @@ class FieldElement(RingElement):
             return self.inverse() ** (-n)
         return super().__pow__(n)
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, FieldElement) or other.grp is not self.grp:
+            return NotImplemented
+        return self.vec == other.vec
+
+    def __hash__(self):
+        return hash((id(self.grp), self.vec))
+
                 #######################
                 ### Special Classes ###
                 #######################
@@ -374,6 +382,62 @@ def GF_p2(p: int, modpoly: list[int] = None) -> Field:
             s = next(t for t in range(2, p) if pow(t, (p - 1) // 2, p) == p - 1)
             modpoly = [(-s) % p, 0, 1]            # x^2 - s
     return GF_pn(p, modpoly)
+
+
+# --- Finding an irreducible polynomial of given degree over F_p ---
+# Any irreducible degree-n polynomial gives a valid model of F_{p^n}; we do NOT
+# need the canonical (Conway) one, because an isogeny's codomain lands back in
+# the base field regardless of the model used.  So instead of sourcing Conway
+# polynomials we just find one on demand (random search + Rabin's test).
+
+def _poly_mulmod_fp(u: list, v: list, modpoly: list, p: int) -> list:
+    prod = [0] * (len(u) + len(v) - 1)
+    for i, c1 in enumerate(u):
+        for j, c2 in enumerate(v):
+            prod[i + j] += c1 * c2
+    return _poly_rem_fp(prod, modpoly, p)
+
+
+def _x_powmod_fp(e: int, modpoly: list, p: int) -> list:
+    """x^e mod modpoly over F_p (low-to-high coefficients)."""
+    result, base = [1], _poly_rem_fp([0, 1], modpoly, p)
+    while e > 0:
+        if e & 1:
+            result = _poly_mulmod_fp(result, base, modpoly, p)
+        base = _poly_mulmod_fp(base, base, modpoly, p)
+        e >>= 1
+    return result
+
+
+def irreducible_poly(p: int, n: int, seed: int = 0) -> list[int]:
+    """A monic irreducible polynomial of degree n over F_p (low-to-high coefs),
+    found by random search + Rabin's irreducibility test."""
+    if n == 1:
+        return [0, 1]
+    import random
+    from nt import primefact
+    qs = list(primefact(n))                       # distinct primes dividing n
+    rng = random.Random(p * 1000003 + n * 101 + seed)
+    x = [0, 1]
+    while True:
+        f = [rng.randrange(p) for _ in range(n)] + [1]            # monic, degree n
+        # Rabin: irreducible iff x^(p^n) == x (mod f) and, for each prime q | n,
+        # gcd(x^(p^(n/q)) - x, f) == 1.
+        if _x_powmod_fp(p ** n, f, p) != _poly_rem_fp(x, f, p):
+            continue
+        good = True
+        for q in qs:
+            diff = PolyFp(_x_powmod_fp(p ** (n // q), f, p), p) - PolyFp(x, p)
+            if diff.deg < 0 or poly_gcd(diff, PolyFp(f, p)).deg > 0:
+                good = False                      # shares a lower-degree factor
+                break
+        if good:
+            return f
+
+
+def GF_pn_auto(p: int, n: int, seed: int = 0) -> Field:
+    """F_{p^n} built on an irreducible polynomial found on demand."""
+    return GF_pn(p, irreducible_poly(p, n, seed))
 
 
                     ################
