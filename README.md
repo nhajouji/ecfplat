@@ -127,7 +127,7 @@ isoclass.adjacency_matrix(5)
 **Per-`(a, p)` bijections** — the end product, the full curve ↔ lattice-class bijection for each pair:
 - `ecqf_ord_pcbij_4_1024.json` — ordinary classes, **6 725** pairs `(a, p)` with `4 ≤ p ≤ 1024`.
 - `ecqf_ss_pcbij_4_1024_INC.json` — supersingular classes, keyed by prime `p` (158 keys).
-- `ecqf_ord_pcbij_4to256.json`, `ecqf_4to1024_pcbij_n2konly.json` — earlier / restricted variants.
+- `ecqf_ord_pcbij_4to256.json` — an earlier / smaller-range variant.
 
 List available keys with `get_aps_pc()` / `get_ssps_pc()` and test membership with `ap_in_pc_data((a, p))` (all in `ecqf_tools.py`).
 
