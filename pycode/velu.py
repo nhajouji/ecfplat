@@ -248,8 +248,10 @@ def velu_l_isog_codomain(f, g, l, p, trace, direction=0, max_degree=None, seed=0
         return {'status': 'kernel_not_found', 'k': k}
     A, B = velu_isogeny(a, b, l, Q)
     j = j_invariant(A, B)
-    jval = j.vec[0] if all(c == 0 for c in j.vec[1:]) else j.vec     # horizontal -> in F_p
-    return {'status': 'ok', 'j': jval, 'k': k, 'lam': lam, 'mu': mu}
+    def _fp(z):                                 # horizontal codomain is defined over F_p,
+        return z.vec[0] if all(c == 0 for c in z.vec[1:]) else z.vec   # so A, B, j land in F_p
+    return {'status': 'ok', 'j': _fp(j), 'f': _fp(A), 'g': _fp(B),
+            'k': k, 'lam': lam, 'mu': mu}
 
 
 def velu_nbr_data_ord(ap, l, js=None, max_degree=None):
@@ -277,4 +279,53 @@ def velu_nbr_data_ord(ap, l, js=None, max_degree=None):
                 if res['status'] == 'ok' and res['j'] in jset:
                     nbrs.append(res['j'])
         out[j] = list(dict.fromkeys(nbrs))
+    return out
+
+
+def two_isogeny_sigs(f, g, p):
+    """Codomain signatures (j', s') of every F_p-rational 2-isogeny of
+    y^2 = x^3 + f x + g over F_p.  The kernels are the rational 2-torsion subgroups,
+    i.e. the roots of x^3 + f x + g in F_p (3 of them for a surface curve / full
+    2-torsion, 1 for a floor curve).  Unlike the odd-l eigenline isogenies these need
+    NO extension field: for p = 3 mod 4 the 2-torsion is already rational."""
+    from alg_classes import GF_p
+    from ecfp import signature, fg_to_j
+    K = GF_p(p)
+    a, b = embed_fp(f, K), embed_fp(g, K)
+    out = []
+    for x0 in range(p):
+        if (x0 * x0 * x0 + f * x0 + g) % p == 0:
+            P = (embed_fp(x0, K), _zero(K))
+            A, B = velu_isogeny(a, b, 2, P)
+            Av, Bv = A.vec[0], B.vec[0]
+            out.append((fg_to_j((Av, Bv), p) % p, signature(Av, Bv, p)))
+    return out
+
+
+def velu_nbr_data_ss(p, l, sigs, max_degree=None):
+    """Horizontal l-isogeny neighbour graph {(j,s): [neighbour (j,s)]} for the
+    supersingular class over F_p, via Velu.  The objects are signatures (j, s)
+    (F_p-iso classes), and the trace is 0, so Frobenius has charpoly x^2 + p mod l;
+    when l splits there are two horizontal eigenline directions.  For each signature
+    we build its canonical model, push it through both directions, and read the
+    codomain's signature off the Velu model.  `sigs` is the signature set of the
+    class; only codomains whose signature lands back in `sigs` are kept (horizontal
+    isogenies preserve the level, hence the class)."""
+    from ecfp import js_to_fg, signature
+    sset = set(sigs)
+    out = {}
+    for js in sigs:
+        f, g = js_to_fg(js, p)
+        nbrs = []
+        for d in (0, 1):
+            res = velu_l_isog_codomain(f, g, l, p, 0, direction=d, max_degree=max_degree)
+            if res['status'] != 'ok':
+                continue
+            cf, cg = res['f'], res['g']
+            if not (isinstance(cf, int) and isinstance(cg, int)):
+                continue                          # horizontal codomain must be over F_p
+            nb = (res['j'] % p, signature(cf, cg, p))
+            if nb in sset:
+                nbrs.append(nb)
+        out[js] = list(dict.fromkeys(nbrs))
     return out

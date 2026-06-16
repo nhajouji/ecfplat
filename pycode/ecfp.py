@@ -1,4 +1,4 @@
-from nt import quad_rec,discfac,divisors,gcd,gcd_list
+from nt import quad_rec,discfac,divisors,gcd,gcd_list,find_nonsquare
 from alg_classes import MatrixElement, Mat_n_Z
 from modularpolynomials import *
 from qfs import *
@@ -128,6 +128,32 @@ def fg_to_j(fg:tuple[int,int],char =0):
                 raise ZeroDivisionError('Singular curve')
             jdeninv = pow(jden,-1,char)
             return (jnum*jdeninv)%char
+
+def signature(f:int,g:int,p:int)->int:
+    """Signature s in {+1,-1} of the model y^2 = x^3 + f x + g over F_p -- the
+    F_p-isomorphism invariant that distinguishes a supersingular curve from its
+    quadratic twist.  For j != 1728 it is the QR character of the constant term g;
+    for j == 1728 (g == 0) the QR character of the x-coefficient f.  (Under
+    (f,g) |-> (u^4 f, u^6 g) both u^4 and u^6 are squares, so the character is an
+    iso invariant, and a non-square twist u flips it.)"""
+    f %= p; g %= p
+    return quad_rec(f,p) if g == 0 else quad_rec(g,p)
+
+def js_to_fg(js:tuple[int,int],p:int)->tuple[int,int]:
+    """Canonical short Weierstrass model (f,g) for the signature (j, s) over F_p,
+    i.e. a model with j-invariant j (mod p) and signature(f,g,p) == s.  Mirrors
+    j_to_fg but selects the curve-vs-twist representative named by s, with the
+    fixed conventions y^2 = x^3 + s*x at j == 1728 and (0,1)/(0,-3) at j == 0."""
+    j,s = js
+    if (j-1728) % p == 0:
+        return (s % p, 0)
+    if j % p == 0:
+        return (0,1) if s == 1 else (0,(-3) % p)
+    f,g = j_to_fg(j % p, p)
+    if quad_rec(g,p) == s:
+        return (f % p, g % p)
+    t = find_nonsquare(p)
+    return ((pow(t,2,p)*f) % p, (pow(t,3,p)*g) % p)
 
 ## This is a helper function for the next two
 def cubic_qrs(fg:tuple[int,int],p:int)->list[int]:

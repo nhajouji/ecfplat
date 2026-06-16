@@ -1,4 +1,5 @@
 from typing import Callable
+from functools import lru_cache
 from nt import gcd_list
 
                 ###################
@@ -292,6 +293,7 @@ class MatrixElement(RingElement):
 # Elements are 1-tuples (x,) with 0 <= x < p, so F_p slots into the same
 # coefficient-tuple convention as F_{p^n} below.
 
+@lru_cache(maxsize=None)
 def GF_p(p: int) -> Field:
     def membership(v: tuple) -> bool:
         return (isinstance(v, tuple) and len(v) == 1
@@ -439,8 +441,14 @@ def irreducible_poly(p: int, n: int, seed: int = 0) -> list[int]:
             return f
 
 
+@lru_cache(maxsize=None)
 def GF_pn_auto(p: int, n: int, seed: int = 0) -> Field:
-    """F_{p^n} built on an irreducible polynomial found on demand."""
+    """F_{p^n} built on an irreducible polynomial found on demand.
+
+    Memoized per (p, n, seed): irreducible_poly is a deterministic (seeded) search,
+    so reusing the field is sound and skips the Rabin search + field rebuild that
+    otherwise ran on every Velu isogeny call.  Reusing one field object per (p, n)
+    also keeps FieldElement equality/hashing consistent across calls."""
     return GF_pn(p, irreducible_poly(p, n, seed))
 
 

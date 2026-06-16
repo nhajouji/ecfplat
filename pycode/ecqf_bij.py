@@ -1,6 +1,6 @@
 from nt import primesBetween,discfac,quad_rec
 from qfs import *
-from ecfp import trfr_to_js
+from ecfp import trfr_to_js, js_to_fg
 from graph_tools import compute_bijection_zn, cycle_from_neighbor_data
 from modularpolynomials import eval_atk,small_bij_check
 from misctools import *
@@ -346,6 +346,63 @@ def disc_ldata(d, ls=None):
     return disc_rigid_lset_search(d, ls)
 
 
+def _ss_velu_cost(p, l):
+    """Velu cost of the prime l for the supersingular class over F_p: the larger of
+    the two split-eigenline degrees (velu_nbr_data_ss builds BOTH +-directions), or
+    None if l does not split (no horizontal l-isogeny)."""
+    from nt import frob_ext_degrees
+    info = frob_ext_degrees(0, p, l)
+    return max(info['degrees']) if info['kind'] == 'split' else None
+
+def ss_rigid_lset_info(p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4000):
+    """disc_rigid_lset_search result for discriminant d (an order in Q(sqrt(-p))),
+    drawn from split primes of small Velu cost so the eigenline isogenies stay in a
+    manageable extension.  Escalates the cost cap until the group is spanned (the default
+    15-prime pool can force a huge-extension generator; widening to low-cost split primes
+    -- including the cheap ones dividing p+1 -- avoids it).  The basis generators need a
+    full graph, but the sum/pinning prime (info['l_sum']) is only read at the root, so it
+    need not be low-cost -- see _ss_root_neighbours."""
+    primes = [l for l in primesBetween(2, prime_cap) if l != p]
+    cost = {l: _ss_velu_cost(p, l) for l in primes}
+    for cap in deg_caps:
+        pool = tuple(sorted((l for l in primes if cost[l] is not None and cost[l] <= cap),
+                            key=lambda l: (cost[l], l)))
+        info = disc_rigid_lset_search(d, pool)
+        if info.get('success'):
+            return info
+    raise ValueError(f'no low-cost rigid l-set for p={p}, d={d} up to cost {deg_caps[-1]}')
+
+def ss_rigid_lset(p, d, **kw):
+    """The rigid l-set tuple ls_rig for discriminant d (see ss_rigid_lset_info)."""
+    return ss_rigid_lset_info(p, d, **kw)['ls_rig']
+
+def _ss_root_neighbours(p, root, l):
+    """The (de-duplicated) horizontal l-isogeny neighbour signatures OF THE ROOT only.
+    compute_bijection_zn reads the sum/pinning prime's data only at the root, so this is
+    all that is needed for it -- no full graph, hence no cost even for a high-degree l.
+    (When the root is the j=1728 curve the two neighbours share a j-invariant.)"""
+    from velu import velu_l_isog_codomain
+    from ecfp import signature
+    f, g = js_to_fg(root, p)
+    nbrs = []
+    for direction in (0, 1):
+        res = velu_l_isog_codomain(f, g, l, p, 0, direction=direction)
+        if res['status'] == 'ok' and isinstance(res['f'], int) and isinstance(res['g'], int):
+            nbrs.append((res['j'] % p, signature(res['f'], res['g'], p)))
+    return list(dict.fromkeys(nbrs))
+
+def _ss_zn_to_sig(p, d, sigs, root):
+    """Signature-side Z/n labelling for the SS class on disc d, rooted at `root`, with
+    the sum/pinning prime computed only at the root (the only place it is read)."""
+    info = ss_rigid_lset_info(p, d)
+    ls, l_sum = info['ls_rig'], info.get('l_sum')
+    basis = [x for x in ls if x != l_sum]
+    sig_nbr = ss_horizontal_nbr_data(p, basis, sigs)
+    if l_sum is not None:
+        sig_nbr[l_sum] = {root: _ss_root_neighbours(p, root, _desc_base(l_sum))}
+    return ls, compute_bijection_zn(ls, sig_nbr, root)
+
+
         #########################################
         # Step 2: Collect Relevant Isogeny Data #
         #########################################
@@ -564,7 +621,7 @@ def ecqf_full_bijection_ord(a:int,p:int,ls:tuple[int],zn_to_qf=None):
     # It depends only on (d, ls), so it can be precomputed once per discriminant
     # and reused for every (a,p); pass it in to skip the expensive recompute.
     if a == 0:
-        raise ValueError('Use supersingular algorithm instead')
+        return ecqf_full_bijection_ss(p)
     d = a*a-4*p
     hd = small_bij_check(d)
     if len(hd)>0:
@@ -579,4 +636,144 @@ def ecqf_full_bijection_ord(a:int,p:int,ls:tuple[int],zn_to_qf=None):
     assert len(zn_to_j)==len(zn_to_qf)
     assert len({t for t in zn_to_qf if t not in zn_to_j})== 0
     return vert_isog_ext(j_to_qf=compdiv_dics(zn_to_j,zn_to_qf),vertical_iso_data=vert_iso_data_fp)
+
+
+#########################
+# Supersingular over F_p #
+#########################
+# Objects are SIGNATURES (j, s), s = +-1 (an F_p-iso class = a curve or its twist);
+# the isogeny class is an oriented CM torsor under the class group of an order in
+# Q(sqrt(-p)).  Trace is 0, so neighbour data comes from Velu (velu_nbr_data_ss),
+# not the Atkin polynomials.  Case A (p = 1 mod 4) has conductor 1 -- every curve is
+# maximal, Z[sqrt(-p)], disc -4p -- so there is no volcano and the assembler is a
+# direct signature analogue of zn_ecqf_bij with no ancestor/vertical machinery.
+
+def ss_signatures(p):
+    """Signature set of the whole supersingular isogeny class over F_p: both signs
+    of every F_p-rational SS j-invariant (curve and quadratic twist).  Spans both
+    orders of Q(sqrt(-p)) when p = 3 mod 4."""
+    return [(j, s) for j in trfr_to_js(0, p) for s in (1, -1)]
+
+def ss_level(sig, p):
+    """'surface' (maximal order O_K, full 2-torsion) or 'floor' (Z[sqrt(-p)], single
+    order-2 point) for a signature, via the j-1728 criterion (p = 3 mod 4 only)."""
+    j, s = sig
+    if (j - 1728) % p == 0:
+        return 'surface' if s == -1 else 'floor'      # (1728,-1) full 2-tors; (1728,+1) single
+    return 'surface' if quad_rec((j - 1728) % p, p) == 1 else 'floor'
+
+def ss_horizontal_nbr_data(p, ls, sigs):
+    """Horizontal isogeny neighbour data {desc: {sig:[nbr sigs]}} over a SET of
+    same-level signatures.  Odd l via the eigenline Velu (velu_nbr_data_ss); l = 2 via
+    the rational 2-torsion 2-isogenies (two_isogeny_sigs), kept to same-level codomains
+    (the horizontal 2-isogenies, which exist on the surface when 2 splits in O_K)."""
+    from velu import velu_nbr_data_ss, two_isogeny_sigs
+    sset = set(sigs)
+    out, base = {}, {}
+    for desc in ls:
+        l = _desc_base(desc)
+        if l not in base:
+            if l == 2:
+                base[2] = {sig: list(dict.fromkeys(
+                    nb for nb in two_isogeny_sigs(*js_to_fg(sig, p), p) if nb in sset))
+                    for sig in sigs}
+            else:
+                base[l] = velu_nbr_data_ss(p, l, sigs)
+        out[desc] = _kstep_nbrdata(base[l], desc[1]) if isinstance(desc, tuple) else base[l]
+    return out
+
+def canonicalize_sig_labelling(zn_to_sig):
+    """Pin the global x->-x freedom on the signature side, as canonicalize_j_labelling
+    does on the j side: the root's +1 neighbour in coord 0 is the lexicographically
+    smaller signature (j, then s)."""
+    if not zn_to_sig:
+        return zn_to_sig
+    orders = _labelling_orders(zn_to_sig)
+    if len(orders) == 0 or orders[0] <= 2:
+        return zn_to_sig
+    n = len(orders)
+    e1  = (1,) + (0,) * (n - 1)
+    em1 = (orders[0] - 1,) + (0,) * (n - 1)
+    if zn_to_sig[e1] > zn_to_sig[em1]:
+        return {_neg_tuple(t, orders): v for t, v in zn_to_sig.items()}
+    return zn_to_sig
+
+def ecqf_full_bijection_ss(p, ls=None):
+    """Supersingular signature <-> qf bijection over F_p, from scratch via Velu.
+    Case A (p = 1 mod 4): a signature analogue of zn_ecqf_bij (no volcano).
+    Case B (p = 7 mod 8): surface bijection + descend to the floor by 2-isogeny.
+    Case C (p = 3 mod 8): floor bijection + ascend to the surface.
+    `ls` overrides the (SS-cost-aware) rigid l-set; otherwise ss_rigid_lset picks one."""
+    if p % 4 == 1:
+        d = -4 * p
+        sigs = ss_signatures(p)
+        root = min(sigs)
+        if ls is None:
+            ls, zn_to_sig = _ss_zn_to_sig(p, d, sigs, root)
+        else:
+            zn_to_sig = compute_bijection_zn(ls, ss_horizontal_nbr_data(p, ls, sigs), root)
+        zn_to_sig = canonicalize_sig_labelling(zn_to_sig)
+        zn_to_qf = canonicalize_qf_labelling(
+            compute_bijection_zn(ls, qf_isog_data(d, ls), class_group_id(d)))
+        assert len(zn_to_sig) == len(zn_to_qf)
+        assert len({t for t in zn_to_qf if t not in zn_to_sig}) == 0
+        return compdiv_dics(zn_to_sig, zn_to_qf)
+    if p % 8 == 7:
+        return ecqf_full_bijection_ss_B(p, ls)
+    return ecqf_full_bijection_ss_C(p, ls)
+
+
+def ecqf_full_bijection_ss_C(p, ls_floor=None):
+    """Case C (p = 3 mod 8): 2 is inert in O_K, so h(-4p) = 3*h(-p) and the surface has
+    no horizontal 2-isogenies.  The FLOOR is the order Z[sqrt(-p)] (disc -4p) carrying
+    the full class group, so its bijection is a case-A-style assembly on disc -4p (the
+    rigid l-set search already handles a non-cyclic Cl(-4p) via its sum/pinning prime),
+    rooted at (1728, +1).  Then ascend each floor node to its unique surface parent."""
+    from velu import two_isogeny_sigs
+    d_floor = -4 * p
+    floor = [s for s in ss_signatures(p) if ss_level(s, p) == 'floor']
+    root = (1728 % p, 1)
+    if ls_floor is None:
+        ls_floor, zn_to_sig = _ss_zn_to_sig(p, d_floor, floor, root)
+    else:
+        zn_to_sig = compute_bijection_zn(ls_floor, ss_horizontal_nbr_data(p, ls_floor, floor), root)
+    zn_to_qf = compute_bijection_zn(ls_floor, qf_isog_data(d_floor, ls_floor),
+                                    class_group_id(d_floor))
+    floor_to_qf = compdiv_dics(zn_to_sig, zn_to_qf)
+    # Ascend each floor node to its unique surface parent (3 floor nodes share a parent;
+    # the assignments agree, so dedup is automatic).
+    sig_to_qf = dict(floor_to_qf)
+    for fs, fq in floor_to_qf.items():
+        par_sig = [nb for nb in two_isogeny_sigs(*js_to_fg(fs, p), p) if ss_level(nb, p) == 'surface']
+        par_qf = [qf_mod_gamma(q) for q in qf_isogenies_all(fq, 2) if qf_disc(q) == -p]
+        sig_to_qf[par_sig[0]] = par_qf[0]
+    return sig_to_qf
+
+
+def ecqf_full_bijection_ss_B(p, ls_surf=None):
+    """Case B (p = 7 mod 8): h(-p) = h(-4p), depth-1 volcano, each surface node has
+    exactly one descending 2-isogeny.  Build the bijection on the SURFACE (maximal
+    order O_K, disc -p) -- 2 splits there so the horizontal 2-isogeny cycle can carry
+    it -- rooted at (1728, -1), then extend to the floor (disc -4p) by mapping each
+    surface node's unique descending 2-isogeny to the corresponding qf descent."""
+    from velu import two_isogeny_sigs
+    d_surf, d_floor = -p, -4 * p
+    sigs = ss_signatures(p)
+    surf = [s for s in sigs if ss_level(s, p) == 'surface']
+    root = (1728 % p, -1)
+    if ls_surf is None:
+        ls_surf, zn_to_sig = _ss_zn_to_sig(p, d_surf, surf, root)
+    else:
+        zn_to_sig = compute_bijection_zn(ls_surf, ss_horizontal_nbr_data(p, ls_surf, surf), root)
+    zn_to_qf = canonicalize_qf_labelling(
+        compute_bijection_zn(ls_surf, qf_isog_data(d_surf, ls_surf), class_group_id(d_surf)))
+    surf_to_qf = compdiv_dics(zn_to_sig, zn_to_qf)
+    # Descend: each surface node's unique floor child <-> the qf form one order down.
+    sig_to_qf = dict(surf_to_qf)
+    for ssig, sqf in surf_to_qf.items():
+        child = [nb for nb in two_isogeny_sigs(*js_to_fg(ssig, p), p)
+                 if ss_level(nb, p) == 'floor']
+        below = [qf_mod_gamma(q) for q in qf_isogenies_all(sqf, 2) if qf_disc(q) == d_floor]
+        sig_to_qf[child[0]] = below[0]
+    return sig_to_qf
 

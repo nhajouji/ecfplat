@@ -158,6 +158,13 @@ def quad_rec(a,p):
     pwr = pow(a,p//2,p)
     return pwr - ((pwr+1)//p)*p
 
+def find_nonsquare(p):
+    """The largest non-residue in [1, p-1] (used to twist a model to a chosen signature)."""
+    d = p - 1
+    while quad_rec(d, p) == 1:
+        d -= 1
+    return d
+
 def jacobi_symbol(d:int,n:int):
     pfn = primefact(n)
     s = 1
