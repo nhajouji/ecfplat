@@ -1,6 +1,11 @@
 import streamlit as st
+from pathlib import Path
+from PIL import Image
 
-st.set_page_config(page_title="ecfplat", layout="wide")
+_LOGO = Path(__file__).parent / "pages" / "ec_logo.jpg"
+_icon = Image.open(_LOGO)
+
+st.set_page_config(page_title="ecfplat", page_icon=_icon, layout="wide")
 
 
 pg = st.navigation([
