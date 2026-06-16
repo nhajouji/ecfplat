@@ -309,7 +309,9 @@ def GF_p(p: int) -> Field:
     def inverse(v: tuple) -> tuple:
         return (pow(v[0], p - 2, p),)            # Fermat: x^(p-2) = x^{-1}
 
-    return Field(membership, (0,), negation, addition, (1,), multiplication, inverse)
+    F = Field(membership, (0,), negation, addition, (1,), multiplication, inverse)
+    F.char, F.degree, F.order = p, 1, p
+    return F
 
 
 # --- Extension field F_{p^n} = F_p[x]/(modpoly) ---
@@ -370,7 +372,9 @@ def GF_pn(p: int, modpoly: list[int]) -> Field:
             e >>= 1
         return result
 
-    return Field(membership, zero, negation, addition, one, multiplication, inverse)
+    K = Field(membership, zero, negation, addition, one, multiplication, inverse)
+    K.char, K.degree, K.order = p, n, order
+    return K
 
 
 def GF_p2(p: int, modpoly: list[int] = None) -> Field:

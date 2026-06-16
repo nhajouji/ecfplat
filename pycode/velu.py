@@ -127,3 +127,122 @@ def velu_isogeny(a, b, l, kgen):
     kgen is a kernel generator (a point of order l).  Pure field arithmetic over
     kgen's field, so it runs over F_p or any extension."""
     return velu_codomain(a, b, kernel_reps(kgen, l, a))
+
+
+#####################################
+# Finding the l-torsion kernel      #
+#####################################
+# To run Velu we need a generator of the kernel eigenline.  We work in F_{p^k}
+# (k from frob_ext_degrees), take a random point, multiply by the cofactor to
+# land in the l-torsion, then project onto the lambda-eigenline with Frobenius:
+#     Q = pi(P) - mu*P,    pi(x,y) = (x^p, y^p),   mu = p/lambda mod l.
+# Q (when != O) generates the kernel for the +x_l direction; the codomain j of a
+# horizontal isogeny lands back in F_p.
+
+import random as _random
+
+
+def _rand_elt(K, rng):
+    return FieldElement(tuple(rng.randrange(K.char) for _ in range(K.degree)), K)
+
+
+def embed_fp(c, K):
+    """Embed an F_p element (int) into K = F_{p^k}."""
+    return FieldElement((c % K.char,) + tuple(0 for _ in range(K.degree - 1)), K)
+
+
+def field_sqrt(c, rng=None):
+    """A square root of c in its field, or None if c is a non-square (Tonelli-Shanks)."""
+    K = c.grp
+    q = K.order
+    zero, one = _zero(K), FieldElement(K.one_element, K)
+    if c == zero:
+        return zero
+    if c ** ((q - 1) // 2) != one:
+        return None
+    s, t = 0, q - 1
+    while t % 2 == 0:
+        s, t = s + 1, t // 2
+    if s == 1:                                   # q == 3 mod 4
+        return c ** ((q + 1) // 4)
+    rng = rng or _random.Random(0)
+    z = _rand_elt(K, rng)                         # a quadratic non-residue
+    while z == zero or z ** ((q - 1) // 2) == one:
+        z = _rand_elt(K, rng)
+    M, cc, R, tt = s, z ** t, c ** ((t + 1) // 2), c ** t
+    while tt != one:
+        i, temp = 1, tt * tt
+        while temp != one:
+            temp, i = temp * temp, i + 1
+        b = cc ** (2 ** (M - i - 1))
+        M, cc, R, tt = i, b * b, R * b, tt * b * b
+    return R
+
+
+def random_point(a, b, rng):
+    """A random affine point on y^2 = x^3 + a*x + b over a.grp."""
+    while True:
+        x = _rand_elt(a.grp, rng)
+        y = field_sqrt(x * x * x + a * x + b, rng)
+        if y is not None:
+            return (x, y)
+
+
+def frobenius(P, p):
+    """The p-power Frobenius pi(x, y) = (x^p, y^p)."""
+    if P is None:
+        return None
+    x, y = P
+    return (x ** p, y ** p)
+
+
+def curve_cardinality(a, p, k):
+    """#E(F_{p^k}) = p^k + 1 - a_k, where a_0=2, a_1=a, a_i = a*a_{i-1} - p*a_{i-2}."""
+    t0, t1 = 2, a
+    for _ in range(2, k + 1):
+        t0, t1 = t1, a * t1 - p * t0
+    return p ** k + 1 - t1
+
+
+def kernel_gen_eigenline(a, b, l, lam, mu, p, k, trace, rng, tries=300):
+    """A generator of the lambda-eigenline l-torsion kernel of y^2=x^3+ax+b over
+    F_{p^k} (a, b FieldElements).  trace is the F_p trace of Frobenius."""
+    N = curve_cardinality(trace, p, k)
+    cof = N // l
+    mu_red = mu % l
+    for _ in range(tries):
+        P = ec_mul(cof, random_point(a, b, rng), a)      # l-torsion (order | l)
+        if P is None:
+            continue
+        Q = ec_add(frobenius(P, p), ec_neg(ec_mul(mu_red, P, a)), a)   # pi(P) - mu*P
+        if Q is not None and point_order(Q, a, l) == l:
+            return Q
+    return None
+
+
+def velu_l_isog_codomain(f, g, l, p, trace, direction=0, max_degree=None, seed=0):
+    """Codomain j of a horizontal l-isogeny of y^2 = x^3 + f*x + g over F_p.
+
+    trace is the F_p trace of Frobenius.  direction selects the eigenvalue (0 or 1
+    for split).  Returns a dict with 'status' = 'ok' (and 'j', 'k', 'lam'),
+    'inert'/'ramified' (no horizontal l-isogeny), or 'extension_too_large'."""
+    from nt import frob_ext_degrees
+    from alg_classes import GF_p, GF_pn_auto
+    info = frob_ext_degrees(trace, p, l)
+    if info['kind'] != 'split':
+        return {'status': info['kind']}                  # no two horizontal directions
+    eigs, degs = info['eigenvalues'], info['degrees']
+    lam, k = eigs[direction], degs[direction]
+    mu = (p * pow(lam, -1, l)) % l                        # the other eigenvalue
+    if max_degree is not None and k > max_degree:
+        return {'status': 'extension_too_large', 'k': k}
+    K = GF_p(p) if k == 1 else GF_pn_auto(p, k)
+    a, b = embed_fp(f, K), embed_fp(g, K)
+    rng = _random.Random((p * 7919 + f) * 7919 + g + l * 131 + seed)
+    Q = kernel_gen_eigenline(a, b, l, lam, mu, p, k, trace, rng)
+    if Q is None:
+        return {'status': 'kernel_not_found', 'k': k}
+    A, B = velu_isogeny(a, b, l, Q)
+    j = j_invariant(A, B)
+    jval = j.vec[0] if all(c == 0 for c in j.vec[1:]) else j.vec     # horizontal -> in F_p
+    return {'status': 'ok', 'j': jval, 'k': k, 'lam': lam, 'mu': mu}
