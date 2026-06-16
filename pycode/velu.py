@@ -208,13 +208,17 @@ def kernel_gen_eigenline(a, b, l, lam, mu, p, k, trace, rng, tries=300):
     """A generator of the lambda-eigenline l-torsion kernel of y^2=x^3+ax+b over
     F_{p^k} (a, b FieldElements).  trace is the F_p trace of Frobenius."""
     N = curve_cardinality(trace, p, k)
-    cof = N // l
+    m = N                                       # remove the full l-part of N, not just
+    while m % l == 0:                           # one factor (the l-Sylow can be (Z/l)^2,
+        m //= l                                 # where N/l would kill all l-torsion)
     mu_red = mu % l
     for _ in range(tries):
-        P = ec_mul(cof, random_point(a, b, rng), a)      # l-torsion (order | l)
-        if P is None:
+        T = ec_mul(m, random_point(a, b, rng), a)        # into the l-Sylow
+        if T is None:
             continue
-        Q = ec_add(frobenius(P, p), ec_neg(ec_mul(mu_red, P, a)), a)   # pi(P) - mu*P
+        while ec_mul(l, T, a) is not None:               # reduce to an order-l point
+            T = ec_mul(l, T, a)
+        Q = ec_add(frobenius(T, p), ec_neg(ec_mul(mu_red, T, a)), a)   # pi(T) - mu*T
         if Q is not None and point_order(Q, a, l) == l:
             return Q
     return None
@@ -246,3 +250,31 @@ def velu_l_isog_codomain(f, g, l, p, trace, direction=0, max_degree=None, seed=0
     j = j_invariant(A, B)
     jval = j.vec[0] if all(c == 0 for c in j.vec[1:]) else j.vec     # horizontal -> in F_p
     return {'status': 'ok', 'j': jval, 'k': k, 'lam': lam, 'mu': mu}
+
+
+def velu_nbr_data_ord(ap, l, js=None, max_degree=None):
+    """Horizontal l-isogeny neighbour graph {j: [neighbour j's]} for the ordinary
+    isogeny class (a, p), via Velu.  Mirrors ecfp_nbr_data_ord_X1 (the Atkin path)
+    but works for any split prime l, not just the 15 with a modular polynomial.
+
+    For each class j, takes a model of trace a (trfr_to_models) and computes both
+    horizontal directions; only codomains that land back in the class are kept.
+    max_degree caps the extension F_{p^k} (directions needing a larger k are skipped)."""
+    a, p = ap
+    from ecfp import trfr_to_js, trfr_to_models
+    if js is None:
+        js = trfr_to_js(a, p)
+    models = trfr_to_models(a, p)              # {j: (f,g) with trace exactly a}
+    jset = set(js)
+    out = {}
+    for j in js:
+        fg = models.get(j) if isinstance(models, dict) else None
+        nbrs = []
+        if fg is not None:
+            f, g = fg
+            for d in (0, 1):
+                res = velu_l_isog_codomain(f, g, l, p, a, direction=d, max_degree=max_degree)
+                if res['status'] == 'ok' and res['j'] in jset:
+                    nbrs.append(res['j'])
+        out[j] = list(dict.fromkeys(nbrs))
+    return out

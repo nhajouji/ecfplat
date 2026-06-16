@@ -409,14 +409,21 @@ def ecfp_nbr_data_ord(ap,ls):
     # mirroring qf_isog_data, so l2_split reads order-2 vs long the same way on the
     # j side as on the qf side.  The vertical/ancestor code keeps multiplicities by
     # calling ecfp_nbr_data_ord_X1 directly, so it is unaffected by this.  A power
-    # descriptor (l, k) is the k-step of the base l-graph -- same Atkin data.
+    # descriptor (l, k) is the k-step of the base l-graph -- same data.
+    # Dispatch per prime: the 15 genus-0 primes use the Atkin polynomial; any other
+    # prime gets its horizontal graph from Velu (velu.velu_nbr_data_ord).
     out = {}
     base = {}
+    atkin = set(ssprimes)
     for desc in ls:
         l = _desc_base(desc)
         if l not in base:
-            nbr = ecfp_nbr_data_ord_X1(ap, l, jspc)
-            base[l] = {j: list(dict.fromkeys(nbr[j])) for j in nbr}
+            if l in atkin:
+                nbr = ecfp_nbr_data_ord_X1(ap, l, jspc)
+                base[l] = {j: list(dict.fromkeys(nbr[j])) for j in nbr}
+            else:
+                from velu import velu_nbr_data_ord
+                base[l] = velu_nbr_data_ord(ap, l, js)
         out[desc] = _kstep_nbrdata(base[l], desc[1]) if isinstance(desc, tuple) else base[l]
     return out
 
