@@ -188,12 +188,11 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 
 **Per-`(a, p)` bijections** — the end product, the full curve ↔ lattice-class bijection for each pair:
 - `ecqf_ord_pcbij_4_1024.json` — ordinary classes, **6 725** pairs `(a, p)` with `4 ≤ p ≤ 1024`.
-- `ecqf_ss_pcbij_4_1024_INC.json` — supersingular classes computed in Sage early in the project, keyed by prime `p` (158 keys; some primes were missing).
 - `ecqf_ord_pcbij_4to256.json` — an earlier / smaller-range variant.
 
-The supersingular bijection has since been **recomputed from scratch** with the Vélu pipeline (`ss_bij_cache.py`), independent of the original Sage tables and stored separately:
-- `ecqf_ss_pcbij_velu_4_1024.json` — dict form `{p: {"(j, s)": [a, b, c]}}`, **all 170** supersingular primes in `4 ≤ p ≤ 1024` (the 12 the Sage tables were missing are now included).
-- `ssfp_pc_bij_velu.json` — the same data in list form `[[[j, s], [a, b, c]], …]`, kept in sync.
+The supersingular bijection is computed from scratch with the Vélu pipeline (`ss_bij_cache.py`) and stored in two equivalent forms (this replaces the earlier Sage tables):
+- `ecqf_ss_pcbij_velu_4_1024.json` — dict form `{p: {"(j, s)": [a, b, c]}}`, **all 170** supersingular primes in `4 ≤ p ≤ 1024`. Loaded by `ecqf_tools.py` (`ecqf_ss_1K_pc`), the data path the web app uses.
+- `ssfp_pc_bij_velu.json` — the same data in list form `[[[j, s], [a, b, c]], …]`, kept in sync; loaded by `ecfp.py`.
 
 List available keys with `get_aps_pc()` / `get_ssps_pc()` and test membership with `ap_in_pc_data((a, p))` (all in `ecqf_tools.py`).
 

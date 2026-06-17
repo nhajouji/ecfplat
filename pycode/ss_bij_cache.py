@@ -1,11 +1,12 @@
 """
 Populate / update data/ecqf_ss_pcbij_velu_4_1024.json -- the supersingular
-signature<->lattice bijection recomputed FROM SCRATCH with the Velu pipeline
-(ecqf_bij.ecqf_full_bijection_ss), kept SEPARATE from the original Sage-computed
-files (ecqf_ss_pcbij_4_1024_INC.json / ssfp_pc_bij.json).
+signature<->lattice bijection computed FROM SCRATCH with the Velu pipeline
+(ecqf_bij.ecqf_full_bijection_ss).  This is the live supersingular data the rest of
+the code loads (ecqf_tools.ecqf_ss_1K_pc, ecfp.ss_precomputed_dictionary); it
+replaced the project's original Sage-computed tables.
 
-Format matches the Sage files: {str(p): {"(j, s)": [a, b, c]}}, j-invariant j in
-F_p and signature s = +-1, value a reduced binary quadratic form.
+Format: {str(p): {"(j, s)": [a, b, c]}}, j-invariant j in F_p and signature
+s = +-1, value a reduced binary quadratic form.
 
 CLI
 ---
@@ -52,8 +53,8 @@ def bijection_entry(p):
 
 
 def write_list_form(src=DEFAULT_PATH, dst=LISTFORM_PATH):
-    """Derive the list-form file [[[j, s], [a, b, c]], ...] (mirroring ssfp_pc_bij.json)
-    from the dict-form bijection file, so the two stay consistent."""
+    """Derive the list-form file [[[j, s], [a, b, c]], ...] from the dict-form bijection
+    file, so the two stay consistent."""
     data = load(src)
     out = {p: [[list(ast.literal_eval(k)), v] for k, v in entry.items()]
            for p, entry in data.items()}

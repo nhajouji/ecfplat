@@ -9,17 +9,11 @@ from pathlib import Path
 
 _DATA_DIR = Path(__file__).parent / 'data'
 
-with open(_DATA_DIR / 'ssfp_pc_bij.json', 'r') as f:
+with open(_DATA_DIR / 'ssfp_pc_bij_velu.json', 'r') as f:
     ssfpdata_raw = json.load(f)
 ss_precomputed_dictionary = {int(p):ssfpdata_raw[p]for p in ssfpdata_raw}
 
 def get_precomputed_ssdict(p):
-    sspcext = {5:{(0,1):(1,0,5),(0,-1):(2,2,3)},7:{(6,1):(1,0,7),(6,-1):(1,1,2)},
-           11:{(1,-1):(1,1,3),(1,1):(1,0,11),(0,1):(3,2,4),(0,-1):(3,-2,4)},
-           13:{(5,1):(1,0,13),(5,-1):(2,2,7)},
-           19:{(18,-1):(1,1,5),(18,1):(1,0,19),(7,1):(4,2,5),(7,-1):(4,-2,5)}}
-    if p in sspcext:
-        return sspcext[p]
     if p not in ss_precomputed_dictionary:
         raise ValueError(f'No data for p={p}')
     data = ss_precomputed_dictionary[p]

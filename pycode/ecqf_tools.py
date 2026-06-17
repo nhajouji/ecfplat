@@ -26,7 +26,7 @@ ecqf_ord_1K_pc = {strtup_to_tup(aps):{int(ns):tuple(ecqf_ord_pcbij_1K_loaded[aps
                                        for ns in ecqf_ord_pcbij_1K_loaded[aps]}
                                        for aps in ecqf_ord_pcbij_1K_loaded}
 
-with open(_DATA_DIR / 'ecqf_ss_pcbij_4_1024_INC.json', 'r') as f:
+with open(_DATA_DIR / 'ecqf_ss_pcbij_velu_4_1024.json', 'r') as f:
     ecqf_ss_pcbij_1K_loaded = json.load(f)
 ecqf_ss_1K_pc = {int(ps):{strtup_to_tup(jss):tuple(ecqf_ss_pcbij_1K_loaded[ps][jss] )
                                        for jss in ecqf_ss_pcbij_1K_loaded[ps]} 
