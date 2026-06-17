@@ -346,35 +346,63 @@ def disc_ldata(d, ls=None):
     return disc_rigid_lset_search(d, ls)
 
 
-def _ss_velu_cost(p, l):
-    """Velu cost of the prime l for the supersingular class over F_p: the larger of
-    the two split-eigenline degrees (velu_nbr_data_ss builds BOTH +-directions), or
-    None if l does not split (no horizontal l-isogeny)."""
+def _velu_cost(a, p, l):
+    """Velu cost of the prime l for the class of trace a over F_p: the larger of the two
+    split-eigenline degrees of Frobenius on E[l] (both +-directions are built), or None if
+    l does not split (no horizontal l-isogeny over F_p).  a = 0 is the supersingular case."""
     from nt import frob_ext_degrees
-    info = frob_ext_degrees(0, p, l)
+    info = frob_ext_degrees(a, p, l)
     return max(info['degrees']) if info['kind'] == 'split' else None
 
-def ss_rigid_lset_info(p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4000):
-    """disc_rigid_lset_search result for discriminant d (an order in Q(sqrt(-p))),
-    drawn from split primes of small Velu cost so the eigenline isogenies stay in a
-    manageable extension.  Escalates the cost cap until the group is spanned (the default
-    15-prime pool can force a huge-extension generator; widening to low-cost split primes
-    -- including the cheap ones dividing p+1 -- avoids it).  The basis generators need a
-    full graph, but the sum/pinning prime (info['l_sum']) is only read at the root, so it
-    need not be low-cost -- see _ss_root_neighbours."""
+def _velu_rigid_lset_info(a, p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4000):
+    """disc_rigid_lset_search result for discriminant d, drawn from split primes of small
+    Velu cost so the eigenline isogenies stay in a manageable extension.  Escalates the cost
+    cap until the group is spanned: the default 15-prime pool can force a huge-extension
+    generator, so widening to low-cost split primes -- including the cheap ones with small
+    eigenvalue order mod l -- avoids it.  The basis generators need a full graph, but the
+    sum/pinning prime (info['l_sum']) is only read at the root, so it need not be low-cost.
+    A spanning set always exists in principle, so the only obstruction is every generating
+    set needing a too-large kernel field (raised as ValueError)."""
     primes = [l for l in primesBetween(2, prime_cap) if l != p]
-    cost = {l: _ss_velu_cost(p, l) for l in primes}
+    cost = {l: _velu_cost(a, p, l) for l in primes}
     for cap in deg_caps:
         pool = tuple(sorted((l for l in primes if cost[l] is not None and cost[l] <= cap),
                             key=lambda l: (cost[l], l)))
         info = disc_rigid_lset_search(d, pool)
         if info.get('success'):
             return info
-    raise ValueError(f'no low-cost rigid l-set for p={p}, d={d} up to cost {deg_caps[-1]}')
+    raise ValueError(f'no Velu rigid l-set for (a, p) = ({a}, {p}), d = {d} '
+                     f'within kernel-field degree {deg_caps[-1]}')
+
+def ss_rigid_lset_info(p, d, **kw):
+    """Velu-optimised rigid l-set search for the supersingular class over F_p (trace 0)."""
+    return _velu_rigid_lset_info(0, p, d, **kw)
 
 def ss_rigid_lset(p, d, **kw):
-    """The rigid l-set tuple ls_rig for discriminant d (see ss_rigid_lset_info)."""
+    """The rigid l-set tuple ls_rig for the supersingular class (see ss_rigid_lset_info)."""
     return ss_rigid_lset_info(p, d, **kw)['ls_rig']
+
+def ord_rigid_lset_info(a, p, d=None, **kw):
+    """Velu-optimised rigid l-set search for the ordinary class (a, p) -- the fallback used
+    when the 15 Atkin primes do not generate the class group of d = a^2 - 4p."""
+    if d is None:
+        d = a * a - 4 * p
+    return _velu_rigid_lset_info(a, p, d, **kw)
+
+def ord_rigid_lset(a, p, d=None, **kw):
+    """The rigid l-set tuple ls_rig for the ordinary class (a, p) (see ord_rigid_lset_info)."""
+    return ord_rigid_lset_info(a, p, d, **kw)['ls_rig']
+
+def ord_lset(a, p):
+    """A rigid l-set for the ordinary class (a, p): the 15 Atkin primes when they span the
+    class group (so the curve side can use Atkin modular polynomials), otherwise a
+    Velu-optimised set (curve side computed with Velu).  Mirrors the dispatch the pipeline
+    uses; `ecqf_full_bijection_ord` falls back to this when no l-set is supplied."""
+    d = a * a - 4 * p
+    info = disc_ldata(d)                                   # default = the 15 Atkin primes
+    if info.get('success'):
+        return info['ls_rig']
+    return ord_rigid_lset(a, p, d)
 
 def _ss_root_neighbours(p, root, l):
     """The (de-duplicated) horizontal l-isogeny neighbour signatures OF THE ROOT only.
@@ -616,16 +644,19 @@ def canonicalize_j_labelling(zn_to_j):
     return zn_to_j
 
 
-def ecqf_full_bijection_ord(a:int,p:int,ls:tuple[int],zn_to_qf=None):
+def ecqf_full_bijection_ord(a:int,p:int,ls:tuple[int]=None,zn_to_qf=None):
     # zn_to_qf is the (a,p)-independent labelling tuple -> qf of the class group.
     # It depends only on (d, ls), so it can be precomputed once per discriminant
     # and reused for every (a,p); pass it in to skip the expensive recompute.
+    # ls defaults to ord_lset(a, p): the 15 Atkin primes when they span, else Velu.
     if a == 0:
         return ecqf_full_bijection_ss(p)
     d = a*a-4*p
     hd = small_bij_check(d)
     if len(hd)>0:
         return {j%p:hd[j] for j in hd}
+    if ls is None:
+        ls = ord_lset(a, p)
     vert_iso_data_fp = get_ancestor_data_ord((a,p))
     j0 = vert_iso_data_fp['leaves'][0]
     isog_data_horz_fp = ecfp_nbr_data_ord((a,p),ls)
