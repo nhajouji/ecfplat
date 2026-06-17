@@ -18,6 +18,7 @@ the file is saved atomically every `save_every` primes so a long run is resumabl
 """
 
 import os
+import ast
 import json
 import time
 import argparse
@@ -27,6 +28,7 @@ from ecqf_bij import ecqf_full_bijection_ss, _DATA_DIR
 from qfs import qf_mod_gamma
 
 DEFAULT_PATH = _DATA_DIR / 'ecqf_ss_pcbij_velu_4_1024.json'
+LISTFORM_PATH = _DATA_DIR / 'ssfp_pc_bij_velu.json'
 
 
 def load(path=DEFAULT_PATH):
@@ -47,6 +49,16 @@ def bijection_entry(p):
     """{"(j, s)": [a, b, c]} for the supersingular class over F_p, via Velu."""
     bij = ecqf_full_bijection_ss(p)
     return {str(sig): list(qf_mod_gamma(qf)) for sig, qf in bij.items()}
+
+
+def write_list_form(src=DEFAULT_PATH, dst=LISTFORM_PATH):
+    """Derive the list-form file [[[j, s], [a, b, c]], ...] (mirroring ssfp_pc_bij.json)
+    from the dict-form bijection file, so the two stay consistent."""
+    data = load(src)
+    out = {p: [[list(ast.literal_eval(k)), v] for k, v in entry.items()]
+           for p, entry in data.items()}
+    save(out, dst)
+    return out
 
 
 def populate(pmin=5, pmax=1024, path=DEFAULT_PATH, force=False, save_every=20, verbose=True):
@@ -70,6 +82,7 @@ def populate(pmin=5, pmax=1024, path=DEFAULT_PATH, force=False, save_every=20, v
         if done and done % save_every == 0:
             save(data, path)
     save(data, path)
+    write_list_form(path)                          # keep the list-form file in sync
     if verbose:
         print(f'done={done} skipped={skipped} failed={failed} total={len(data)} -> {path}')
     return data
