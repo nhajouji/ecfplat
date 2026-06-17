@@ -1,5 +1,9 @@
-numpy
-pandas
-streamlit
-matplotlib
-Pillow
+# Pinned to a tested-good environment (Python 3.13).
+# NOTE: Python 3.14 is not yet supported — its matplotlib build crashes on
+# mathtext parsing. Keep the deployment on Python 3.13 (see .python-version and
+# the app's Advanced settings on Streamlit Cloud).
+numpy==2.4.6
+pandas==3.0.3
+streamlit==1.58.0
+matplotlib==3.10.9
+Pillow==12.2.0
