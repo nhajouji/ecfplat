@@ -79,7 +79,10 @@ pycode/           # Core Python library
                       #   Frobenius-eigenvalue / isogeny-kernel extension degrees, …)
   identities.py       # Algebraic identities used in isogeny computations
   qfs.py              # Quadratic form / lattice utilities and modular group action
-  modularpolynomials.py  # Atkin and Hilbert modular polynomial data and evaluation
+  modularpolynomials.py  # Atkin and Hilbert modular polynomial data and evaluation;
+                      #   classical Phi_l(X,Y) computed from the j-function q-expansion
+                      #   for any prime l (compute_modpoly), with eval + root-finding
+                      #   (modpoly_nbrs) and a compute/source cache
   ecfp.py             # Elliptic curves over F_p (j-invariants, models, isogeny
                       #   graphs, Frobenius; Atkin-vs-Velu neighbour-data dispatch)
   velu.py             # Field-generic Velu isogeny engine: EC arithmetic, codomains,
@@ -209,6 +212,8 @@ python pycode/ss_bij_cache.py --max 1024   # supersingular bijection, from scrat
 **Modular-polynomial tables** — used to read $\mathbb{F}_p$ isogeny adjacency without computing isogenies:
 - `atkinpolys.json` — Atkin modular polynomials for the 15 primes `ℓ ∈ {2, …, 71}` whose Atkin–Lehner quotient `X₀(ℓ)⁺` has genus 0 (the supersingular primes).
 - `hilbpolys.json`, `jcoefs.json` — Hilbert class polynomials and related data for small discriminants.
+- `jq_coeffs.json` — the q-expansion coefficients of the j-function (`j = q⁻¹ + 744 + 196884q + …`, sourced from OEIS A000521), used by `compute_modpoly` to build the **classical** modular polynomial `Φ_ℓ(X, Y)` for an arbitrary prime ℓ. `Φ_ℓ(j, Y) mod p` factors into the ℓ-isogenous j-invariants — the general-ℓ analogue of the Atkin adjacency, with no isogeny computed over an extension field, so it sidesteps the Vélu extension-degree failure mode. Validated against the published Φ₂/Φ₃ and the Kronecker congruence `Φ_ℓ ≡ (X^ℓ − Y)(X − Y^ℓ) mod ℓ`.
+- `classical_modpolys.json` — a cache of computed `Φ_ℓ` (small ℓ); larger ℓ, where the pure-Python q-expansion computation is slow, can be dropped into the same cache from precomputed tables via `modpoly_from_terms`/`register_modpoly`.
 
 ### Validation
 

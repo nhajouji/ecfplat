@@ -103,3 +103,144 @@ def atk_at_j(j:int,l:int,p=0):
 def atk_at_j_fpfac(j:int,l:int,p:int):
     poly = atk_at_j(j,l,p).mod(p)
     return poly.fp_factor()
+
+
+## Classical modular polynomials Phi_l(X, Y), computed from the j-function q-expansion
+# The Atkin polynomials above only cover the 15 genus-0 primes.  For an arbitrary prime l
+# we compute the classical modular polynomial Phi_l(X, Y) directly from the q-expansion of
+# the j-function (data/jq_coeffs.json, the coefficients c(n) of j = q^-1 + 744 + ...).
+# Phi_l(j, Y) mod p factors over F_p into the l+1 j-invariants l-isogenous to j -- the
+# general-l analogue of eval_atk, with no isogeny computed over an extension field.
+
+with open(_DATA_DIR / 'jq_coeffs.json') as f:
+    _jq = json.load(f)
+_JQ_MIN = _jq['min_n']                                   # -1
+_JQ = _jq['coeffs']                                      # _JQ[i] = c(i + _JQ_MIN)
+_JQ_NMAX = _JQ_MIN + len(_JQ) - 1
+def _jc(n):                                              # j-coefficient c(n), n >= -1
+    return _JQ[n - _JQ_MIN]
+
+# integer Laurent series as a dict {exponent: coefficient}
+def _smul(A, s): return {e: v*s for e, v in A.items() if v*s}
+def _sadd(*Ds):
+    R = {}
+    for D in Ds:
+        for e, v in D.items(): R[e] = R.get(e, 0) + v
+    return {e: v for e, v in R.items() if v}
+def _smulser(A, B, emax):
+    R = {}
+    for e1, v1 in A.items():
+        for e2, v2 in B.items():
+            e = e1 + e2
+            if e <= emax: R[e] = R.get(e, 0) + v1*v2
+    return {e: v for e, v in R.items() if v}
+def _spow(A, k, emax):
+    R = {0: 1}
+    for _ in range(k): R = _smulser(R, A, emax)
+    return R
+
+def compute_modpoly(l:int):
+    """Classical modular polynomial Phi_l(X, Y) as a dense (l+2)x(l+2) integer matrix M with
+    M[i][j] = coefficient of X^i Y^j, computed from the q-expansion of j.
+
+    Cyclotomic-free method: the l "small" conjugates j((tau+b)/l) have power sums
+        P_k = sum_b j((tau+b)/l)^k = l * (l-divisible q^{1/l}-part of j(tau/l)^k)
+    (the sum over b kills the non-l-divisible exponents, so no zeta_l is needed), and these
+    have shallow poles.  Newton's identities give their elementary symmetric functions
+    sigma_k; then Phi_l(X, j) = (X - j(l tau)) * prod_b (X - j((tau+b)/l)), and each
+    X-coefficient -- a level-1 modular function -- is read off as a polynomial in j(tau).
+
+    l must be prime (the l conjugates j((tau+b)/l) are the cyclic l-isogenies)."""
+    from nt import primeQ
+    if not primeQ(l):
+        raise ValueError(f'compute_modpoly needs l prime, got l={l}')
+    QMAX = 2*l + 6
+    UMAX = l*QMAX + l
+    if UMAX > _JQ_NMAX:
+        raise ValueError(f'need j-coefficients up to q^{UMAX} for l={l}, have up to q^{_JQ_NMAX} '
+                         f'(regenerate data/jq_coeffs.json with more terms)')
+    small = {n: _jc(n) for n in range(-1, UMAX+l+2)}      # j(tau/l) in u = q^{1/l}
+    # (need terms past UMAX so that small^k stays exact up to u^UMAX for k up to l)
+    big   = {l*n: _jc(n) for n in range(-1, QMAX//l + 3)}  # j(l tau), q-series
+    jser  = {n: _jc(n) for n in range(-1, QMAX+2)}         # j(tau), q-series
+    P = {}
+    S = {0: 1}
+    for k in range(1, l+1):
+        S = _smulser(S, small, UMAX)                      # accumulate j(tau/l)^k incrementally
+        Pk = {}
+        for e, v in S.items():
+            if e % l == 0 and e//l <= QMAX:
+                Pk[e//l] = Pk.get(e//l, 0) + l*v
+        P[k] = Pk
+    sig = {0: {0: 1}}                                      # elementary symmetric of the small conj.
+    for k in range(1, l+1):
+        acc = {}
+        for i in range(1, k+1):
+            acc = _sadd(acc, _smul(_smulser(sig[k-i], P[i], QMAX), (-1)**(i-1)))
+        sig[k] = {e: v//k for e, v in acc.items() if v % k == 0 and v//k}
+    jpows = {0: {0: 1}}
+    for d in range(1, l+2):
+        jpows[d] = _smulser(jpows[d-1], jser, QMAX)
+    def _as_poly_in_j(f):
+        f = dict(f); co = {}
+        while f and min(f) < 0:
+            v = min(f); d = -v; a = f[v]; co[d] = a
+            f = _sadd(f, _smul(jpows[d], -a))
+        co[0] = f.get(0, 0)
+        return co
+    M = [[0]*(l+2) for _ in range(l+2)]
+    for m in range(0, l+2):                               # coeff of X^{l+1-m} is (-1)^m e_m(j)
+        Cm = _smul(_sadd(sig.get(m, {}), _smulser(big, sig.get(m-1, {}), QMAX)), (-1)**m)
+        for d, a in _as_poly_in_j(Cm).items():
+            M[l+1-m][d] = a
+    return M
+
+_MODPOLY_CACHE_PATH = _DATA_DIR / 'classical_modpolys.json'
+try:
+    with open(_MODPOLY_CACHE_PATH) as f:
+        _modpoly_cache = {int(l): M for l, M in json.load(f).items()}
+except FileNotFoundError:
+    _modpoly_cache = {}
+
+def classical_modpoly(l:int, use_cache=True):
+    """Phi_l(X, Y) as a dense (l+2)x(l+2) integer matrix, cached in classical_modpolys.json."""
+    if use_cache and l in _modpoly_cache:
+        return _modpoly_cache[l]
+    M = compute_modpoly(l)
+    _modpoly_cache[l] = M
+    return M
+
+def save_modpoly_cache(path=_MODPOLY_CACHE_PATH):
+    with open(path, 'w') as f:
+        json.dump({str(l): M for l, M in _modpoly_cache.items()}, f)
+
+def modpoly_from_terms(l:int, terms):
+    """Dense (l+2)x(l+2) Phi_l matrix from a list of (i, j, coeff) terms.  Phi_l is
+    symmetric, so each unordered pair may be listed once; both (i,j) and (j,i) are set.
+    Use this to ingest a *sourced* classical modular polynomial (e.g. for large l, where
+    computing from the q-expansion is slow) into the same cache the computed ones use."""
+    M = [[0]*(l+2) for _ in range(l+2)]
+    for i, j, co in terms:
+        M[i][j] = co
+        M[j][i] = co
+    return M
+
+def register_modpoly(l:int, M, save=False):
+    """Add a Phi_l matrix (computed or sourced) to the in-memory cache; persist if save."""
+    _modpoly_cache[l] = M
+    if save:
+        save_modpoly_cache()
+
+def modpoly_at_j(j:int, l:int, p:int):
+    """Coefficients (low-to-high) of Phi_l(j, Y) mod p, a univariate polynomial in Y."""
+    M = classical_modpoly(l)
+    jp = j % p
+    jpows = [1]*(l+2)
+    for i in range(1, l+2):
+        jpows[i] = (jpows[i-1]*jp) % p
+    return [sum(M[i][d]*jpows[i] for i in range(l+2)) % p for d in range(l+2)]
+
+def modpoly_nbrs(j:int, l:int, p:int):
+    """The j-invariants l-isogenous to j over F_p: the roots of Phi_l(j, Y) mod p."""
+    coeffs = modpoly_at_j(j, l, p)                        # low-to-high
+    return [y for y in range(p) if poly_eval_mod(coeffs, y, p, rev=True) == 0]
