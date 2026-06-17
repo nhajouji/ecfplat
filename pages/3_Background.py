@@ -24,6 +24,14 @@ with st.expander("§2 — Frobenius and the lattice pictures", expanded=False):
         "Lifting Frobenius (Deuring)",
     ])
 
+with st.expander("§3 — Isogenies", expanded=False):
+    (tab_isog, tab_fold, tab_velu, tab_volc) = st.tabs([
+        "Isogenies: kernels and degree",
+        "Analytic pictures: folding the torus",
+        "Vélu's formulas over $\\mathbb{F}_p$",
+        "Isogenies over $\\mathbb{F}_p$: volcanoes",
+    ])
+
 
 
 # ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
@@ -1327,4 +1335,606 @@ with tab_lift:
             "$\\arg\\alpha$ and scaling by $|\\alpha| = \\sqrt p$. Both image "
             "generators $\\alpha\\cdot 1$ and $\\alpha\\cdot\\alpha$ land on lattice "
             "points, so $\\alpha\\Lambda \\subseteq \\Lambda$."
+        )
+
+
+# ── Tab: Isogenies — kernels and degree ───────────────────────────────────────
+with tab_isog:
+    st.subheader("Isogenies: Kernels and Degree")
+
+    # ── Definition ────────────────────────────────────────────────────────────
+    st.markdown(
+        "An **isogeny** is a non-constant morphism $\\varphi : E \\to E'$ between "
+        "two elliptic curves that sends the identity to the identity, "
+        "$\\varphi(\\mathcal{O}) = \\mathcal{O}'$. A basic theorem says that this "
+        "single condition forces $\\varphi$ to be a **group homomorphism** "
+        "automatically — isogenies respect the group law for free."
+    )
+    st.markdown(
+        "Every isogeny has a finite **kernel** $\\ker\\varphi = "
+        "\\varphi^{-1}(\\mathcal{O}')$, and (for the separable isogenies we care "
+        "about) its **degree** is exactly the size of that kernel:"
+    )
+    st.latex(r"\deg \varphi = \#\ker\varphi.")
+    st.markdown(
+        "The kernel determines the isogeny: for **every** finite subgroup "
+        "$C \\subseteq E$ there is an essentially unique isogeny with that kernel, "
+        "the quotient map"
+    )
+    st.latex(r"\varphi : E \longrightarrow E/C, \qquad \deg\varphi = \#C.")
+    st.markdown(
+        "An isogeny of degree $\\ell$ is called an **$\\ell$-isogeny**; its kernel "
+        "is an order-$\\ell$ subgroup of the $\\ell$-torsion $E[\\ell]$. "
+        "Isogeny is an *equivalence relation* — every $\\varphi$ has a **dual** "
+        "$\\hat\\varphi$ with $\\hat\\varphi \\circ \\varphi = [\\deg\\varphi]$ — "
+        "and isogenous curves over $\\mathbb{F}_p$ share the same trace $a$, hence "
+        "the same point count. The whole project is the study of one such "
+        "**isogeny class** at a time."
+    )
+
+    # ── Two descriptions ──────────────────────────────────────────────────────
+    st.markdown("#### Two descriptions of the same map")
+    st.markdown(
+        "Just as with the group law and with endomorphisms, an isogeny looks very "
+        "different in the algebraic and analytic pictures:"
+    )
+    st.markdown(
+        "**Algebraically** ($E : y^2 = x^3 + fx + g$), an isogeny is a pair of "
+        "rational functions $\\varphi(x, y) = \\bigl(r(x),\\, y\\,s(x)\\bigr)$ "
+        "carrying one Weierstrass equation to another. Writing these down from a "
+        "kernel is the content of **Vélu's formulas** (next tab). The 2-isogenies "
+        "have the smallest such formulas; higher degrees grow quickly."
+    )
+    st.markdown(
+        "**Analytically** ($E = \\mathbb{C}/\\Lambda$), an isogeny is induced by a "
+        "complex number $\\beta$ with $\\beta\\Lambda \\subseteq \\Lambda'$ — and "
+        "in the cleanest form, by simply taking a **finer lattice**: any sublattice "
+        "relationship $\\Lambda \\subseteq \\Lambda'$ of finite index gives"
+    )
+    st.latex(r"\varphi : \mathbb{C}/\Lambda \longrightarrow \mathbb{C}/\Lambda', "
+             r"\qquad \ker\varphi = \Lambda'/\Lambda, \qquad "
+             r"\deg\varphi = [\Lambda' : \Lambda].")
+    st.markdown(
+        "So an $\\ell$-isogeny is just an **index-$\\ell$ overlattice** "
+        "$\\Lambda \\subseteq \\Lambda'$. This is dramatically more transparent than "
+        "the algebraic version — and it has a vivid geometric picture: the isogeny "
+        "**folds** the torus $\\mathbb{C}/\\Lambda$ onto the smaller torus "
+        "$\\mathbb{C}/\\Lambda'$, exactly $\\ell$-to-$1$. The next tab is an applet "
+        "for that folding."
+    )
+
+    # ── Small illustration: a sublattice ──────────────────────────────────────
+    st.markdown("#### A finer lattice")
+    st.markdown(
+        "Below, $\\Lambda$ (large blue dots) sits inside an index-3 overlattice "
+        "$\\Lambda'$ (all dots). The kernel $\\Lambda'/\\Lambda$ has the 3 cosets "
+        "highlighted inside one fundamental cell of $\\Lambda$ — these are the 3 "
+        "points killed by the 3-isogeny $\\mathbb{C}/\\Lambda \\to \\mathbb{C}/\\Lambda'$."
+    )
+
+    _tau_ill = np.array([0.35, 1.0])
+    _one_ill = np.array([1.0, 0.0])
+    _ell_ill = 3
+    # Lambda' = (1/ell) Z + tau Z  ⊃  Lambda = Z + tau Z
+    fig_il, ax_il = plt.subplots(figsize=(6, 4))
+    RNG_I = 3
+    for m in range(-RNG_I, RNG_I + 1):
+        for n in range(-2, 4):
+            # fine lattice point: (m/ell)·1 + n·tau
+            P_fine = (m / _ell_ill) * _one_ill + n * _tau_ill
+            on_coarse = (m % _ell_ill == 0)
+            ax_il.scatter(*P_fine,
+                          color="steelblue" if on_coarse else "lightgray",
+                          s=70 if on_coarse else 22,
+                          zorder=3 if on_coarse else 2)
+    # one fundamental cell of Lambda, with the 3 kernel cosets
+    ax_il.add_patch(MplPolygon(
+        [np.zeros(2), _one_ill, _one_ill + _tau_ill, _tau_ill],
+        facecolor=[0.85, 0.85, 0.95, 0.30], edgecolor="steelblue",
+        lw=1.5, zorder=1))
+    for k in range(_ell_ill):
+        P_k = (k / _ell_ill) * _one_ill
+        ax_il.scatter(*P_k, color="crimson", s=90, zorder=5,
+                      edgecolor="white", linewidth=0.8)
+    ax_il.annotate("kernel\n$\\Lambda'/\\Lambda$", (1.0 / _ell_ill, 0),
+                   xytext=(10, 22), textcoords="offset points",
+                   color="crimson", fontsize=10, fontweight="bold",
+                   ha="left")
+    ax_il.set_xlim(-1.2, 2.0)
+    ax_il.set_ylim(-1.3, 2.2)
+    ax_il.set_aspect("equal")
+    ax_il.axhline(0, color="k", lw=0.4)
+    ax_il.axvline(0, color="k", lw=0.4)
+    ax_il.set_frame_on(False)
+    ax_il.set_title("$\\Lambda \\subseteq \\Lambda'$  (index 3)", fontsize=11)
+    st.pyplot(fig_il)
+    plt.close(fig_il)
+
+
+# ── Tab: Analytic pictures — folding the torus ────────────────────────────────
+with tab_fold:
+    st.subheader("Analytic Pictures: Folding the Torus")
+
+    st.markdown(
+        "Here is the payoff of the analytic picture. An $\\ell$-isogeny "
+        "$\\varphi : \\mathbb{C}/\\Lambda \\to \\mathbb{C}/\\Lambda'$ comes from an "
+        "index-$\\ell$ overlattice $\\Lambda \\subseteq \\Lambda'$, and the map is "
+        "just 'reduce mod the finer lattice'. Geometrically it cuts the fundamental "
+        "domain of $\\Lambda$ into $\\ell$ congruent slabs and **folds** them onto "
+        "the smaller domain of $\\Lambda'$ — so $\\varphi$ is exactly "
+        "$\\ell$-to-$1$, and the $\\ell$ preimages of any point differ by the "
+        "kernel."
+    )
+    st.markdown(
+        "Pick a lattice $\\Lambda = \\mathbb{Z} + \\tau\\mathbb{Z}$, a degree "
+        "$\\ell$, and a cyclic kernel direction. The point $P$ (and its $\\ell$ "
+        "kernel-translates, the whole fibre) is shown on the left; its single image "
+        "$\\varphi(P)$ is shown on the right."
+    )
+
+    st.divider()
+
+    fold_ctrl, fold_plot = st.columns([1, 2])
+
+    with fold_ctrl:
+        st.markdown("**Lattice**")
+        ftau_re = st.slider("Re(τ)", -0.5, 0.5, 0.25, 0.01, key="fold_re")
+        ftau_im = st.slider("Im(τ)",  0.4, 2.0, 1.0, 0.05, key="fold_im")
+        st.markdown("**Isogeny**")
+        fell = st.select_slider("degree ℓ", options=[2, 3, 4, 5], value=3,
+                                key="fold_ell")
+        fdir = st.radio(
+            "cyclic kernel",
+            ["⟨1/ℓ⟩  (vertical slabs)", "⟨τ/ℓ⟩  (horizontal slabs)"],
+            key="fold_dir")
+        vertical = fdir.startswith("⟨1/ℓ⟩")
+        st.markdown("**Point $P = s\\cdot 1 + t\\cdot\\tau$**")
+        fps = st.slider("s", 0.0, 1.0, 0.30, 0.02, key="fold_s")
+        fpt = st.slider("t", 0.0, 1.0, 0.55, 0.02, key="fold_t")
+        st.caption(
+            f"$\\Lambda' = "
+            + (r"\tfrac{1}{%d}\mathbb{Z} + \tau\mathbb{Z}$" % fell if vertical
+               else r"\mathbb{Z} + \tfrac{1}{%d}\tau\mathbb{Z}$" % fell)
+            + f"  — kernel of order {fell}."
+        )
+
+    with fold_plot:
+        one_f = np.array([1.0, 0.0])
+        tau_f = np.array([ftau_re, ftau_im])
+
+        def _xy(s, t):
+            return s * one_f + t * tau_f
+
+        # kernel generator fractions and the target cell basis
+        if vertical:
+            ker_pts = [_xy(k / fell, 0.0) for k in range(fell)]
+            tgt_u, tgt_v = _xy(1.0 / fell, 0.0), tau_f      # small cell basis
+            s_img = (fps % (1.0 / fell)); t_img = fpt
+        else:
+            ker_pts = [_xy(0.0, k / fell) for k in range(fell)]
+            tgt_u, tgt_v = one_f, _xy(0.0, 1.0 / fell)
+            s_img = fps; t_img = (fpt % (1.0 / fell))
+
+        # fibre of P = the ell kernel-translates
+        if vertical:
+            fibre = [_xy((fps + k / fell) % 1.0, fpt) for k in range(fell)]
+        else:
+            fibre = [_xy(fps, (fpt + k / fell) % 1.0) for k in range(fell)]
+        img_pt = s_img * one_f + t_img * tau_f
+
+        strip_cols = plt.cm.viridis(np.linspace(0.15, 0.85, fell))
+
+        fig_fd, (axL, axR) = plt.subplots(1, 2, figsize=(9, 4.2))
+
+        # ── Left: E = C/Lambda, sliced into ell slabs ─────────────────────────
+        for k in range(fell):
+            if vertical:
+                corners = [_xy(k / fell, 0), _xy((k + 1) / fell, 0),
+                           _xy((k + 1) / fell, 1), _xy(k / fell, 1)]
+            else:
+                corners = [_xy(0, k / fell), _xy(1, k / fell),
+                           _xy(1, (k + 1) / fell), _xy(0, (k + 1) / fell)]
+            axL.add_patch(MplPolygon(corners, facecolor=strip_cols[k],
+                                     alpha=0.35, edgecolor="gray", lw=0.7,
+                                     zorder=1))
+        # kernel points
+        for K in ker_pts:
+            axL.scatter(*K, color="crimson", s=55, zorder=4,
+                        edgecolor="white", linewidth=0.7)
+        # fibre of P
+        for Q in fibre:
+            axL.scatter(*Q, color="black", s=50, zorder=5)
+        axL.scatter(*fibre[0], color="black", s=90, zorder=6)
+        axL.annotate("$P$", fibre[0], xytext=(6, 6),
+                     textcoords="offset points", fontsize=12, fontweight="bold")
+        axL.set_title("$E = \\mathbb{C}/\\Lambda$  (sliced into $\\ell$)",
+                      fontsize=10)
+
+        # ── Right: E' = C/Lambda' ─────────────────────────────────────────────
+        axR.add_patch(MplPolygon(
+            [np.zeros(2), tgt_u, tgt_u + tgt_v, tgt_v],
+            facecolor=[0.85, 0.9, 0.85, 0.5], edgecolor="seagreen",
+            lw=1.8, zorder=1))
+        axR.scatter(0, 0, color="crimson", s=55, zorder=4,
+                    edgecolor="white", linewidth=0.7)
+        axR.scatter(*img_pt, color="black", s=90, zorder=5)
+        axR.annotate("$\\varphi(P)$", img_pt, xytext=(6, 6),
+                     textcoords="offset points", fontsize=12, fontweight="bold")
+        axR.set_title("$E' = \\mathbb{C}/\\Lambda'$  (folded)", fontsize=10)
+
+        for ax in (axL, axR):
+            ax.axhline(0, color="k", lw=0.4)
+            ax.axvline(0, color="k", lw=0.4)
+            ax.set_aspect("equal")
+            ax.set_frame_on(False)
+            ax.set_xticks([]); ax.set_yticks([])
+        # shared limits from the (larger) domain
+        allx = [0, 1, 1 + tau_f[0], tau_f[0]]
+        ally = [0, 0, tau_f[1], tau_f[1]]
+        padf = 0.25
+        for ax in (axL, axR):
+            ax.set_xlim(min(allx) - padf, max(allx) + padf)
+            ax.set_ylim(min(ally) - padf, max(ally) + padf)
+
+        fig_fd.tight_layout()
+        st.pyplot(fig_fd)
+        plt.close(fig_fd)
+        st.caption(
+            "Left: the $\\ell$ coloured slabs of $\\mathbb{C}/\\Lambda$, the kernel "
+            "points (red), and the fibre of $P$ — its $\\ell$ kernel-translates "
+            "(black). Right: all $\\ell$ of them fold onto the single image "
+            "$\\varphi(P)$ in the smaller torus $\\mathbb{C}/\\Lambda'$."
+        )
+
+
+# ── Tab: Vélu's formulas over 𝔽ₚ ──────────────────────────────────────────────
+with tab_velu:
+    st.subheader("Vélu's Formulas over $\\mathbb{F}_p$")
+
+    st.markdown(
+        "The analytic 'finer lattice' picture is beautiful but lives over "
+        "$\\mathbb{C}$. To actually *compute* an isogeny over $\\mathbb{F}_p$ — "
+        "which is what this project needs — we use **Vélu's formulas**: given a "
+        "curve $E$ and a finite kernel subgroup $C$, they write down the codomain "
+        "$E/C$ and the rational map explicitly, with no lattice in sight."
+    )
+
+    # ── The recipe ────────────────────────────────────────────────────────────
+    st.markdown("#### The recipe")
+    st.markdown(
+        "Start from $E : y^2 = x^3 + fx + g$ and a kernel $C$. Pick a set $S$ of "
+        "kernel points with one representative from each pair $\\{Q, -Q\\}$ "
+        "(2-torsion points are their own inverse). For each $Q = (x_Q, y_Q) \\in S$ set"
+    )
+    st.latex(r"""
+        g^x_Q = 3x_Q^2 + f, \qquad u_Q = (2y_Q)^2, \qquad
+        v_Q = \begin{cases} g^x_Q & 2Q = \mathcal{O} \\ 2g^x_Q & \text{otherwise,}\end{cases}
+    """)
+    st.markdown("and accumulate $v = \\sum_Q v_Q$, $w = \\sum_Q (u_Q + x_Q v_Q)$. Then the **codomain** is")
+    st.latex(r"E/C : \; Y^2 = X^3 + (f - 5v)\,X + (g - 7w),")
+    st.markdown("and the **isogeny** $\\varphi(x, y) = (X, Y)$ is")
+    st.latex(r"""
+        X = x + \sum_{Q \in S}\!\left[\frac{v_Q}{x - x_Q} + \frac{u_Q}{(x-x_Q)^2}\right],
+        \qquad
+        Y = y\,\frac{dX}{dx},
+    """)
+    st.markdown(
+        "the last equation because Vélu's map is *normalised*: it pulls the "
+        "invariant differential $dx/y$ back to $dX/Y$."
+    )
+
+    # ── The 2-isogeny in closed form ──────────────────────────────────────────
+    st.markdown("#### The simplest case: a 2-isogeny")
+    st.markdown(
+        "A 2-torsion point is $Q = (x_0, 0)$ with $x_0$ a root of $x^3 + fx + g$. "
+        "Here $u_Q = 0$ and $v = g^x_Q = 3x_0^2 + f$, and everything collapses to"
+    )
+    st.latex(r"""
+        E/C : \; Y^2 = X^3 + (f - 5v)X + (g - 7x_0 v), \qquad v = 3x_0^2 + f,
+    """)
+    st.latex(r"""
+        X = x + \frac{v}{x - x_0}, \qquad Y = y\left(1 - \frac{v}{(x-x_0)^2}\right).
+    """)
+    st.markdown("Higher degrees follow the same recipe with more kernel points.")
+
+    st.divider()
+
+    # ── Numeric applet ────────────────────────────────────────────────────────
+    st.markdown("#### Compute one over $\\mathbb{F}_p$")
+    st.markdown(
+        "Choose a curve and a degree. We find a kernel of that order, run Vélu, and "
+        "show both curves over $\\mathbb{F}_p$ with a point and its image."
+    )
+
+    _VPRIMES = [p for p in range(11, 60)
+                if all(p % d for d in range(2, int(p**0.5) + 1))]
+
+    def _v_sym(x, p):
+        xr = x % p
+        return xr if 2 * xr < p else xr - p
+
+    def _v_ec_pts(f, g, p):
+        out = []
+        for x in range(p):
+            r = (pow(x, 3, p) + f * x + g) % p
+            for y in range(p):
+                if (y * y) % p == r:
+                    out.append((x, y))
+        return out
+
+    def _v_kernel(f, g, p, ell):
+        """Return (S, two_torsion_index_set) or None."""
+        if ell == 2:
+            roots = [x for x in range(p) if (pow(x, 3, p) + f * x + g) % p == 0]
+            if not roots:
+                return None
+            return [(roots[0], 0)], {0}
+        # ell == 3: order-3 points are roots of the 3-division polynomial
+        for x in range(p):
+            if (3 * pow(x, 4, p) + 6 * f * x * x + 12 * g * x - f * f) % p == 0:
+                r = (pow(x, 3, p) + f * x + g) % p
+                for y in range(1, p):
+                    if (y * y) % p == r:
+                        return [(x, y)], set()
+        return None
+
+    def _v_run(f, g, p, S, tt):
+        v = w = 0
+        data = []
+        for i, (xq, yq) in enumerate(S):
+            gx = (3 * xq * xq + f) % p
+            uq = (4 * yq * yq) % p
+            vq = gx % p if i in tt else (2 * gx) % p
+            v = (v + vq) % p
+            w = (w + uq + xq * vq) % p
+            data.append((xq, yq, uq, vq))
+        f2, g2 = (f - 5 * v) % p, (g - 7 * w) % p
+
+        def phi(x, y):
+            X = x % p
+            corr = 0
+            for (xq, yq, uq, vq) in data:
+                inv = pow((x - xq) % p, -1, p)
+                X = (X + vq * inv + uq * inv * inv) % p
+                corr = (corr + vq * inv * inv + 2 * uq * pow(inv, 3, p)) % p
+            return X, (y * ((1 - corr) % p)) % p
+
+        return f2, g2, phi
+
+    v_ctrl, v_plot = st.columns([1, 2])
+
+    with v_ctrl:
+        vp = st.selectbox("p", _VPRIMES, index=_VPRIMES.index(23), key="velu_p")
+        vf = int(st.number_input("f", value=1, step=1, key="velu_f"))
+        vg = int(st.number_input("g", value=1, step=1, key="velu_g"))
+        vell = st.select_slider("degree ℓ", options=[2, 3], value=2, key="velu_ell")
+
+        vdisc = (-16 * (4 * pow(vf, 3) + 27 * pow(vg, 2))) % vp
+        velu_ok = False
+        if vdisc == 0:
+            st.warning("Singular curve mod p — adjust f or g.")
+        else:
+            ker = _v_kernel(vf, vg, vp, vell)
+            if ker is None:
+                st.warning(
+                    f"No kernel of order {vell} over $\\mathbb{{F}}_{{{vp}}}$ for "
+                    "this curve — try another $(f, g, p)$ or degree."
+                )
+            else:
+                S, tt = ker
+                f2, g2, phi = _v_run(vf, vg, vp, S, tt)
+                velu_ok = True
+                st.success("Smooth curve ✓  kernel found ✓")
+                st.markdown("**Codomain $E/C$**")
+                st.latex(rf"Y^2 = X^3 + {f2}\,X + {g2} \pmod{{{vp}}}")
+                xq0 = S[0][0]
+                st.caption(
+                    f"kernel generator at $x = {_v_sym(xq0, vp)}$ "
+                    + ("(2-torsion, $y=0$)" if vell == 2
+                       else f", $y = {_v_sym(S[0][1], vp)}$")
+                )
+
+    with v_plot:
+        if not velu_ok:
+            st.info("Pick a curve with a kernel of the chosen order.")
+        else:
+            E_pts  = _v_ec_pts(vf, vg, vp)
+            E2_pts = _v_ec_pts(f2, g2, vp)
+            ker_x  = {q[0] % vp for q in S}
+
+            # choose a source point P (not in the kernel)
+            xs_av = sorted({x for (x, y) in E_pts if x not in ker_x})
+            with v_ctrl:
+                st.markdown("**Point $P$ on $E$**")
+                if xs_av:
+                    px = st.select_slider("x (P)",
+                                          options=[_v_sym(x, vp) for x in xs_av],
+                                          key="velu_px")
+                    pxr = px % vp
+                    py_opts = sorted({y for (x, y) in E_pts if x == pxr})
+                    py = (st.radio("y (P)", [_v_sym(y, vp) for y in py_opts],
+                                   horizontal=True, key="velu_py")
+                          if len(py_opts) > 1 else _v_sym(py_opts[0], vp))
+                    pyr = py % vp
+                    PX, PY = phi(pxr, pyr)
+                    st.markdown(
+                        f"$\\varphi(P) = ({_v_sym(PX, vp)},\\ {_v_sym(PY, vp)})$"
+                    )
+                else:
+                    px = py = None
+
+            st.caption(
+                f"$\\#E(\\mathbb{{F}}_{{{vp}}}) = {len(E_pts)+1}"
+                f" = \\#(E/C)(\\mathbb{{F}}_{{{vp}}}) = {len(E2_pts)+1}$ "
+                "— isogenous curves have equal point counts."
+            )
+
+            h = vp // 2
+            amb = [(_v_sym(x, vp), _v_sym(y, vp))
+                   for x in range(vp) for y in range(vp)]
+
+            fig_v, (axE, axE2) = plt.subplots(1, 2, figsize=(9, 4.6))
+
+            for ax, pts, ttl in [
+                (axE,  E_pts,  rf"$E:\ y^2=x^3+{vf%vp}x+{vg%vp}$"),
+                (axE2, E2_pts, rf"$E/C:\ y^2=x^3+{f2}x+{g2}$"),
+            ]:
+                ax.scatter([q[0] for q in amb], [q[1] for q in amb],
+                           color="gray", alpha=0.18, s=6, zorder=1)
+                ax.scatter([_v_sym(x, vp) for (x, y) in pts],
+                           [_v_sym(y, vp) for (x, y) in pts],
+                           color="steelblue", s=22, zorder=3)
+                ax.set_xlim(-h - 0.5, h + 0.5)
+                ax.set_ylim(-h - 0.5, h + 0.5)
+                ax.set_aspect("equal"); ax.set_frame_on(False)
+                ax.set_xticks([]); ax.set_yticks([])
+                ax.set_title(ttl, fontsize=10)
+
+            # kernel points (red) on E
+            for (xq, yq) in S:
+                for sy in ({0} if vell == 2 else {yq, (-yq) % vp}):
+                    axE.scatter(_v_sym(xq, vp), _v_sym(sy, vp),
+                                color="crimson", s=70, zorder=5,
+                                edgecolor="white", linewidth=0.7)
+            # P on E and its image on E/C
+            if px is not None:
+                axE.scatter(px, py, color="seagreen", s=90, zorder=6)
+                axE.annotate("$P$", (px, py), xytext=(5, 5),
+                             textcoords="offset points", color="seagreen",
+                             fontsize=12, fontweight="bold")
+                axE2.scatter(_v_sym(PX, vp), _v_sym(PY, vp),
+                             color="seagreen", s=90, zorder=6)
+                axE2.annotate("$\\varphi(P)$", (_v_sym(PX, vp), _v_sym(PY, vp)),
+                              xytext=(5, 5), textcoords="offset points",
+                              color="seagreen", fontsize=12, fontweight="bold")
+
+            fig_v.tight_layout()
+            st.pyplot(fig_v)
+            plt.close(fig_v)
+            st.caption(
+                "Red: the kernel $C$ on $E$. Green: a point $P$ and its image "
+                "$\\varphi(P)$ on the codomain $E/C$. Every point of $E$ maps to a "
+                "point of $E/C$, exactly $\\ell$-to-$1$."
+            )
+
+
+# ── Tab: Isogenies over 𝔽ₚ — volcanoes ────────────────────────────────────────
+with tab_volc:
+    st.subheader("Isogenies over $\\mathbb{F}_p$: Volcanoes")
+
+    st.markdown(
+        "Fix a prime $\\ell$ and draw the **$\\ell$-isogeny graph**: one vertex per "
+        "curve in the isogeny class (up to isomorphism), with an edge for each "
+        "$\\ell$-isogeny. Every vertex has exactly $\\ell + 1$ edges. For ordinary "
+        "curves over $\\mathbb{F}_p$, Kohel discovered that this graph always has "
+        "the same striking shape — an **isogeny volcano**."
+    )
+
+    st.markdown("#### Anatomy of a volcano")
+    st.markdown(
+        "- **The crater (surface).** At the top is a single cycle of vertices — the "
+        "rim. These are the curves whose endomorphism ring is *maximal at $\\ell$*. "
+        "The edges around the rim are the **horizontal** isogenies.\n"
+        "- **The descending trees.** From each rim vertex hang trees that descend "
+        "level by level to the **floor**. Going down one level multiplies the "
+        "conductor of $\\mathrm{End}$ by $\\ell$ — the curve gets a 'smaller' "
+        "endomorphism ring. Interior vertices have one edge up and the rest down; "
+        "the descent stops at the floor.\n"
+        "- **The depth** equals the $\\ell$-adic valuation of the conductor "
+        "$[\\mathcal{O}_K : \\mathbb{Z}[\\pi]]$, and the **rim length** equals the "
+        "order of a prime $\\mathfrak{l} \\mid \\ell$ in the class group of the "
+        "surface order."
+    )
+    st.info(
+        "**Why this matters here.** The horizontal isogenies around the rim "
+        "*realise the class-group action* — the very same action that permutes the "
+        "lattice classes in the analytic picture. Matching the rim to that action "
+        "is the heart of the CM bijection (§5). Vertical (descending) isogenies "
+        "change the order, so the project's rigid $\\ell$-sets are chosen from "
+        "primes that give **horizontal** steps."
+    )
+
+    st.divider()
+
+    st.markdown("#### A schematic volcano")
+    st.markdown(
+        "Adjust the degree, the rim length, and the depth. Colours mark the level: "
+        "the crater rim in red, each descending level cooler."
+    )
+
+    vol_ctrl, vol_plot = st.columns([1, 2])
+
+    with vol_ctrl:
+        vol_ell   = st.select_slider("degree ℓ", options=[2, 3, 5], value=2,
+                                     key="vol_ell")
+        vol_rim   = st.slider("rim length", 1, 6, 3, key="vol_rim")
+        vol_depth = st.slider("depth", 0, 3, 2, key="vol_depth")
+        n_surf = vol_rim
+        st.caption(
+            f"Each vertex has $\\ell + 1 = {vol_ell + 1}$ edges. Rim of "
+            f"{vol_rim} vert{'ex' if vol_rim == 1 else 'ices'}, "
+            f"depth {vol_depth}."
+        )
+
+    with vol_plot:
+        R0, dR = 1.0, 1.15
+        nodes = []   # (level, angle, radius)
+        edges = []   # (i, j)
+
+        def _add(level, angle, radius):
+            nodes.append((level, angle, radius))
+            return len(nodes) - 1
+
+        crater = [_add(0, 2 * np.pi * k / vol_rim, R0) for k in range(vol_rim)]
+        if vol_rim >= 3:
+            for k in range(vol_rim):
+                edges.append((crater[k], crater[(k + 1) % vol_rim]))
+        elif vol_rim == 2:
+            edges.append((crater[0], crater[1]))
+
+        def _descend(parent, lo, hi, level, n_children):
+            if level > vol_depth or n_children <= 0:
+                return
+            for j in range(n_children):
+                ang = lo + (j + 0.5) / n_children * (hi - lo)
+                idx = _add(level, ang, R0 + level * dR)
+                edges.append((parent, idx))
+                _descend(idx, lo + j / n_children * (hi - lo),
+                         lo + (j + 1) / n_children * (hi - lo),
+                         level + 1, vol_ell)
+
+        sector = 2 * np.pi / vol_rim
+        for k in range(vol_rim):
+            a = 2 * np.pi * k / vol_rim
+            _descend(crater[k], a - sector / 2, a + sector / 2, 1, vol_ell - 1)
+
+        xy = [(r * np.cos(t), r * np.sin(t)) for (lv, t, r) in nodes]
+        lvl_cols = plt.cm.coolwarm_r(
+            np.linspace(0.0, 0.85, max(2, vol_depth + 1)))
+
+        fig_vol, ax_vol = plt.subplots(figsize=(6, 6))
+        for (i, j) in edges:
+            ax_vol.plot([xy[i][0], xy[j][0]], [xy[i][1], xy[j][1]],
+                        color="gray", lw=1.0, zorder=1, alpha=0.7)
+        for idx, (lv, t, r) in enumerate(nodes):
+            ax_vol.scatter(*xy[idx],
+                           color=("crimson" if lv == 0 else lvl_cols[lv]),
+                           s=(110 if lv == 0 else 70),
+                           edgecolor="white", linewidth=0.6, zorder=3)
+
+        lim = R0 + vol_depth * dR + 0.4
+        ax_vol.set_xlim(-lim, lim); ax_vol.set_ylim(-lim, lim)
+        ax_vol.set_aspect("equal"); ax_vol.set_frame_on(False)
+        ax_vol.set_xticks([]); ax_vol.set_yticks([])
+        ax_vol.set_title(
+            f"$\\ell = {vol_ell}$ volcano — rim {vol_rim}, depth {vol_depth}",
+            fontsize=11)
+        st.pyplot(fig_vol)
+        plt.close(fig_vol)
+        st.caption(
+            "Red rim = the crater (horizontal isogenies / class-group action). "
+            "Cooler colours descend to the floor; each step multiplies the "
+            "conductor by $\\ell$. This is a schematic — the live, computed "
+            "$\\ell$-isogeny graphs for real classes are on the **Isogeny Class** "
+            "page."
         )

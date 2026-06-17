@@ -44,10 +44,15 @@ Status legend: ✅ done · ⬜ todo · ↪ moved from elsewhere
   *(applet: mult-by-π on Λ = ℤ + πℤ, fundamental cell → rotated/scaled image)*
 
 ### §3 — Isogenies  *(Story 2)*
-- ⬜ Isogenies: kernels, degree — algebraic vs. analytic descriptions.
-- ⬜ Analytic pictures of isogenies — folding the fundamental domain.
-- ⬜ Vélu's formulas — the algebraic counterpart (demo).
-- ⬜ Isogenies over 𝔽ₚ & the volcano structure.
+- ✅ Isogenies: kernels, degree — algebraic vs. analytic descriptions.
+  *(concept tab + static Λ ⊆ Λ′ index-3 illustration)*
+- ✅ Analytic pictures of isogenies — folding the fundamental domain.
+  *(applet: ℓ slabs of ℂ/Λ fold ℓ-to-1 onto ℂ/Λ′; shows the fibre of P)*
+- ✅ Vélu's formulas — the algebraic counterpart (demo).
+  *(recipe + closed-form 2-isogeny; 𝔽ₚ applet computes codomain E/C and point
+  images, verified images land on E/C and #E = #E/C)*
+- ✅ Isogenies over 𝔽ₚ & the volcano structure.
+  *(schematic applet: crater rim + descending ℓ-ary trees, params ℓ/rim/depth)*
 
 ### §4 — Modular tools  *(Story 3)*
 - ⬜ The j-function & modular forms.
