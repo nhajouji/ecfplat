@@ -63,7 +63,12 @@ last.
   (pⁿ−1)-th roots of unity on the unit circle, coloured by Frobenius-orbit
   length, with a selectable point lighting up its orbit under x↦xᵖ. Point count
   capped (n-range depends on p; p-/n-keyed sliders avoid stale state).
-- ⬜ The same idea applied to **elliptic curves** (Fix(αⁿ) on ℂ/Λ = E(𝔽_{pⁿ})).
+- ✅ The same idea applied to **elliptic curves**: recap (X=ℂ/Λ, F=×α,
+  Fix(αⁿ)=E(𝔽_{pⁿ}), count |αⁿ−1|²) + a side-by-side **classical vs lattice**
+  applet over the four j=1728 twists y²=x³+ax /𝔽₅ (α an associate of −2+i:
+  a=1→1+2i, a=2→2−i, a=3→−2+i, a=4→−1−2i). Lattice picture shows 0 at the
+  corner; an 𝔽₂₅ toggle adds Fix(α²) points (the advantage the classical grid
+  can't match). **§3 complete.**
 
 ## Equivalence of Categories
 

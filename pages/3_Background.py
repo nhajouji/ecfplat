@@ -28,8 +28,9 @@ with st.expander("§2 — CM Lattices and Frobenius", expanded=False):
     ])
 
 with st.expander("§3 — Pictures from lifts of Frobenius", expanded=False):
-    (tab_mult,) = st.tabs([
+    (tab_mult, tab_ell) = st.tabs([
         "The recipe, via the multiplicative group",
+        "Elliptic curves",
     ])
 
 st.header("Equivalence of Categories")
@@ -1587,6 +1588,169 @@ with tab_mult:
                else f"and nowhere smaller. Applying $F$ {d_sel} times returns it "
                     "to the start.")
         )
+
+
+# ── Tab: Pictures from lifts of Frobenius — elliptic curves ───────────────────
+with tab_ell:
+    st.subheader("Pictures from Lifts of Frobenius: Elliptic Curves")
+
+    st.markdown(
+        "We now have both halves of the story. In **§3.1** we built the recipe — "
+        "plot the fixed points of $F$ (and its powers) inside an ambient "
+        "$X(\\mathbb{C})$ — and in **§2** we obtained the ingredients for an "
+        "elliptic curve: a CM lattice $\\Lambda$ together with the complex number "
+        "$\\alpha$ that Frobenius lifts to. Putting them together gives a new kind "
+        "of picture, drawn inside a **fundamental domain of the torus "
+        "$\\mathbb{C}/\\Lambda$**."
+    )
+    st.markdown(
+        "Here $X = \\mathbb{C}/\\Lambda$ and $F$ is multiplication by $\\alpha$, so "
+        "the points of $E(\\mathbb{F}_{p^n})$ are the solutions of "
+        "$\\alpha^n z \\equiv z$, i.e. $(\\alpha^n - 1)\\,z \\in \\Lambda$ — a "
+        "finite set of $|\\alpha^n - 1|^2 = \\#E(\\mathbb{F}_{p^n})$ points in the "
+        "parallelogram. These are exactly the **lattice pictures** on the "
+        "*Elliptic Curve Search* page."
+    )
+
+    st.divider()
+
+    st.markdown("#### Classical picture vs. lattice picture")
+    st.markdown(
+        "Below, the same curve is drawn both ways. We use the four curves with "
+        "$j = 1728$ over $\\mathbb{F}_5$ — the twists $y^2 = x^3 + a x$ — which all "
+        "have $\\Lambda = \\mathbb{Z}[i]$ and Frobenius $\\alpha$ an associate of "
+        "$-2+i$."
+    )
+
+    # ── Gaussian-integer helpers ──────────────────────────────────────────────
+    def _gmul(z, w):
+        return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])
+
+    def _gpow(z, n):
+        r = (1, 0)
+        for _ in range(n):
+            r = _gmul(r, z)
+        return r
+
+    def _fixed_pts(beta):
+        """Points z in [0,1)^2 of C/Z[i] with beta*z in Z[i]; returns N of them."""
+        br, bi = beta
+        N = br * br + bi * bi
+        seen = set()
+        for a in range(N):
+            for b in range(N):
+                seen.add(((a * br + b * bi) % N, (b * br - a * bi) % N))
+        return [(rx / N, ry / N) for rx, ry in seen], N
+
+    def _fmt_gauss(z):
+        r, i = z
+        if i == 0:
+            return str(r)
+        sign = "+" if i > 0 else "-"
+        mag = abs(i)
+        coef = "" if mag == 1 else str(mag)
+        return f"{r} {sign} {coef}i"
+
+    _ALPHAS = {1: (1, 2), 2: (2, -1), 3: (-2, 1), 4: (-1, -2)}
+
+    ec_ctrl, ec_plot = st.columns([1, 2])
+
+    with ec_ctrl:
+        a_ec = st.select_slider("curve  $y^2 = x^3 + a\\,x$  (mod 5)",
+                                options=[1, 2, 3, 4], value=3, key="ec_a")
+        alpha = _ALPHAS[a_ec]
+        beta1 = (alpha[0] - 1, alpha[1])
+        _, N1 = _fixed_pts(beta1)
+        st.latex(rf"\alpha = {_fmt_gauss(alpha)}")
+        st.latex(rf"\#E(\mathbb{{F}}_5) = |\alpha-1|^2 = {N1}")
+        show25 = st.checkbox("also show $\\mathbb{F}_{25}$ points on the lattice",
+                             value=False, key="ec_25")
+        st.caption(
+            "The classical model can't show the $\\mathbb{F}_{25}$-points at all — "
+            "they don't live in the $\\mathbb{F}_5$ grid."
+        )
+
+    with ec_plot:
+        p = 5
+
+        def _sym(v):                          # symmetric representative in F_5
+            return v if 2 * v < p else v - p
+
+        # classical affine points (symmetric coords -2..2)
+        aff = [(_sym(x), _sym(y)) for x in range(p) for y in range(p)
+               if (y * y) % p == (x * x * x + a_ec * x) % p]
+        amb = [(_sym(x), _sym(y)) for x in range(p) for y in range(p)]
+        # lattice points
+        f5_pts, _ = _fixed_pts(beta1)
+        if show25:
+            beta2 = (_gpow(alpha, 2)[0] - 1, _gpow(alpha, 2)[1])
+            f25_pts, N2 = _fixed_pts(beta2)
+            f5_set = set(f5_pts)
+            f25_extra = [q for q in f25_pts if q not in f5_set]
+
+        fig_ec, (axC, axL) = plt.subplots(1, 2, figsize=(9, 4.6))
+
+        # ── classical ─────────────────────────────────────────────────────────
+        h = p // 2
+        axC.scatter([q[0] for q in amb], [q[1] for q in amb],
+                    color="gray", alpha=0.2, s=18, zorder=1)
+        axC.scatter([q[0] for q in aff], [q[1] for q in aff],
+                    color="steelblue", s=55, zorder=3)
+        axC.set_xlim(-h - 0.6, h + 0.6); axC.set_ylim(-h - 0.6, h + 0.6)
+        axC.set_aspect("equal"); axC.set_frame_on(False)
+        axC.set_xticks(range(-h, h + 1)); axC.set_yticks(range(-h, h + 1))
+        axC.tick_params(labelsize=7)
+        axC.set_title(f"Classical: $y^2=x^3+{a_ec}x$ over $\\mathbb{{F}}_5$\n"
+                      f"({len(aff)} affine points $+\\,\\mathcal{{O}}$ at $\\infty$)",
+                      fontsize=9)
+
+        # ── lattice ───────────────────────────────────────────────────────────
+        axL.add_patch(MplPolygon([(0, 0), (1, 0), (1, 1), (0, 1)], closed=True,
+                                 facecolor="gray", alpha=0.12, edgecolor="none",
+                                 zorder=0))
+        if show25:
+            axL.scatter([q[0] for q in f25_extra], [q[1] for q in f25_extra],
+                        color="goldenrod", s=40, zorder=2,
+                        label=f"$\\mathbb{{F}}_{{25}}$ ({N2} pts)")
+        axL.scatter([q[0] for q in f5_pts], [q[1] for q in f5_pts],
+                    color="steelblue", s=55, zorder=3,
+                    label=f"$\\mathbb{{F}}_5$ ({N1} pts)")
+        # the zero point at the origin
+        axL.scatter([0], [0], color="crimson", s=90, zorder=5)
+        axL.annotate("$0$", (0, 0), xytext=(6, 6), textcoords="offset points",
+                     color="crimson", fontsize=12, fontweight="bold")
+        axL.set_xlim(-0.12, 1.12); axL.set_ylim(-0.12, 1.12)
+        axL.set_aspect("equal"); axL.set_frame_on(False)
+        axL.set_xticks([0, 1]); axL.set_yticks([0, 1])
+        axL.tick_params(labelsize=7)
+        ttl = ("Lattice: fixed points of $\\times\\alpha$ on $\\mathbb{C}/\\mathbb{Z}[i]$"
+               + ("\n($\\mathbb{F}_5$ and $\\mathbb{F}_{25}$ together)" if show25
+                  else "\n($0$ is visible, at the corner)"))
+        axL.set_title(ttl, fontsize=9)
+        if show25:
+            axL.legend(loc="upper right", fontsize=7, frameon=False)
+
+        fig_ec.tight_layout()
+        st.pyplot(fig_ec)
+        plt.close(fig_ec)
+
+    st.markdown(
+        "Superficially the two pictures are alike — each is a discrete set of "
+        "points in a fundamental domain of a torus. But the lattice picture has "
+        "real advantages:"
+    )
+    st.markdown(
+        "- **The zero point is visible.** On the algebraic model the identity "
+        "$\\mathcal{O}$ is the point at infinity, off the chart; in the lattice "
+        "picture it is simply $0$, at the corner of the parallelogram.\n"
+        "- **The group structure is clearer.** The points are the group "
+        "$\\Lambda/(\\alpha-1)\\Lambda$, laid out regularly in the square.\n"
+        "- **Extension points fit in the same picture.** The points over "
+        "$\\mathbb{F}_{p^2}, \\mathbb{F}_{p^3}, \\ldots$ are just the fixed points "
+        "of $\\alpha^2, \\alpha^3, \\ldots$ — more dots in the *same* fundamental "
+        "domain, no need to enlarge the ambient space (toggle $\\mathbb{F}_{25}$ "
+        "above). The classical $\\mathbb{F}_5$ grid simply has nowhere to put them."
+    )
 
 
 # ── Tab: Isogenies — kernels and degree ───────────────────────────────────────
