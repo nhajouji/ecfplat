@@ -2,12 +2,15 @@ import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Polygon as MplPolygon
+from matplotlib.patches import Arc as MplArc
 
 st.header("Background")
 st.markdown(
     "A crash course on the mathematics underlying this project. "
     "Each section pairs a short conceptual overview with an interactive applet."
 )
+
+st.header("Visualizing Elliptic Curves")
 
 with st.expander("§1 — Elliptic curves: the basics", expanded=False):
     (tab0, tab1, tab2, tab3) = st.tabs([
@@ -17,18 +20,29 @@ with st.expander("§1 — Elliptic curves: the basics", expanded=False):
         "Elliptic Curves over ℂ",
     ])
 
-with st.expander("§2 — Frobenius and the lattice pictures", expanded=False):
+with st.expander("§2 — CM Lattices and Frobenius", expanded=False):
     (tab4, tab_frob, tab_lift) = st.tabs([
         "Endomorphisms and Complex Multiplication",
         "The Frobenius endomorphism over $\\mathbb{F}_p$",
         "Lifting Frobenius (Deuring)",
     ])
 
-with st.expander("§3 — Isogenies", expanded=False):
-    (tab_isog, tab_fold, tab_velu, tab_volc) = st.tabs([
+with st.expander("§3 — Pictures from lifts of Frobenius", expanded=False):
+    (tab_mult,) = st.tabs([
+        "The recipe, via the multiplicative group",
+    ])
+
+st.header("Equivalence of Categories")
+
+with st.expander("§4 — Isogenies", expanded=False):
+    (tab_isog, tab_fold, tab_velu) = st.tabs([
         "Isogenies: kernels and degree",
         "Analytic pictures: folding the torus",
         "Vélu's formulas over $\\mathbb{F}_p$",
+    ])
+
+with st.expander("Miscellaneous topics", expanded=False):
+    (tab_volc,) = st.tabs([
         "Isogenies over $\\mathbb{F}_p$: volcanoes",
     ])
 
@@ -1158,53 +1172,99 @@ with tab_lift:
 
     # ── The idea ──────────────────────────────────────────────────────────────
     st.markdown(
-        "We now have two pictures of an elliptic curve with extra endomorphisms:\n\n"
-        "- Over $\\mathbb{C}$, a CM curve is a **lattice** $\\Lambda$, and each "
-        "endomorphism is multiplication by a complex number $\\alpha$ with "
-        "$\\alpha\\Lambda \\subseteq \\Lambda$.\n"
-        "- Over $\\mathbb{F}_p$, an ordinary curve carries the **Frobenius** "
-        "endomorphism $\\phi$, a root of $\\phi^2 - a\\phi + p = 0$ living in an "
-        "imaginary quadratic order.\n\n"
-        "These two pictures are connected by a theorem of **Deuring**."
+        "As we saw on the previous page, many of the most important arithmetic "
+        "properties of an elliptic curve $E/\\mathbb{F}_p$ are determined by its "
+        "**Frobenius endomorphism** $\\phi$."
+    )
+    st.markdown(
+        "To obtain new pictures of $E$, we will **lift Frobenius** to an analytic "
+        "model. Concretely, we want a pair $(\\Lambda, \\alpha)$, where $\\Lambda$ "
+        "is a lattice and $\\alpha$ is an endomorphism of $\\Lambda$, such that "
+        "$\\mathbb{C}/\\Lambda$ can be described (as an algebraic elliptic curve) by "
+        "a model with the following properties:"
+    )
+    st.markdown(
+        "1. the model **descends to $E/\\mathbb{F}_p$**; and\n"
+        "2. the endomorphism $\\alpha$ **descends to Frobenius** $\\phi$ on the "
+        "curve downstairs.\n\n"
+        "We call such a pair $(\\Lambda, \\alpha)$ a **lift of Frobenius**."
+    )
+    st.markdown(
+        "The results of **Deuring** show that a lift of Frobenius can always be "
+        "found."
     )
 
-    st.markdown("#### Deuring's lifting theorem")
-    st.info(
-        "Let $E/\\mathbb{F}_p$ be an **ordinary** elliptic curve with "
-        "$\\mathrm{End}(E) = \\mathcal{O}$, an order in the imaginary quadratic "
-        "field $K = \\mathbb{Q}(\\sqrt{a^2 - 4p})$. Then there is an elliptic "
-        "curve $\\tilde E$ defined over a number field, with "
-        "$\\mathrm{End}(\\tilde E) = \\mathcal{O}$, that **reduces to $E$ mod $p$** "
-        "— and the Frobenius $\\phi \\in \\mathcal{O}$ is the reduction of an honest "
-        "complex-analytic endomorphism of $\\tilde E$."
-    )
+    # ── An explicit example (y^2 = x^3 + 3x over F_5) ─────────────────────────
+    st.markdown("#### A worked example: $y^2 = x^3 + 3x$ over $\\mathbb{F}_5$")
     st.markdown(
-        "Concretely: the curve $E$ over $\\mathbb{F}_p$ corresponds to a lattice "
-        "$\\Lambda$ in $\\mathbb{C}$ with CM by $\\mathcal{O}$, and Frobenius lifts "
-        "to **multiplication by the complex number**"
-    )
-    st.latex(r"\alpha = \frac{a + \sqrt{a^2 - 4p}}{2}, \qquad |\alpha|^2 = \alpha\bar\alpha = p.")
-    st.markdown(
-        "This $\\alpha$ is just $\\phi$ viewed inside $\\mathbb{C}$ via "
-        "$\\mathcal{O} \\hookrightarrow \\mathbb{C}$ — it generates "
-        "$\\mathcal{O} = \\mathbb{Z}[\\alpha]$ and satisfies the very same equation "
-        "$\\alpha^2 - a\\alpha + p = 0$. We **take the existence of $\\Lambda$ for "
-        "granted here** — producing it explicitly, and matching every curve in the "
-        "isogeny class to its lattice, is exactly the *CM bijection* worked out "
-        "later. For now the payoff is the picture: a curve over $\\mathbb{F}_p$ "
-        "becomes a lattice in the plane, carrying a distinguished "
-        "rotation-and-scaling $\\alpha$."
+        "Let us carry out the whole construction once, by hand. (We will never "
+        "have to do this again — but it is reassuring to see a lift of Frobenius "
+        "explicitly.)"
     )
 
-    st.markdown("#### This *is* the lattice picture")
+    st.markdown("**Reading off the pair $(\\Lambda, \\alpha)$.**")
     st.markdown(
-        "The artwork this project feeds is built from exactly this data. Each curve "
-        "in an isogeny class lifts to a lattice $\\Lambda$ with CM by $\\mathcal{O}$, "
-        "and all of them share the same marked endomorphism — multiplication by "
-        "$\\alpha$ (with $|\\alpha| = \\sqrt p$). Drawing those lattices — and the "
-        "action of $\\alpha$ on them — is how we 'draw an elliptic curve over "
-        "$\\mathbb{F}_p$.' The applet below shows a single lattice with its "
-        "Frobenius action."
+        "$E : y^2 = x^3 + 3x$ over $\\mathbb{F}_5$ has **10 points**, so the trace "
+        "of Frobenius is $a = p + 1 - \\#E = 6 - 10 = -4$, and Frobenius acts as "
+        "multiplication by"
+    )
+    st.latex(r"\alpha = \frac{a + \sqrt{a^2 - 4p}}{2} = -2 + i, "
+             r"\qquad \alpha\bar\alpha = (-2+i)(-2-i) = 5 = p.")
+    st.markdown(
+        "The lattice is forced to be $\\Lambda = \\mathbb{Z}[i]$: if $-2+i$ is an "
+        "endomorphism of $\\Lambda$, then so is $(-2+i) + 2 = i$ — and $i$ is an "
+        "**automorphism of order 4** ($i^4 = 1$). But $\\mathbb{Z}[i]$ is the only "
+        "lattice (up to scaling) admitting an order-4 automorphism. So our "
+        "candidate lift is $(\\Lambda, \\alpha) = (\\mathbb{Z}[i],\\, -2+i)$."
+    )
+
+    st.markdown("**The model.**")
+    st.markdown(
+        "The curve $y^2 = x^3 + 3x$ does the job. Over $\\mathbb{C}$ it is the "
+        "analytic curve $\\mathbb{C}/\\mathbb{Z}[i]$ (it has $j = 1728$, with CM by "
+        "$\\mathbb{Z}[i]$), and its equation **descends to $E/\\mathbb{F}_5$** by "
+        "reducing the coefficients (already integers) mod $5$. It remains to check "
+        "that $\\alpha = -2+i$ **descends to Frobenius**."
+    )
+
+    st.markdown("**Checking that $\\alpha$ descends to Frobenius.**")
+    st.markdown(
+        "1. Multiplication by $i$ on the model is $(x, y) \\mapsto (-x,\\, iy)$.\n"
+        "2. Using the group law, $[-2+i] = [-2] + [i]$ gives an explicit (very "
+        "large) rational map $F(x, y)$ — shown below.\n"
+        "3. Reduce modulo the prime ideal $\\mathfrak{p} = (-2+i)$, for which "
+        "$\\mathbb{Z}[i]/\\mathfrak{p} \\cong \\mathbb{F}_5$ and $i \\equiv 2$: "
+        "replace every $i$ by $2$ and reduce coefficients mod $5$.\n"
+        "4. After simplifying (using $y^2 = x^3 + 3x$), the map collapses to"
+    )
+    st.latex(r"F(x, y) \equiv (x^5,\; y^5) \pmod{\mathfrak{p}},")
+    st.markdown(
+        "which is exactly the Frobenius endomorphism. So $(\\mathbb{Z}[i],\\, -2+i)$ "
+        "really is a lift of Frobenius for $E/\\mathbb{F}_5$."
+    )
+
+    with st.expander("The explicit lift map $F(x,y)$  (never actually needed)"):
+        st.markdown(
+            "It is striking how large the lift is. Even just the $x$-coordinate of "
+            "$F(x, y)$ is"
+        )
+        st.latex(
+            r"\scriptsize "
+            r"-\frac{\left(x^2-3\right)^2 \left(x^8+(36-96 i) x^6+(342-576 i) x^4"
+            r"+(324-864 i) x^2+81\right)^2}"
+            r"{4 x \left(x^2+3\right) \left(x^2+(3-6 i)\right)^2 "
+            r"\left((2+i) x^2+3 i\right)^2 \left(x^4-(6-24 i) x^2+9\right)^2}"
+        )
+        st.caption(
+            "The $y$-coordinate is larger still (it carries a degree-16 factor), so "
+            "we show only $x$. In practice we never compute this map at all — it "
+            "just sits in the background, guaranteeing the lift exists."
+        )
+
+    st.markdown(
+        "Going forward we will **not** carry out this computation. Finding the "
+        "lattice–endomorphism pair $(\\Lambda, \\alpha)$ for each $E/\\mathbb{F}_p$ "
+        "is done with more powerful tools, explained in the coming lessons."
     )
 
     st.divider()
@@ -1335,6 +1395,197 @@ with tab_lift:
             "$\\arg\\alpha$ and scaling by $|\\alpha| = \\sqrt p$. Both image "
             "generators $\\alpha\\cdot 1$ and $\\alpha\\cdot\\alpha$ land on lattice "
             "points, so $\\alpha\\Lambda \\subseteq \\Lambda$."
+        )
+
+
+# ── Tab: Pictures from lifts of Frobenius — the multiplicative group ───────────
+with tab_mult:
+    st.subheader("Pictures from Lifts of Frobenius")
+
+    # ── The general recipe ────────────────────────────────────────────────────
+    st.markdown(
+        "A lift of Frobenius is exactly the data we need to **draw** a group over "
+        "$\\mathbb{F}_p$. Suppose we have:"
+    )
+    st.markdown(
+        "- an algebraic group $E/\\mathbb{F}_p$ we want to visualize;\n"
+        "- an algebraic group $X/\\mathbb{C}$ we *can* visualize;\n"
+        "- a model of $X$ over the algebraic integers that **descends to "
+        "$E/\\mathbb{F}_p$** modulo a prime ideal $P$; and\n"
+        "- an endomorphism $F : X \\to X$ that **descends to Frobenius** on "
+        "$E/\\mathbb{F}_p$."
+    )
+    st.markdown(
+        "Then we draw $E$ inside the ambient space $X(\\mathbb{C})$ by plotting the "
+        "**fixed points of $F$**,"
+    )
+    st.latex(r"\mathrm{Fix}(F) = \{\,x \in X(\mathbb{C}) : F(x) = x\,\},")
+    st.markdown(
+        "which are precisely the $\\mathbb{F}_p$-rational points of $E$ (Frobenius "
+        "fixes exactly what is defined over $\\mathbb{F}_p$). Better still, the "
+        "fixed points of the **powers** $F^n$ are the points defined over the "
+        "extension $\\mathbb{F}_{p^n}$:"
+    )
+    st.latex(r"\mathrm{Fix}(F^n) = E(\mathbb{F}_{p^n}).")
+    st.markdown(
+        "So one picture, drawn in $X(\\mathbb{C})$, can hold the points of $E$ over "
+        "$\\mathbb{F}_p$ **and** over many extensions at once. And because $F$ "
+        "*is* the Frobenius, we can **watch the Galois action**: applying $F$ "
+        "permutes the points, and the length of a point's $F$-orbit is the degree "
+        "of the smallest field over which it is defined."
+    )
+
+    # ── The multiplicative group instance ─────────────────────────────────────
+    st.markdown("#### Warm-up: the multiplicative group")
+    st.markdown(
+        "Before elliptic curves, the same recipe draws the multiplicative group "
+        "$\\mathbb{G}_m$ — that is, the groups $\\mathbb{F}_q^*$. Take"
+    )
+    st.latex(r"X = \mathbb{C}^*, \qquad F : x \mapsto x^p,")
+    st.markdown(
+        "which descends to the Frobenius $x \\mapsto x^p$ on $\\mathbb{F}_p$. Its "
+        "fixed points solve $x^p = x$ with $x \\neq 0$ — the $(p-1)$-th roots of "
+        "unity, i.e. $\\mathbb{F}_p^*$. More generally"
+    )
+    st.latex(r"\mathrm{Fix}(F^n) = \{x \neq 0 : x^{p^n} = x\} "
+             r"= \{(p^n-1)\text{-th roots of unity}\} = \mathbb{F}_{p^n}^*,")
+    st.markdown(
+        "all sitting on the **unit circle**. Frobenius acts by $x \\mapsto x^p$ — "
+        "it *multiplies the angle by $p$*. The $p-1$ points of $\\mathbb{F}_p^*$ "
+        "are fixed; the rest fall into orbits whose length is the degree of the "
+        "extension they generate."
+    )
+
+    st.divider()
+
+    # ── Applet: roots of unity, coloured by degree, with Frobenius orbits ──────
+    st.markdown("#### The picture")
+    st.markdown(
+        "Choose a prime $p$ and a top degree $n$. We plot $\\mathbb{F}_{p^n}^*$ as "
+        "the $(p^n-1)$-th roots of unity, coloured by the field each point is "
+        "defined over, and draw the full Frobenius action: an **arrow "
+        "$x \\mapsto x^p$ from every point**, with a **loop on each fixed point** "
+        "(the elements of $\\mathbb{F}_p^*$). Pick a point to emphasise its orbit — "
+        "the number of hops back to the start is the degree of its field."
+    )
+
+    mult_ctrl, mult_plot = st.columns([1, 2])
+
+    with mult_ctrl:
+        mp = st.selectbox("p", [2, 3, 5, 7], index=1, key="mult_p")
+        # Cap the number of points so the circle stays readable; n's range
+        # depends on p.  (p-keyed slider so switching p never leaves a stale n.)
+        n_max = 1
+        while mp ** (n_max + 1) - 1 <= 160:
+            n_max += 1
+        mn = st.slider("top degree n  (show $\\mathbb{F}_{p^n}$)",
+                       1, n_max, min(2, n_max), key=f"mult_n_{mp}")
+        M = mp ** mn - 1
+        st.caption(
+            f"$\\#\\mathbb{{F}}_{{{mp}^{{{mn}}}}}^* = {mp}^{{{mn}}} - 1 = {M}$ "
+            f"points; $\\#\\mathbb{{F}}_{{{mp}}}^* = {mp - 1}$ are fixed by $F$."
+        )
+        if M > 1:
+            k_hi = st.slider(
+                "highlight orbit of point $k$ (exponent of a generator)",
+                0, M - 1, min(1, M - 1), key=f"mult_k_{mp}_{mn}")
+        else:
+            k_hi = 0
+            st.caption("Only one point: $\\mathbb{F}_2^* = \\{1\\}$.")
+
+    with mult_plot:
+        # Each F_{p^n}^* element is g^k for a fixed generator g; we draw it at the
+        # (p^n-1)-th root of unity ζ^k.  Frobenius x↦x^p acts as k ↦ p·k mod M.
+        def _orbit(k0):
+            seen = [k0]
+            k = (mp * k0) % M
+            while k != k0:
+                seen.append(k)
+                k = (mp * k) % M
+            return seen
+
+        deg = {}                       # k -> field-of-definition degree
+        for k in range(M):
+            deg[k] = len(_orbit(k))
+
+        divisors = [d for d in range(1, mn + 1) if mn % d == 0]
+        pal = {1: "crimson"}
+        others = [d for d in divisors if d != 1]
+        ocols = plt.cm.viridis(np.linspace(0.25, 0.85, max(1, len(others))))
+        for i, d in enumerate(others):
+            pal[d] = ocols[i]
+
+        def _xy(k):
+            t = 2 * np.pi * k / M
+            return np.cos(t), np.sin(t)
+
+        fig_m, ax_m = plt.subplots(figsize=(5.5, 5.5))
+        circ = np.linspace(0, 2 * np.pi, 400)
+        ax_m.plot(np.cos(circ), np.sin(circ), color="lightgray", lw=1, zorder=1)
+
+        orb = _orbit(k_hi)
+        orb_set = set(orb)
+
+        # The full Frobenius action x ↦ x^p: an arrow from every point to its
+        # image; fixed points (x^p = x) carry a loop.  The selected orbit is
+        # emphasised in black, the rest drawn faint.
+        for k in range(M):
+            kk = (mp * k) % M
+            hot = k in orb_set
+            acol = "black" if hot else "0.6"
+            alw = 1.5 if hot else 0.8
+            az = 4 if hot else 2
+            if kk == k:                                   # fixed point → loop
+                t = 2 * np.pi * k / M
+                rad = 0.09
+                cx, cy = (1 + rad) * np.cos(t), (1 + rad) * np.sin(t)
+                ax_m.add_patch(MplArc((cx, cy), 2 * rad, 2 * rad, angle=0,
+                                      theta1=0, theta2=360,
+                                      color=acol, lw=alw, zorder=az))
+            else:
+                xa, ya = _xy(k)
+                xb, yb = _xy(kk)
+                ax_m.annotate("", xy=(xb, yb), xytext=(xa, ya),
+                              arrowprops=dict(arrowstyle="->", color=acol,
+                                              lw=alw, alpha=0.85,
+                                              connectionstyle="arc3,rad=0.18"),
+                              zorder=az)
+
+        # points coloured by degree (selected orbit ringed in black)
+        for k in range(M):
+            x, y = _xy(k)
+            d = deg[k]
+            ax_m.scatter(x, y, color=pal[d], s=(95 if d == 1 else 55),
+                         edgecolor=("black" if k in orb_set else "white"),
+                         linewidth=(1.5 if k in orb_set else 0.6), zorder=5)
+
+        ax_m.set_xlim(-1.25, 1.25)
+        ax_m.set_ylim(-1.25, 1.25)
+        ax_m.set_aspect("equal")
+        ax_m.set_frame_on(False)
+        ax_m.set_xticks([]); ax_m.set_yticks([])
+        # degree legend
+        handles = [plt.Line2D([0], [0], marker="o", linestyle="",
+                              markerfacecolor=pal[d], markeredgecolor="white",
+                              markersize=9,
+                              label=(f"$\\mathbb{{F}}_{{{mp}}}^*$ (deg 1, fixed)"
+                                     if d == 1 else
+                                     f"deg {d}  ($\\mathbb{{F}}_{{{mp}^{{{d}}}}}$)"))
+                   for d in divisors]
+        ax_m.legend(handles=handles, loc="upper left", fontsize=8,
+                    frameon=False, bbox_to_anchor=(-0.02, 1.02))
+        ax_m.set_title("$\\mathbb{F}_{%d^%d}^*$ on the unit circle" % (mp, mn),
+                       fontsize=11)
+        st.pyplot(fig_m)
+        plt.close(fig_m)
+
+        d_sel = deg[k_hi]
+        st.caption(
+            f"Highlighted orbit has length {d_sel}, so $\\zeta^{{{k_hi}}}$ is "
+            f"defined over $\\mathbb{{F}}_{{{mp}^{{{d_sel}}}}}$ "
+            + ("(a fixed point — it lies in $\\mathbb{F}_p^*$)." if d_sel == 1
+               else f"and nowhere smaller. Applying $F$ {d_sel} times returns it "
+                    "to the start.")
         )
 
 
