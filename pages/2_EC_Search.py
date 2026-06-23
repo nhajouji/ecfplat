@@ -37,7 +37,7 @@ with st.sidebar:
     f_input = st.number_input("f", value=prefill["f"] if prefill else 3, step=1)
     g_input = st.number_input("g", value=prefill["g"] if prefill else 0, step=1)
     p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=5, max_value=251)
-    search = st.button("Look up curve", use_container_width=True)
+    search = st.button("Look up curve", width="stretch")
 
     if prefill:
         search = True
@@ -78,7 +78,7 @@ with col_r:
         st.markdown(f"**τ coordinates:** {ecdata['tau_xy']}")
         st.markdown(f"**Frobenius matrix:** {ecdata['FrobMat'].vec}")
         a_frob, p_char = ecdata["ap"]
-        if st.button("View isogeny class →", use_container_width=True):
+        if st.button("View isogeny class →", width="stretch"):
             st.session_state.ic_prefill = {"a": a_frob, "p": p_char}
             st.switch_page("pages/1_Isogeny_Class.py")
     else:
@@ -150,7 +150,7 @@ if tab_lattice_tab is not None:
                     f"_qf{qf[0]}_{qf[1]}_{qf[2]}_k{k}.txt"
                 ),
                 mime="text/plain",
-                use_container_width=True,
+                width="stretch",
             )
         else:
             fig, ax = ecqf_mwgen_arw_plot(ecdata, int(k))

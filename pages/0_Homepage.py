@@ -9,7 +9,7 @@ with title_col:
     st.markdown("# Elliptic Curves over $\\mathbb{F}_p$")
     st.markdown("# via CM Lattices")
 with logo_col:
-    st.image(str(LOGO), use_container_width=True)
+    st.image(str(LOGO), width="stretch")
 st.markdown(
     "Tools for visualizing various aspects of categories of elliptic curves over $\\mathbb{F}_p$ "
     "using precomputed equivalences with a category of CM lattices."

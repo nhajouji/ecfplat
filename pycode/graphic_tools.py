@@ -26,6 +26,7 @@ from matplotlib.patches import Polygon, FancyArrow
 from collections import defaultdict
 
 from ecqf_tools import abc_to_tau, frob_to_mw_gens, mw_arr_from_gens
+from palette import text_color_for
 
 # ── Colour / style constants ──────────────────────────────────────────────────
 _BLUE   = "steelblue"
@@ -297,13 +298,15 @@ def _ring_layout(isoclass, l: int):
     return positions, node_angle
 
 
-def isogeny_graph_figure(isoclass, l: int, qf_to_label: dict):
+def isogeny_graph_figure(isoclass, l: int, qf_to_label: dict, qf_to_color: dict = None):
     """Draw the degree-l isogeny graph with a concentric-ring layout.
 
     - Lowest conductor (floor) at centre, higher conductors on outer rings.
     - Horizontal (cycle) edges in steelblue, vertical (tree) edges in orange.
     - Self-loops drawn as arcs near the node.
     - Node labels supplied by qf_to_label dict.
+    - Node faces coloured by qf_to_color (same per-class palette as the
+      fundamental-domain picture); defaults to white when not supplied.
 
     Returns (fig, ax).
     """
@@ -350,10 +353,12 @@ def isogeny_graph_figure(isoclass, l: int, qf_to_label: dict):
     # Nodes and labels
     for qf in qfs:
         x, y = positions[qf]
-        ax.add_patch(plt.Circle((x, y), node_r, color="white", ec="black",
+        face = qf_to_color.get(qf, "white") if qf_to_color else "white"
+        txt_color = text_color_for(face) if qf_to_color else "black"
+        ax.add_patch(plt.Circle((x, y), node_r, facecolor=face, ec="black",
                                 lw=1.0, zorder=2))
         ax.text(x, y, qf_to_label[qf], ha="center", va="center",
-                fontsize=fs, zorder=3)
+                fontsize=fs, color=txt_color, zorder=3)
 
     ax.set_aspect("equal")
     ax.axis("off")
