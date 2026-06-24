@@ -2046,8 +2046,7 @@ with tab_isog:
         "Isogeny is an *equivalence relation* — every $\\varphi$ has a **dual** "
         "$\\hat\\varphi$ with $\\hat\\varphi \\circ \\varphi = [\\deg\\varphi]$ — "
         "and isogenous curves over $\\mathbb{F}_p$ share the same trace $a$, hence "
-        "the same point count. The whole project is the study of one such "
-        "**isogeny class** at a time."
+        "the same point count."
     )
 
     # ── Two descriptions ──────────────────────────────────────────────────────
