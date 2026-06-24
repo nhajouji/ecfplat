@@ -76,7 +76,8 @@ def abc_to_tau_str(abc):
     else:
         return num_str+'/'+str(den)
 
-def ec_eq_str(fg:tuple[int,int],p:int):
+def ec_eq_str_base(fg:tuple[int,int]):
+    """'y^2 = x^3 + f x + g' with 0/±1/negative coefficients handled, no 'mod p'."""
     eqs = 'y^2 = x^3'
     f,g = fg
     if f!= 0:
@@ -97,7 +98,10 @@ def ec_eq_str(fg:tuple[int,int],p:int):
         else:
             g = -g
             eqs+=f' - {g}'
-    return eqs+(f' mod {p}')
+    return eqs
+
+def ec_eq_str(fg:tuple[int,int],p:int):
+    return ec_eq_str_base(fg)+(f' mod {p}')
 
 def export_points(grp:list,filename:str):
     file = open(filename,'a')
@@ -527,7 +531,12 @@ class QFIsogenyClass:
     def get_neighbor_data_all(self,l):
         if l in self.neighbor_data:
             return self.neighbor_data[l]
-        neighbors_data_l = self.get_isog_neighbors_horz(l)
+        # Copy the cached horizontal lists before appending the vertical
+        # neighbours, otherwise the in-place append would pollute the cached
+        # horizontal-neighbour data (which isog_cycle and the graph layout rely
+        # on being purely horizontal).
+        horiz = self.get_isog_neighbors_horz(l)
+        neighbors_data_l = {qf: list(horiz[qf]) for qf in horiz}
         c = self.cond
         if c % l == 0:
             vert_data = self.get_isog_neighbors_asc(l)

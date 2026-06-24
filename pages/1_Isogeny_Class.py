@@ -4,11 +4,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
 
-from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data
-from graphic_tools import isogeny_graph_figure
-from plotly_tools import fd_points_figure
+from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data, ec_eq_str_base
+from plotly_tools import fd_points_figure, isogeny_graph_figure
 from palette import row_colors
 from nt import primeQ
 
@@ -49,8 +47,8 @@ prefill = st.session_state.pop("ic_prefill", None)
 with st.sidebar:
     st.title("Isogeny Class")
     st.markdown("Enter a pair *(a, p)* with *p* prime and *a² < 4p*.")
-    a_input = st.number_input("a", value=prefill["a"] if prefill else -4, step=1)
-    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=2, max_value=1021)
+    a_input = st.number_input("a", value=prefill["a"] if prefill else 0, step=1)
+    p_input = st.number_input("p", value=prefill["p"] if prefill else 307, step=1, min_value=2, max_value=1021)
     load = st.button("Load isogeny class", width="stretch")
 
     if prefill:
@@ -85,6 +83,11 @@ st.caption(f"Discriminant: {isoclass.disc}   |   # lattice classes: {len(isoclas
 
 # ── Tabs ──────────────────────────────────────────────────────────────────────
 tab_df, tab_isograph = st.tabs(["Isogeny class table", "Isogeny graph"])
+
+# Selection events from each widget are gathered across both tabs, then resolved
+# once at the end so a click on the table, the FD picture, or a graph node all
+# drive the same st.session_state.selected_row.
+graph_event = None
 
 # ── Tab 1: DataFrame + fundamental-domain picture ─────────────────────────────
 with tab_df:
@@ -157,21 +160,6 @@ with tab_df:
             key=f"ic_fd_plot_{view}",
         )
 
-    # ── Resolve which widget changed the selection this run ───────────────────
-    df_rows = df_event.selection.rows if df_event and df_event.selection else []
-    df_sel  = df_rows[0] if df_rows else None
-    plot_sel = _plotly_selected_index(plot_event)
-
-    new_sel = sel
-    if plot_sel is not None and plot_sel != sel:
-        new_sel = plot_sel
-    elif df_sel is not None and df_sel != sel:
-        new_sel = df_sel
-
-    if new_sel != sel:
-        st.session_state.selected_row = new_sel
-        st.rerun()
-
     # ── Selected-curve summary + navigation ───────────────────────────────────
     if st.session_state.selected_row is not None:
         row = df.iloc[st.session_state.selected_row]
@@ -227,44 +215,76 @@ with tab_isograph:
         l      = st.session_state["iso_l"]
         adj_df = st.session_state["iso_adj_df"]
 
+        # ── Graph picture (shown first) ───────────────────────────────────────
+        # Per-class colours, df-row index, and hover text (τ + the curve's
+        # equation) — same scheme as the table and the FD picture, so a node
+        # matches its row.
+        df_local = isoclass.ecqf_df()
+        graph_colors = row_colors(len(df_local))
+        p_char = isoclass.ap[1]
+
+        def _centered(c, _p=p_char):
+            c %= _p
+            return c - _p if 2 * c > _p else c
+
+        qf_to_row, qf_to_hover = {}, {}
+        for i, (_, row) in enumerate(df_local.iterrows()):
+            qf = tuple(row["qf_coefs"])
+            qf_to_row[qf] = i
+            fg = tuple(_centered(int(v)) for v in row["EC_coefs"])
+            qf_to_hover[qf] = f"τ = {row['tau_s']}<br>{ec_eq_str_base(fg)}"
+
+        if isoclass.cond % l == 0:
+            st.caption(
+                "ℓ ∣ conductor → **volcanoes**: each rim cycle (steelblue, "
+                "horizontal isogenies) descends through trees (orange, vertical "
+                "isogenies) to the floor."
+            )
+        else:
+            st.caption(
+                "ℓ ∤ conductor → disjoint **cycles** drawn as regular n-gons "
+                "(steelblue, horizontal isogenies), grouped by endomorphism ring."
+            )
+        st.caption("Nodes are numbered by table row. Hover for details; click to select (syncs with the table and picture).")
+
+        graph_fig = isogeny_graph_figure(
+            isoclass, l, graph_colors, qf_to_row, qf_to_hover,
+            selected_row=st.session_state.selected_row,
+        )
+        graph_event = st.plotly_chart(
+            graph_fig, width="stretch",
+            on_select="rerun", selection_mode="points",
+            key=f"ic_graph_{l}",
+        )
+
+        # ── Adjacency matrix (below the picture) ──────────────────────────────
         st.subheader(f"Degree-{l} adjacency matrix")
         st.dataframe(adj_df, width="stretch")
 
-        st.subheader("Graph picture")
 
-        # ── Label toggle ──────────────────────────────────────────────────────
-        label_choice = st.radio(
-            "Node labels",
-            ["Index (0, 1, …)", "Quadratic form (a, b, c)", "ec_invs"],
-            horizontal=True,
-            key="iso_label_mode",
-        )
+# ── Resolve selection across the table, FD picture, and graph ─────────────────
+# Each widget reports its current selection; the Plotly figures are rebuilt fresh
+# every run (so they report a selection only on the run of a fresh click), while
+# the dataframe persists its selection. To tell a *new* click from a persisted
+# one, fire a widget only when its reported selection changed since last run.
+def _fired(state_key, current):
+    previous = st.session_state.get(state_key)
+    st.session_state[state_key] = current
+    return current if (current is not None and current != previous) else None
 
-        qfs_ordered = list(isoclass.qfs_ordered)
+_df_rows = df_event.selection.rows if df_event and df_event.selection else []
+_table_sel = _df_rows[0] if _df_rows else None
+_fd_sel    = _plotly_selected_index(plot_event)
+_graph_sel = _plotly_selected_index(graph_event)
 
-        # Per-class colours, keyed by qf via the df-row index — the same scheme
-        # the table and fundamental-domain picture use.
-        df_local = isoclass.ecqf_df()
-        graph_colors = row_colors(len(df_local))
-        qf_to_color = {
-            tuple(row["qf_coefs"]): graph_colors[i]
-            for i, (_, row) in enumerate(df_local.iterrows())
-        }
-
-        if label_choice == "Index (0, 1, …)":
-            qf_to_label = {qf: str(i) for i, qf in enumerate(qfs_ordered)}
-        elif label_choice == "Quadratic form (a, b, c)":
-            qf_to_label = {qf: str(qf) for qf in qfs_ordered}
-        else:  # ec_invs
-            qf_to_label = {
-                tuple(row["qf_coefs"]): str(row["ec_invs"])
-                for _, row in df_local.iterrows()
-            }
-            # Fallback for any qf not in df (shouldn't happen, but just in case)
-            for qf in qfs_ordered:
-                if qf not in qf_to_label:
-                    qf_to_label[qf] = str(qfs_ordered.index(qf))
-
-        fig, _ = isogeny_graph_figure(isoclass, l, qf_to_label, qf_to_color)
-        st.pyplot(fig)
-        plt.close(fig)
+_new = next(
+    (s for s in (
+        _fired("_sel_prev_graph", _graph_sel),
+        _fired("_sel_prev_fd", _fd_sel),
+        _fired("_sel_prev_table", _table_sel),
+    ) if s is not None),
+    None,
+)
+if _new is not None and _new != st.session_state.selected_row:
+    st.session_state.selected_row = _new
+    st.rerun()
