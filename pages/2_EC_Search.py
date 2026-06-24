@@ -36,7 +36,7 @@ with st.sidebar:
     )
     f_input = st.number_input("f", value=prefill["f"] if prefill else 3, step=1)
     g_input = st.number_input("g", value=prefill["g"] if prefill else 0, step=1)
-    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=5, max_value=251)
+    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=5, max_value=1021)
     search = st.button("Look up curve", width="stretch")
 
     if prefill:
@@ -89,31 +89,32 @@ with col_r:
 
 st.divider()
 
-# ── Picture tabs ──────────────────────────────────────────────────────────────
+# ── Pictures (side by side) ───────────────────────────────────────────────────
 if ecdata["has_pcqf"]:
-    tab_classic, tab_lattice_tab = st.tabs(["Classical picture", "Lattice picture"])
+    col_classic, col_lattice = st.columns(2)
 else:
-    tab_classic    = st.container()
-    tab_lattice_tab = None
+    col_classic = st.container()
+    col_lattice = None
 
-with tab_classic:
+with col_classic:
     st.subheader("Classical picture  (affine points in $\\mathbb{F}_p^2$)")
     p = ecdata["ap"][1]
     if p > 100:
-        st.warning(
-            f"p = {p} is large — the classical plot has {p}² = {p*p} ambient points "
-            "and may be slow to render. Showing it anyway."
+        st.caption(
+            f"p = {p} is large, so the $p^2$ ambient grid is omitted — "
+            "only the curve's affine points are shown."
         )
     fig, ax = ecfp_classic_plot(ecdata)
-    # Hide axis ticks for large p to keep the plot readable
+    # Hide axis ticks for mid-size p to keep the plot readable (large p is
+    # already tick-free from the plotter).
     if p >= 15:
         ax.set_xticks([])
         ax.set_yticks([])
     st.pyplot(fig)
     plt.close(fig)
 
-if tab_lattice_tab is not None:
-    with tab_lattice_tab:
+if col_lattice is not None:
+    with col_lattice:
         st.subheader("Lattice picture")
 
         k = st.number_input(

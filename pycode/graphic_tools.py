@@ -174,11 +174,20 @@ def ecqf_mwgen_arw_plot(ecdata: dict, k: int = 1):
 # Classical F_p plot
 # ─────────────────────────────────────────────────────────────────────────────
 
+# Above this prime the p² ambient grid (and per-residue ticks) is skipped:
+# a million gray points is both unreadable and slow to render.
+_CLASSIC_AMBIENT_MAX = 100
+
+
 def ecfp_classic_plot(ecdata: dict):
     """Scatter plot of affine F_p points of an elliptic curve.
 
     Coordinates are placed in the symmetric fundamental domain [-(p-1)/2, p/2].
     The point at infinity is marked in olive in the top-right corner.
+
+    For small p the full F_p² ambient grid is drawn in gray; for large p
+    (> ``_CLASSIC_AMBIENT_MAX``) the grid is omitted and only the curve's
+    points are shown, so the plot stays fast and legible up to p ≈ 1024.
 
     Returns (fig, ax).
     """
@@ -188,17 +197,21 @@ def ecfp_classic_plot(ecdata: dict):
     xs  = [pt[0] for pt in pts]
     ys  = [pt[1] for pt in pts]
 
-    amb = [(x, y)
-           for x in range(-(p // 2), (p // 2) + 1)
-           for y in range(-(p // 2), (p // 2) + 1)]
-    ax_s, ay_s = zip(*amb)
-
     fig, ax = plt.subplots()
-    ax.scatter(ax_s, ay_s, color="gray", alpha=0.3, s=8)
+    if p <= _CLASSIC_AMBIENT_MAX:
+        amb = [(x, y)
+               for x in range(-(p // 2), (p // 2) + 1)
+               for y in range(-(p // 2), (p // 2) + 1)]
+        ax_s, ay_s = zip(*amb)
+        ax.scatter(ax_s, ay_s, color="gray", alpha=0.3, s=8)
     ax.scatter(xs, ys, color=_PURPLE, s=18, zorder=3)
     ax.scatter([(p + 1) // 2], [(p + 1) // 2], color=_OLIVE, s=30, zorder=4)
-    ax.set_xticks(range(-(p // 2), (p + 1) // 2))
-    ax.set_yticks(range(-(p // 2), (p + 1) // 2))
+    if p <= _CLASSIC_AMBIENT_MAX:
+        ax.set_xticks(range(-(p // 2), (p + 1) // 2))
+        ax.set_yticks(range(-(p // 2), (p + 1) // 2))
+    else:
+        ax.set_xticks([])
+        ax.set_yticks([])
     ax.set_xlim(-(p + 3) // 2, (p + 3) // 2)
     ax.set_ylim(-(p + 3) // 2, (p + 3) // 2)
     ax.set_aspect("equal")

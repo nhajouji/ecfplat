@@ -51,7 +51,7 @@ st.markdown(
     "Isogeny class browser, EC search, isogeny graph visualisation, "
     "and Background lessons (algebraic curves, real and $\\mathbb{F}_p$ elliptic curves, "
     "analytic viewpoint, endomorphisms and CM). "
-    "Data and features currently available for primes $p \\leq 251$."
+    "Data and features currently available for primes $p \\leq 1024$."
 )
 
 st.divider()

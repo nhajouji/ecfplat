@@ -50,7 +50,7 @@ with st.sidebar:
     st.title("Isogeny Class")
     st.markdown("Enter a pair *(a, p)* with *p* prime and *a² < 4p*.")
     a_input = st.number_input("a", value=prefill["a"] if prefill else -4, step=1)
-    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=2, max_value=251)
+    p_input = st.number_input("p", value=prefill["p"] if prefill else 5, step=1, min_value=2, max_value=1021)
     load = st.button("Load isogeny class", width="stretch")
 
     if prefill:
@@ -62,7 +62,7 @@ with st.sidebar:
             st.error(
                 f"(a, p) = ({a}, {p}) is not in the precomputed data.\n\n"
                 "Check that p is prime, a² < 4p, and the pair is within "
-                "the precomputed range (4 ≤ p ≤ 251)."
+                "the precomputed range (4 ≤ p ≤ 1024)."
             )
             st.session_state.isoclass = None
             st.session_state.selected_row = None
