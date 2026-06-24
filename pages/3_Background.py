@@ -1,8 +1,46 @@
 import streamlit as st
 import numpy as np
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.patches import Arc as MplArc
+
+
+def _click_index(event):
+    """df-row / point index of a clicked Plotly point (customdata), or None."""
+    sel = getattr(event, "selection", None)
+    if not sel:
+        return None
+    points = sel.get("points") if isinstance(sel, dict) else getattr(sel, "points", None)
+    if not points:
+        return None
+    cd = points[0].get("customdata") if isinstance(points[0], dict) else None
+    if isinstance(cd, (list, tuple)):
+        cd = cd[0] if cd else None
+    return int(cd) if cd is not None else None
+
+
+def _two_point_pick(prefix, clicked_pt):
+    """Maintain a ≤2-point click selection in session_state.
+
+    Clicks fill P then Q; clicking the same point twice gives P = Q (so the
+    doubling / tangent case is reachable). Once two points are chosen, a third
+    click clears the selection (a quick reset without the Clear button). Any
+    change clears the display mode ('line' / 'sum').
+    """
+    sel = st.session_state.setdefault(prefix + "_sel", [])
+    if clicked_pt is not None:
+        if len(sel) >= 2:
+            sel = []                       # third click clears the pair
+        else:
+            sel.append(clicked_pt)
+        st.session_state[prefix + "_mode"] = None
+        st.session_state[prefix + "_sel"] = sel
+    return sel
+
+
+_OINF = "O"   # sentinel for the point at infinity 𝒪 in the click selections
+
 
 st.header("Background")
 st.markdown(
@@ -319,100 +357,203 @@ with tab1:
 
     st.divider()
 
-    # ── Chord-tangent applet ──────────────────────────────────────────────────
+    # ── Chord-tangent applet: click two points, compute their sum ─────────────
+    _XR = 3.3   # visible x half-range
+
+    _YR = 4.5   # visible y half-range
+    _O_XY1 = (0.0, 4.2)   # 𝒪 marker, top centre
+
+    def _real_line(P, Q, f):
+        """Two endpoints of the chord/tangent through P, Q (vertical if 𝒪/inverse)."""
+        if P == _OINF and Q == _OINF:
+            return None
+        if P == _OINF or Q == _OINF:
+            fin = Q if P == _OINF else P
+            return [(fin[0], -_YR), (fin[0], _YR)]
+        x1, y1 = P
+        x2, y2 = Q
+        double = abs(x1 - x2) < 1e-9 and abs(y1 - y2) < 1e-9
+        if (double and abs(y1) < 1e-9) or (not double and abs(x1 - x2) < 1e-9):
+            return [(x1, -_YR), (x1, _YR)]
+        m = (3 * x1 * x1 + f) / (2 * y1) if double else (y2 - y1) / (x2 - x1)
+        return [(-_XR, m * (-_XR - x1) + y1), (_XR, m * (_XR - x1) + y1)]
+
+    def _real_sum(P, Q, f):
+        """(R, sum, message). sum is _OINF (𝒪), a point, or None; R None at 𝒪."""
+        if P == _OINF and Q == _OINF:
+            return None, _OINF, "𝒪 + 𝒪 = 𝒪."
+        if P == _OINF:
+            return None, Q, "𝒪 + Q = Q (𝒪 is the identity)."
+        if Q == _OINF:
+            return None, P, "P + 𝒪 = P (𝒪 is the identity)."
+        x1, y1 = P
+        x2, y2 = Q
+        double = abs(x1 - x2) < 1e-9 and abs(y1 - y2) < 1e-9
+        if double and abs(y1) < 1e-9:
+            return None, _OINF, "P is a 2-torsion point, so 2P = 𝒪."
+        if (not double) and abs(x1 - x2) < 1e-9:
+            return None, _OINF, "P and Q are inverses, so P + Q = 𝒪."
+        m  = (3 * x1 * x1 + f) / (2 * y1) if double else (y2 - y1) / (x2 - x1)
+        x3 = m * m - x1 - x2
+        yR = m * (x3 - x1) + y1
+        return (x3, yR), (x3, -yR), None
+
+    def _real_fmt(pt):
+        return "𝒪" if pt == _OINF else f"({pt[0]:.2f}, {pt[1]:.2f})"
+
     ctrl1, plot1 = st.columns([1, 2])
 
     with ctrl1:
-        st.markdown("**Curve**")
+        st.markdown("**Curve**  $y^2 = x^3 + fx + g$")
         f_val = st.slider("f", -5.0, 5.0, -1.0, 0.1, key="bg1_f")
         g_val = st.slider("g", -5.0, 5.0,  1.0, 0.1, key="bg1_g")
-        disc  = -16 * (4*f_val**3 + 27*g_val**2)
-        if abs(disc) < 1e-6:
+        disc  = -16 * (4 * f_val**3 + 27 * g_val**2)
+        _ok1  = abs(disc) >= 1e-6
+        if not _ok1:
             st.warning("Singular curve (Δ ≈ 0) — adjust f or g.")
 
-        def point_ui(label, default_x, x_key, s_key):
-            st.markdown(f"**Point {label}**")
-            x = st.slider(f"x ({label})", -3.0, 3.0, default_x, 0.05, key=x_key)
-            y2 = x**3 + f_val*x + g_val
-            if y2 < 0:
-                st.caption(f"x = {x:.2f} is not on the curve.")
-                return x, 0.0, False
-            if abs(y2) < 1e-8:
-                st.caption(f"{label} is a 2-torsion point (y = 0).")
-                return x, 0.0, True
-            sgn = st.radio("Branch", ["+", "−"], horizontal=True, key=s_key)
-            y = np.sqrt(y2) * (1 if sgn == "+" else -1)
-            return x, y, True
+    # Clickable sample points on the curve (both branches).
+    _samples = []
+    if _ok1:
+        for x in np.round(np.linspace(-_XR, _XR, 140), 4):
+            y2 = x**3 + f_val * x + g_val
+            if y2 < -1e-9:
+                continue
+            y = float(np.sqrt(max(y2, 0.0)))
+            if y < 1e-6:
+                _samples.append((float(x), 0.0))
+            else:
+                _samples.append((float(x), round(y, 4)))
+                _samples.append((float(x), round(-y, 4)))
 
-        x1, y1, p_ok = point_ui("P", -1.0, "bg1_x1", "bg1_s1")
-        x2, y2, q_ok = point_ui("Q",  1.0, "bg1_x2", "bg1_s2")
+    _samp_set = set(_samples)
+    _o_idx1   = len(_samples)              # customdata index of 𝒪
+    sel1 = [pt for pt in st.session_state.get("bg1_sel", [])
+            if pt == _OINF or pt in _samp_set]
+    st.session_state["bg1_sel"] = sel1
+    mode1 = st.session_state.get("bg1_mode") if len(sel1) == 2 else None
+
+    R1 = S1 = msg1 = None
+    line1 = None
+    if mode1 in ("line", "sum"):
+        line1 = _real_line(sel1[0], sel1[1], f_val)
+    if mode1 == "sum":
+        R1, S1, msg1 = _real_sum(sel1[0], sel1[1], f_val)
+    is_double1 = (len(sel1) == 2 and _OINF not in sel1
+                  and abs(sel1[0][0]-sel1[1][0]) < 1e-9 and abs(sel1[0][1]-sel1[1][1]) < 1e-9)
+    sum_lbl = "2P" if is_double1 else "P + Q"
+
+    with ctrl1:
+        st.markdown("**Pick two points**")
+        st.caption("Click the curve — or **𝒪** — to choose **P** then **Q** "
+                   "(same spot twice = **2P**; a third click clears).")
+        for nm, pt in zip(("P", "Q"), sel1):
+            st.markdown(f"- **{nm}** = {_real_fmt(pt)}")
+        c1a, c1b, c1c = st.columns(3)
+        if c1a.button("Clear", key="bg1_clear", width="stretch"):
+            st.session_state["bg1_sel"] = []
+            st.session_state["bg1_mode"] = None
+            st.rerun()
+        if c1b.button("Show line", key="bg1_line", width="stretch",
+                      disabled=(len(sel1) != 2)):
+            st.session_state["bg1_mode"] = "line"
+            st.rerun()
+        if c1c.button("Compute sum", key="bg1_compute",
+                      width="stretch", disabled=(len(sel1) != 2)):
+            st.session_state["bg1_mode"] = "sum"
+            st.rerun()
+        if mode1 == "sum":
+            if msg1:
+                st.info(msg1)
+            else:
+                st.success(f"{sum_lbl} = {_real_fmt(S1)}")
 
     with plot1:
-        xs  = np.linspace(-3.3, 3.3, 3000)
-        ys2 = xs**3 + f_val*xs + g_val
-        yp  = np.where(ys2 >= 0, np.sqrt(np.clip(ys2, 0, None)), np.nan)
-        yn  = -yp
+        if not _ok1:
+            st.info("Adjust f and g to get a smooth curve.")
+        else:
+            xs  = np.linspace(-_XR, _XR, 1200)
+            ys2 = xs**3 + f_val * xs + g_val
+            yp  = np.where(ys2 >= 0, np.sqrt(np.clip(ys2, 0, None)), np.nan)
 
-        fig1, ax1 = plt.subplots(figsize=(6, 5))
-        ax1.plot(xs, yp, color="steelblue", lw=2)
-        ax1.plot(xs, yn, color="steelblue", lw=2)
-        ax1.axhline(0, color="k", lw=0.4)
-        ax1.axvline(0, color="k", lw=0.4)
-        ax1.set_xlim(-3.3, 3.3)
-        ax1.set_ylim(-4.5, 4.5)
-        fs = f"{f_val:+.1f}"; gs = f"{g_val:+.1f}"
-        ax1.set_title(f"$y^2 = x^3 {fs}x {gs}$", fontsize=11)
-        ax1.set_frame_on(False)
-
-        if p_ok and q_ok:
-            ax1.scatter([x1], [y1], color="red",   s=70, zorder=6)
-            ax1.scatter([x2], [y2], color="green", s=70, zorder=6)
-            for x, y, lbl, col in [(x1, y1, "P", "red"), (x2, y2, "Q", "green")]:
-                ax1.annotate(lbl, (x, y), xytext=(6, 4),
-                             textcoords="offset points",
-                             color=col, fontsize=11, fontweight="bold")
-
-            is_double = abs(x1-x2) < 1e-5 and abs(y1-y2) < 1e-5
-
-            if is_double and abs(y1) < 1e-8:
-                st.info("P = Q is a 2-torsion point, so 2P = 𝒪.")
-            elif not is_double and abs(x1-x2) < 1e-5:
-                st.info("P and Q are inverses, so P + Q = 𝒪.")
-            else:
-                m = (3*x1**2 + f_val)/(2*y1) if is_double else (y2-y1)/(x2-x1)
-                lbl_sum = "2P" if is_double else "P+Q"
-
-                x3       = m**2 - x1 - x2
-                y3_R     = m*(x3-x1) + y1   # y of R (on line, before reflection)
-                y3_sum   = -y3_R
-
-                # chord / tangent line
-                xl = np.linspace(-3.3, 3.3, 500)
-                yl = m*(xl-x1) + y1
-                ax1.plot(xl[np.abs(yl) <= 4.5], yl[np.abs(yl) <= 4.5],
-                         color="orange", lw=1.3, ls="--", alpha=0.8, zorder=2)
-
-                if -3.3 <= x3 <= 3.3:
-                    ax1.scatter([x3], [y3_R],   color="mediumpurple", s=70, zorder=6)
-                    ax1.scatter([x3], [y3_sum],  color="orange",       s=90, zorder=6)
-                    ax1.plot([x3, x3], [y3_R, y3_sum],
-                             color="gray", ls=":", lw=1.2, zorder=3)
-                    ax1.annotate("R", (x3, y3_R), xytext=(6, 4),
-                                 textcoords="offset points",
-                                 color="mediumpurple", fontsize=11, fontweight="bold")
-                    ax1.annotate(lbl_sum, (x3, y3_sum), xytext=(6, -14),
-                                 textcoords="offset points",
-                                 color="orange", fontsize=11, fontweight="bold")
-                    st.markdown(
-                        f"**P** = ({x1:.3f}, {y1:.3f})  \n"
-                        f"**Q** = ({x2:.3f}, {y2:.3f})  \n"
-                        f"**{lbl_sum}** = ({x3:.3f}, {y3_sum:.3f})"
-                    )
+            _role1 = {pt: nm for nm, pt in zip(("P", "Q"), sel1)}
+            sum_is_inf1 = (mode1 == "sum" and S1 == _OINF)
+            scols, ssizes = [], []
+            for pt in _samples:
+                if pt in _role1:
+                    scols.append("red" if _role1[pt] == "P" else "green")
+                    ssizes.append(15)
                 else:
-                    st.info(f"{lbl_sum} lies outside the visible range (x ≈ {x3:.2f}).")
+                    scols.append("steelblue"); ssizes.append(7)
 
-        st.pyplot(fig1)
-        plt.close(fig1)
+            fig = go.Figure()
+            # curve (visual, both branches)
+            fig.add_trace(go.Scatter(x=xs, y=yp, mode="lines",
+                          line=dict(color="steelblue", width=2),
+                          hoverinfo="skip", showlegend=False))
+            fig.add_trace(go.Scatter(x=xs, y=-yp, mode="lines",
+                          line=dict(color="steelblue", width=2),
+                          hoverinfo="skip", showlegend=False))
+            # line through P, Q
+            if line1 is not None:
+                fig.add_trace(go.Scatter(
+                    x=[line1[0][0], line1[1][0]], y=[line1[0][1], line1[1][1]],
+                    mode="lines", line=dict(color="orange", width=1.5, dash="dash"),
+                    hoverinfo="skip", showlegend=False))
+            # full sum construction (R + reflected sum)
+            if mode1 == "sum" and R1 is not None and S1 not in (None, _OINF):
+                fig.add_trace(go.Scatter(x=[R1[0], S1[0]], y=[R1[1], S1[1]],
+                              mode="lines", line=dict(color="gray", width=1, dash="dot"),
+                              hoverinfo="skip", showlegend=False))
+                fig.add_trace(go.Scatter(
+                    x=[R1[0], S1[0]], y=[R1[1], S1[1]], mode="markers+text",
+                    marker=dict(color=["mediumpurple", "orange"], size=[13, 16]),
+                    text=["R", sum_lbl], textposition="top center",
+                    textfont=dict(size=12), hoverinfo="skip", showlegend=False))
+            # clickable curve samples
+            fig.add_trace(go.Scatter(
+                x=[s[0] for s in _samples], y=[s[1] for s in _samples],
+                mode="markers", marker=dict(color=scols, size=ssizes),
+                customdata=list(range(len(_samples))),
+                hovertext=[f"({s[0]:.2f}, {s[1]:.2f})" for s in _samples],
+                hoverinfo="text", showlegend=False,
+                selected=dict(marker=dict(opacity=1.0)),
+                unselected=dict(marker=dict(opacity=1.0))))
+            # the point at infinity 𝒪 (clickable)
+            if _OINF in _role1:
+                o_color1, o_size1 = ("red" if _role1[_OINF] == "P" else "green"), 15
+            elif sum_is_inf1:
+                o_color1, o_size1 = "orange", 17
+            else:
+                o_color1, o_size1 = "olive", 12
+            fig.add_trace(go.Scatter(
+                x=[_O_XY1[0]], y=[_O_XY1[1]], mode="markers+text",
+                marker=dict(color=o_color1, size=o_size1,
+                            line=dict(color="white", width=0.5)),
+                text=["𝒪"], textposition="top center",
+                textfont=dict(size=13, color="olive"),
+                customdata=[_o_idx1], hovertext=["point at infinity 𝒪"],
+                hoverinfo="text", showlegend=False,
+                selected=dict(marker=dict(opacity=1.0)),
+                unselected=dict(marker=dict(opacity=1.0))))
+            fig.update_layout(
+                margin=dict(l=10, r=10, t=38, b=10), height=470,
+                plot_bgcolor="white", showlegend=False,
+                title=dict(text=f"y² = x³ + {f_val:.1f}x + {g_val:.1f}",
+                           x=0.5, xanchor="center", font=dict(size=14)))
+            fig.update_xaxes(range=[-_XR, _XR], zeroline=True, zerolinecolor="lightgray",
+                             showgrid=False)
+            fig.update_yaxes(range=[-_YR, _YR], zeroline=True, zerolinecolor="lightgray",
+                             showgrid=False)
+            ev = st.plotly_chart(fig, width="stretch", on_select="rerun",
+                                 selection_mode="points", key="bg1_chart")
+
+            idx = _click_index(ev)
+            if idx is not None:
+                clicked = _OINF if idx == _o_idx1 else (_samples[idx] if 0 <= idx < len(_samples) else None)
+                if clicked is not None:
+                    _two_point_pick("bg1", clicked)
+                    st.rerun()
 
 
 # ── Tab 2: Elliptic curves over 𝔽ₚ ──────────────────────────────────────────
@@ -527,114 +668,190 @@ with tab2:
         b = (y0 - m * x0) % p
         return [(_fp_sym(x, p), _fp_sym((m * x + b) % p, p)) for x in range(p)]
 
-    # ── Applet controls ───────────────────────────────────────────────────────
+    # ── Applet: click two points, compute their sum ───────────────────────────
     _PRIMES = [n for n in range(5, 72)
                if n > 1 and all(n % d != 0 for d in range(2, n))]
 
-    # initialise so variables are always defined
-    _p_valid = _q_valid = False
-    _x1 = _y1 = _x2 = _y2 = 0
-    _pts   = []
-    _curve_ok = False
+    def _fp_line(P, Q, f, p):
+        """Fp points on the line through P, Q (tangent if P==Q; vertical if 𝒪)."""
+        if P == _OINF and Q == _OINF:
+            return []
+        if P == _OINF or Q == _OINF:
+            fin = Q if P == _OINF else P
+            return [(_fp_sym(fin[0], p), _fp_sym(y, p)) for y in range(p)]
+        x1, y1 = P
+        x2, y2 = Q
+        same = (x1 - x2) % p == 0 and (y1 - y2) % p == 0
+        if same:
+            if y1 % p == 0:                       # 2-torsion: tangent is vertical
+                return [(_fp_sym(x1, p), _fp_sym(y, p)) for y in range(p)]
+            return _tangent_pts(x1, y1, f, p)
+        if (x1 - x2) % p == 0:                    # vertical chord (inverses)
+            return [(_fp_sym(x1, p), _fp_sym(y, p)) for y in range(p)]
+        return _chord_pts(x1, y1, x2, y2, p)
+
+    def _fp_group_sum(P, Q, f, p):
+        """(sum, R, message). sum is _OINF (𝒪), a point, or None; R None at 𝒪."""
+        if P == _OINF and Q == _OINF:
+            return _OINF, None, "𝒪 + 𝒪 = 𝒪."
+        if P == _OINF:
+            return Q, None, "𝒪 + Q = Q (𝒪 is the identity)."
+        if Q == _OINF:
+            return P, None, "P + 𝒪 = P (𝒪 is the identity)."
+        x1, y1 = P
+        x2, y2 = Q
+        same = (x1 - x2) % p == 0 and (y1 - y2) % p == 0
+        if same and y1 % p == 0:
+            return _OINF, None, "P = Q is a 2-torsion point, so 2P = 𝒪."
+        if (x1 - x2) % p == 0 and (y1 + y2) % p == 0 and not same:
+            return _OINF, None, "P and Q are inverses, so P + Q = 𝒪."
+        if same:
+            m = (3 * pow(x1, 2, p) + f) * pow((2 * y1) % p, -1, p) % p
+        else:
+            m = (y2 - y1) * pow((x2 - x1) % p, -1, p) % p
+        x3 = (m * m - x1 - x2) % p
+        yR = (m * (x3 - x1) + y1) % p
+        R  = (_fp_sym(x3, p), _fp_sym(yR, p))
+        S  = (_fp_sym(x3, p), _fp_sym((-yR) % p, p))
+        return S, R, None
+
+    def _fp_fmt(pt):
+        return "𝒪" if pt == _OINF else f"({pt[0]}, {pt[1]})"
 
     app_left, app_right = st.columns([1, 2])
 
     with app_left:
         st.markdown("**Field**")
-        _p = st.selectbox("p", _PRIMES,
-                          index=_PRIMES.index(17), key="bg2_p")
-
+        _p = st.selectbox("p", _PRIMES, index=_PRIMES.index(17), key="bg2_p")
         st.markdown("**Curve**  $y^2 = x^3 + fx + g$")
         _f = int(st.number_input("f", value=0, step=1, key="bg2_f"))
         _g = int(st.number_input("g", value=1, step=1, key="bg2_g"))
-
-        _disc = (-16 * (4 * pow(_f, 3) + 27 * pow(_g, 2))) % _p
-        if _disc == 0:
+        _disc     = (-16 * (4 * pow(_f, 3) + 27 * pow(_g, 2))) % _p
+        _curve_ok = (_disc != 0)
+        if not _curve_ok:
             st.warning("Singular curve mod p — adjust f or g.")
         else:
             st.success("Smooth curve ✓")
-            _curve_ok = True
-            _pts      = _ec_pts(_f, _g, _p)
-            _xs       = sorted(set(pt[0] for pt in _pts))
 
-            if _xs:
-                st.markdown("**Point P**")
-                _x1      = st.select_slider("x (P)", options=_xs, key="bg2_x1")
-                _y1_opts = sorted(pt[1] for pt in _pts if pt[0] == _x1)
-                if len(_y1_opts) == 1:
-                    _y1 = _y1_opts[0]; _p_valid = True
-                    st.caption(f"y = {_y1}")
-                elif len(_y1_opts) >= 2:
-                    _y1 = st.radio("y (P)", _y1_opts,
-                                   horizontal=True, key="bg2_y1")
-                    _p_valid = True
-
-                st.markdown("**Point Q**")
-                _x2      = st.select_slider("x (Q)", options=_xs, key="bg2_x2")
-                _y2_opts = sorted(pt[1] for pt in _pts if pt[0] == _x2)
-                if len(_y2_opts) == 1:
-                    _y2 = _y2_opts[0]; _q_valid = True
-                    st.caption(f"y = {_y2}")
-                elif len(_y2_opts) >= 2:
-                    _y2 = st.radio("y (Q)", _y2_opts,
-                                   horizontal=True, key="bg2_y2")
-                    _q_valid = True
-            else:
-                st.caption("No affine points on this curve mod p.")
-
-    # ── Plot ──────────────────────────────────────────────────────────────────
-    with app_right:
-        if not _curve_ok:
+    if not _curve_ok:
+        with app_right:
             st.info("Adjust f and g to get a smooth curve.")
-        else:
-            _h    = _p // 2
-            _amb  = [(_fp_sym(x, _p), _fp_sym(y, _p))
-                     for x in range(_p) for y in range(_p)]
+    else:
+        _pts    = _ec_pts(_f, _g, _p)
+        _pt_set = set(_pts)
+        _h      = _p // 2
+        _o_xy   = (_h + 1.4, _h + 1.4)            # 𝒪 marker, top-right corner
+        _o_idx  = len(_pts)                       # customdata index of 𝒪
+        # selection persists; finite points must stay on the curve, 𝒪 is always valid
+        sel = [pt for pt in st.session_state.get("bg2_sel", [])
+               if pt == _OINF or pt in _pt_set]
+        st.session_state["bg2_sel"] = sel
+        mode = st.session_state.get("bg2_mode") if len(sel) == 2 else None
 
-            # Compute line/tangent
-            _line = []
-            if _p_valid and _q_valid:
-                if _x1 == _x2 and _y1 == _y2:
-                    if _y1 == 0:
-                        st.info("P is a 2-torsion point: 2P = 𝒪.")
-                    else:
-                        _line = _tangent_pts(_x1, _y1, _f, _p)
+        S = R = msg = None
+        line = []
+        if mode in ("line", "sum"):
+            line = _fp_line(sel[0], sel[1], _f, _p)
+        if mode == "sum":
+            S, R, msg = _fp_group_sum(sel[0], sel[1], _f, _p)
+
+        with app_left:
+            st.markdown("**Pick two points**")
+            st.caption("Click curve points — or **𝒪** — to choose **P** then **Q** "
+                       "(same point twice = **2P**; a third click clears).")
+            for nm, pt in zip(("P", "Q"), sel):
+                st.markdown(f"- **{nm}** = {_fp_fmt(pt)}")
+            c1, c2, c3 = st.columns(3)
+            if c1.button("Clear", key="bg2_clear", width="stretch"):
+                st.session_state["bg2_sel"] = []
+                st.session_state["bg2_mode"] = None
+                st.rerun()
+            if c2.button("Show line", key="bg2_line", width="stretch",
+                         disabled=(len(sel) != 2)):
+                st.session_state["bg2_mode"] = "line"
+                st.rerun()
+            if c3.button("Compute sum", key="bg2_compute", width="stretch",
+                         disabled=(len(sel) != 2)):
+                st.session_state["bg2_mode"] = "sum"
+                st.rerun()
+            if mode == "sum":
+                if msg:
+                    st.info(msg)
                 else:
-                    _line = _chord_pts(_x1, _y1, _x2, _y2, _p)
+                    st.success(f"P + Q = {_fp_fmt(S)}")
 
-            fig_app, ax_app = plt.subplots(figsize=(5, 5))
-            # Ambient
-            ax_app.scatter([q[0] for q in _amb], [q[1] for q in _amb],
-                           color="gray", alpha=0.25, s=8, zorder=1)
-            # Fp line (slightly darker gray)
-            if _line:
-                ax_app.scatter([q[0] for q in _line], [q[1] for q in _line],
-                               color="gray", alpha=0.6, s=10, zorder=2)
-            # Curve points
-            ax_app.scatter([q[0] for q in _pts], [q[1] for q in _pts],
-                           color="steelblue", s=18, zorder=3)
-            # P and Q
-            if _p_valid:
-                ax_app.scatter([_x1], [_y1], color="red", s=60, zorder=5)
-                ax_app.annotate("P", (_x1, _y1), xytext=(5, 5),
-                                textcoords="offset points",
-                                color="red", fontsize=10, fontweight="bold")
-            if _q_valid:
-                ax_app.scatter([_x2], [_y2], color="green", s=60, zorder=5)
-                ax_app.annotate("Q", (_x2, _y2), xytext=(5, 5),
-                                textcoords="offset points",
-                                color="green", fontsize=10, fontweight="bold")
+        with app_right:
+            _amb = [(_fp_sym(x, _p), _fp_sym(y, _p))
+                    for x in range(_p) for y in range(_p)]
+            _role = {pt: nm for nm, pt in zip(("P", "Q"), sel)}
+            sum_is_inf = (mode == "sum" and S == _OINF)
 
-            ax_app.set_xlim(-_h - 0.5, _h + 0.5)
-            ax_app.set_ylim(-_h - 0.5, _h + 0.5)
-            ax_app.set_aspect("equal")
-            ax_app.set_frame_on(False)
-            ax_app.set_title(
-                f"$y^2 = x^3 + {_f % _p}x + {_g % _p}$  (mod {_p})",
-                fontsize=10,
-            )
-            st.pyplot(fig_app)
-            plt.close(fig_app)
+            colors, sizes = [], []
+            for pt in _pts:
+                if mode == "sum" and S not in (None, _OINF) and pt == S:
+                    colors.append("orange"); sizes.append(17)
+                elif mode == "sum" and R is not None and pt == R:
+                    colors.append("mediumpurple"); sizes.append(14)
+                elif pt in _role:
+                    colors.append("red" if _role[pt] == "P" else "green")
+                    sizes.append(16)
+                else:
+                    colors.append("steelblue"); sizes.append(9)
+
+            if _OINF in _role:
+                o_color, o_size = ("red" if _role[_OINF] == "P" else "green"), 16
+            elif sum_is_inf:
+                o_color, o_size = "orange", 18
+            else:
+                o_color, o_size = "olive", 13
+
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                x=[q[0] for q in _amb], y=[q[1] for q in _amb],
+                mode="markers", marker=dict(color="lightgray", size=5),
+                hoverinfo="skip", showlegend=False))
+            if line:
+                fig.add_trace(go.Scatter(
+                    x=[q[0] for q in line], y=[q[1] for q in line],
+                    mode="markers", marker=dict(color="darkgray", size=7),
+                    hoverinfo="skip", showlegend=False))
+            fig.add_trace(go.Scatter(
+                x=[q[0] for q in _pts], y=[q[1] for q in _pts],
+                mode="markers",
+                marker=dict(color=colors, size=sizes,
+                            line=dict(color="white", width=0.5)),
+                customdata=list(range(len(_pts))),
+                hovertext=[f"({q[0]}, {q[1]})" for q in _pts], hoverinfo="text",
+                showlegend=False,
+                selected=dict(marker=dict(opacity=1.0)),
+                unselected=dict(marker=dict(opacity=1.0))))
+            fig.add_trace(go.Scatter(     # the point at infinity 𝒪 (clickable)
+                x=[_o_xy[0]], y=[_o_xy[1]], mode="markers+text",
+                marker=dict(color=o_color, size=o_size,
+                            line=dict(color="white", width=0.5)),
+                text=["𝒪"], textposition="top center",
+                textfont=dict(size=13, color="olive"),
+                customdata=[_o_idx], hovertext=["point at infinity 𝒪"],
+                hoverinfo="text", showlegend=False,
+                selected=dict(marker=dict(opacity=1.0)),
+                unselected=dict(marker=dict(opacity=1.0))))
+            fig.update_layout(
+                margin=dict(l=10, r=10, t=38, b=10), height=470,
+                plot_bgcolor="white", showlegend=False,
+                title=dict(text=f"y² = x³ + {_f % _p}x + {_g % _p}  (mod {_p})",
+                           x=0.5, xanchor="center", font=dict(size=14)))
+            fig.update_xaxes(visible=False, range=[-_h - 0.6, _h + 2.0])
+            fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1,
+                             range=[-_h - 0.6, _h + 2.0])
+            ev = st.plotly_chart(fig, width="stretch", on_select="rerun",
+                                 selection_mode="points", key="bg2_chart")
+
+        idx = _click_index(ev)
+        if idx is not None:
+            clicked = _OINF if idx == _o_idx else (_pts[idx] if 0 <= idx < len(_pts) else None)
+            if clicked is not None:
+                _two_point_pick("bg2", clicked)
+                st.rerun()
 
 
 # ── Tab 3: Elliptic curves over ℂ ────────────────────────────────────────────
@@ -728,7 +945,7 @@ with tab3:
 
     st.divider()
 
-    # ── Group law applet ──────────────────────────────────────────────────────
+    # ── Group law applet: click two points, compute their sum ─────────────────
     ctrl3, plot3 = st.columns([1, 2])
 
     with ctrl3:
@@ -738,101 +955,147 @@ with tab3:
         _sign3  = "+" if tau_re3 >= 0 else "-"
         st.latex(rf"\tau = {tau_re3:.2f} {_sign3} {abs(tau_im3):.2f}\,i")
 
-        st.markdown("**Point $z_1 = s_1 + t_1\\,\\tau$**")
-        s1 = st.slider("s₁", 0.0, 1.0, 0.2, 0.02, key="bg3c_s1")
-        t1 = st.slider("t₁", 0.0, 1.0, 0.3, 0.02, key="bg3c_t1")
+    # Clickable grid of fractional coordinates (s, t) ∈ [0,1)².
+    _STEP3 = 0.05
+    _grid3 = [(round(s, 3), round(t, 3))
+              for s in np.arange(0.0, 1.0, _STEP3)
+              for t in np.arange(0.0, 1.0, _STEP3)]
+    _grid3_set = set(_grid3)
 
-        st.markdown("**Point $z_2 = s_2 + t_2\\,\\tau$**")
-        s2 = st.slider("s₂", 0.0, 1.0, 0.5, 0.02, key="bg3c_s2")
-        t2 = st.slider("t₂", 0.0, 1.0, 0.4, 0.02, key="bg3c_t2")
+    sel3 = [pt for pt in st.session_state.get("bg3_sel", []) if pt in _grid3_set]
+    st.session_state["bg3_sel"] = sel3
+    show3 = (st.session_state.get("bg3_mode") == "sum") and len(sel3) == 2
 
-        # Compute sum
-        s3_raw = s1 + s2
-        t3_raw = t1 + t2
-        s3 = s3_raw % 1.0
-        t3 = t3_raw % 1.0
+    s3 = t3 = s3_raw = t3_raw = None
+    wrapped = False
+    if show3:
+        (s1, t1), (s2, t2) = sel3[0], sel3[1]
+        s3_raw, t3_raw = s1 + s2, t1 + t2
+        s3, t3 = s3_raw % 1.0, t3_raw % 1.0
         wrapped = (s3_raw >= 1.0) or (t3_raw >= 1.0)
 
-        st.markdown("**Result $z_1 + z_2$**")
-        st.latex(
-            rf"s_3 = {s3:.2f},\quad t_3 = {t3:.2f}"
-        )
-        if wrapped:
-            st.caption("(wrapped back into the fundamental domain)")
+    with ctrl3:
+        st.markdown("**Pick two points**")
+        st.caption("Click inside the parallelogram to choose $z_1$ then $z_2$ "
+                   "(a third click clears). The identity $0$ is the olive corner.")
+        for nm, pt in zip(("z₁", "z₂"), sel3):
+            st.markdown(f"- **{nm}**: $(s, t) = ({pt[0]:.2f}, {pt[1]:.2f})$")
+        c3a, c3b = st.columns(2)
+        if c3a.button("Clear", key="bg3_clear", width="stretch"):
+            st.session_state["bg3_sel"] = []
+            st.session_state["bg3_mode"] = None
+            st.rerun()
+        if c3b.button("Compute sum", key="bg3_compute",
+                      width="stretch", disabled=(len(sel3) != 2)):
+            st.session_state["bg3_mode"] = "sum"
+            st.rerun()
+        if show3:
+            st.success(f"z₁ + z₂:  (s, t) = ({s3:.2f}, {t3:.2f})")
+            if wrapped:
+                st.caption("(wrapped back into the fundamental domain)")
 
     with plot3:
         tau3 = np.array([tau_re3, tau_im3])
         one3 = np.array([1.0, 0.0])
 
-        def _frac_to_xy(s, t, tau):
-            return s * one3 + t * tau
+        def _xy(s, t):
+            return s * one3 + t * tau3
 
-        z1_xy     = _frac_to_xy(s1, t1, tau3)
-        z2_xy     = _frac_to_xy(s2, t2, tau3)
-        z3_xy     = _frac_to_xy(s3, t3, tau3)        # reduced
-        z3_raw_xy = _frac_to_xy(s3_raw, t3_raw, tau3)  # unreduced
-
-        # Vertices of fundamental domain
         verts3 = [np.zeros(2), one3, one3 + tau3, tau3]
 
-        fig3c, ax3c = plt.subplots(figsize=(6, 6))
-
-        # Draw adjacent copies of the parallelogram (torus context)
-        for dm in range(-1, 3):
-            for dn in range(-1, 3):
+        fig = go.Figure()
+        # Adjacent copies (torus context)
+        for dm in (-1, 0, 1):
+            for dn in (-1, 0, 1):
                 if dm == 0 and dn == 0:
                     continue
                 shift = dm * one3 + dn * tau3
-                adj_verts = [v + shift for v in verts3]
-                ax3c.add_patch(MplPolygon(
-                    adj_verts,
-                    facecolor=[0.9, 0.9, 0.9, 0.25],
-                    edgecolor="gray", lw=0.8, zorder=1,
-                ))
-
+                vv = [v + shift for v in verts3] + [verts3[0] + shift]
+                fig.add_trace(go.Scatter(
+                    x=[p[0] for p in vv], y=[p[1] for p in vv],
+                    mode="lines", fill="toself",
+                    fillcolor="rgba(220,220,220,0.18)",
+                    line=dict(color="lightgray", width=0.8),
+                    hoverinfo="skip", showlegend=False))
         # Fundamental domain
-        ax3c.add_patch(MplPolygon(
-            verts3,
-            facecolor=[0.85, 0.85, 0.95, 0.5],
-            edgecolor="steelblue", lw=2, zorder=2,
-        ))
+        vv0 = verts3 + [verts3[0]]
+        fig.add_trace(go.Scatter(
+            x=[p[0] for p in vv0], y=[p[1] for p in vv0],
+            mode="lines", fill="toself", fillcolor="rgba(178,178,210,0.45)",
+            line=dict(color="steelblue", width=2),
+            hoverinfo="skip", showlegend=False))
 
-        # If wrapped: show unreduced position and translation arrow
-        if wrapped:
-            ax3c.scatter(*z3_raw_xy, color="orange", s=80, alpha=0.35,
-                         zorder=4, marker="o")
-            ax3c.annotate(
-                "", xy=z3_xy, xytext=z3_raw_xy,
-                arrowprops=dict(arrowstyle="->", color="orange",
-                                lw=1.5, linestyle="dashed"),
-                zorder=5,
-            )
+        # Sum as vector addition: the parallelogram 0–z₁–(z₁+z₂)–z₂ and the
+        # two vectors out of the origin.
+        if show3:
+            z1xy = _xy(*sel3[0])
+            z2xy = _xy(*sel3[1])
+            raw_xy = _xy(s3_raw, t3_raw)
+            para = [(0.0, 0.0), tuple(z1xy), tuple(raw_xy), tuple(z2xy), (0.0, 0.0)]
+            fig.add_trace(go.Scatter(
+                x=[p[0] for p in para], y=[p[1] for p in para], mode="lines",
+                line=dict(color="gray", width=1, dash="dot"),
+                hoverinfo="skip", showlegend=False))
+            for tip, col in ((z1xy, "red"), (z2xy, "green")):
+                fig.add_annotation(x=tip[0], y=tip[1], ax=0.0, ay=0.0,
+                                   xref="x", yref="y", axref="x", ayref="y",
+                                   showarrow=True, arrowcolor=col,
+                                   arrowwidth=2, arrowhead=2)
+            # Wrapping: unreduced point + arrow back into the domain
+            if wrapped:
+                red_xy = _xy(s3, t3)
+                fig.add_trace(go.Scatter(
+                    x=[raw_xy[0]], y=[raw_xy[1]], mode="markers",
+                    marker=dict(color="orange", size=12, opacity=0.35),
+                    hoverinfo="skip", showlegend=False))
+                fig.add_annotation(x=red_xy[0], y=red_xy[1], ax=raw_xy[0], ay=raw_xy[1],
+                                   xref="x", yref="y", axref="x", ayref="y",
+                                   showarrow=True, arrowcolor="orange",
+                                   arrowwidth=1.5, arrowhead=2)
 
-        # Points
-        for xy, lbl, col in [
-            (z1_xy, "$z_1$", "red"),
-            (z2_xy, "$z_2$", "green"),
-            (z3_xy, "$z_1+z_2$", "orange"),
-        ]:
-            ax3c.scatter(*xy, color=col, s=90, zorder=6)
-            ax3c.annotate(lbl, xy, xytext=(6, 5),
-                          textcoords="offset points",
-                          color=col, fontsize=11, fontweight="bold")
+        # "0" label at the identity (origin)
+        fig.add_annotation(x=0.0, y=0.0, text="0", showarrow=False,
+                           xshift=-8, yshift=-8, font=dict(size=13, color="olive"))
 
-        # Axis limits: cover fundamental domain plus context copies
-        pad3 = 0.3
-        all_x = [v[0] for v in verts3] + [z3_raw_xy[0]]
-        all_y = [v[1] for v in verts3] + [z3_raw_xy[1]]
-        ax3c.set_xlim(min(all_x) - pad3, max(all_x) + pad3 + 1)
-        ax3c.set_ylim(-pad3, max(all_y) + pad3 + tau3[1] * 0.5)
-        ax3c.set_aspect("equal")
-        ax3c.set_frame_on(False)
-        ax3c.axhline(0, color="k", lw=0.4)
-        ax3c.axvline(0, color="k", lw=0.4)
-        ax3c.set_title("Group law on $\\mathbb{C}/\\Lambda$", fontsize=11)
+        # Clickable grid, with the origin, z1/z2 and sum coloured
+        _role3  = {pt: nm for nm, pt in zip(("z1", "z2"), sel3)}
+        sum_pt  = (round(s3, 3), round(t3, 3)) if show3 else None
+        gcols, gsizes = [], []
+        for pt in _grid3:
+            if show3 and sum_pt is not None and pt == sum_pt:
+                gcols.append("orange"); gsizes.append(15)
+            elif pt in _role3:
+                gcols.append("red" if _role3[pt] == "z1" else "green")
+                gsizes.append(15)
+            elif pt == (0.0, 0.0):
+                gcols.append("olive"); gsizes.append(13)
+            else:
+                gcols.append("rgba(70,90,160,0.55)"); gsizes.append(6)
+        gx = [_xy(s, t)[0] for (s, t) in _grid3]
+        gy = [_xy(s, t)[1] for (s, t) in _grid3]
+        fig.add_trace(go.Scatter(
+            x=gx, y=gy, mode="markers",
+            marker=dict(color=gcols, size=gsizes),
+            customdata=list(range(len(_grid3))),
+            hovertext=[f"(s, t) = ({s:.2f}, {t:.2f})" for (s, t) in _grid3],
+            hoverinfo="text", showlegend=False,
+            selected=dict(marker=dict(opacity=1.0)),
+            unselected=dict(marker=dict(opacity=1.0))))
 
-        st.pyplot(fig3c)
-        plt.close(fig3c)
+        fig.update_layout(
+            margin=dict(l=10, r=10, t=38, b=10), height=520,
+            plot_bgcolor="white", showlegend=False,
+            title=dict(text="Group law on ℂ/Λ", x=0.5, xanchor="center",
+                       font=dict(size=14)))
+        fig.update_xaxes(visible=False)
+        fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1)
+        ev = st.plotly_chart(fig, width="stretch", on_select="rerun",
+                             selection_mode="points", key="bg3_chart")
+
+        idx = _click_index(ev)
+        if idx is not None and 0 <= idx < len(_grid3):
+            _two_point_pick("bg3", _grid3[idx])
+            st.rerun()
 
 
 # ── Tab 4: Endomorphisms and Complex Multiplication ───────────────────────────
