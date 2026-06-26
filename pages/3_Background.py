@@ -2080,52 +2080,154 @@ with tab_isog:
         "for that folding."
     )
 
-    # ── Small illustration: a sublattice ──────────────────────────────────────
-    st.markdown("#### A finer lattice")
+    # ── Applet: isogenies are determined by their kernels ──────────────────────
+    st.markdown("#### Isogenies are determined by their kernels")
     st.markdown(
-        "Below, $\\Lambda$ (large blue dots) sits inside an index-3 overlattice "
-        "$\\Lambda'$ (all dots). The kernel $\\Lambda'/\\Lambda$ has the 3 cosets "
-        "highlighted inside one fundamental cell of $\\Lambda$ — these are the 3 "
-        "points killed by the 3-isogeny $\\mathbb{C}/\\Lambda \\to \\mathbb{C}/\\Lambda'$."
+        "Every finite subgroup $C \\subseteq E$ is the kernel of an isogeny, and "
+        "$C$ pins down the codomain $E/C$. Pick a lattice $\\Lambda$ and a prime "
+        "degree $d$; the $d \\times d$ grid of **$d$-torsion points** $E[d]$ is "
+        "shown in the fundamental domain on the left. **Click a nonzero point** to "
+        "choose a generator $P$ of an order-$d$ kernel $C = \\langle P\\rangle$ — "
+        "the codomain $E/C = \\mathbb{C}/\\Lambda'$ then appears on the right, with "
+        "$\\Lambda' = \\Lambda + \\mathbb{Z}P$."
     )
 
-    _tau_ill = np.array([0.35, 1.0])
-    _one_ill = np.array([1.0, 0.0])
-    _ell_ill = 3
-    # Lambda' = (1/ell) Z + tau Z  ⊃  Lambda = Z + tau Z
-    fig_il, ax_il = plt.subplots(figsize=(6, 4))
-    RNG_I = 3
-    for m in range(-RNG_I, RNG_I + 1):
-        for n in range(-2, 4):
-            # fine lattice point: (m/ell)·1 + n·tau
-            P_fine = (m / _ell_ill) * _one_ill + n * _tau_ill
-            on_coarse = (m % _ell_ill == 0)
-            ax_il.scatter(*P_fine,
-                          color="steelblue" if on_coarse else "lightgray",
-                          s=70 if on_coarse else 22,
-                          zorder=3 if on_coarse else 2)
-    # one fundamental cell of Lambda, with the 3 kernel cosets
-    ax_il.add_patch(MplPolygon(
-        [np.zeros(2), _one_ill, _one_ill + _tau_ill, _tau_ill],
-        facecolor=[0.85, 0.85, 0.95, 0.30], edgecolor="steelblue",
-        lw=1.5, zorder=1))
-    for k in range(_ell_ill):
-        P_k = (k / _ell_ill) * _one_ill
-        ax_il.scatter(*P_k, color="crimson", s=90, zorder=5,
-                      edgecolor="white", linewidth=0.8)
-    ax_il.annotate("kernel\n$\\Lambda'/\\Lambda$", (1.0 / _ell_ill, 0),
-                   xytext=(10, 22), textcoords="offset points",
-                   color="crimson", fontsize=10, fontweight="bold",
-                   ha="left")
-    ax_il.set_xlim(-1.2, 2.0)
-    ax_il.set_ylim(-1.3, 2.2)
-    ax_il.set_aspect("equal")
-    ax_il.axhline(0, color="k", lw=0.4)
-    ax_il.axvline(0, color="k", lw=0.4)
-    ax_il.set_frame_on(False)
-    ax_il.set_title("$\\Lambda \\subseteq \\Lambda'$  (index 3)", fontsize=11)
-    st.pyplot(fig_il)
-    plt.close(fig_il)
+    ik_ctrl, ik_left, ik_right = st.columns([1, 2, 2])
+
+    with ik_ctrl:
+        ik_re = st.slider("Re(τ)", -0.5, 0.5, 0.30, 0.01, key="ik_re")
+        ik_im = st.slider("Im(τ)", 0.4, 2.0, 1.00, 0.05, key="ik_im")
+        ik_d = st.select_slider("degree d (prime)", options=[2, 3, 5, 7],
+                                value=3, key="ik_d")
+
+    d = int(ik_d)
+    u = np.array([1.0, 0.0])
+    v = np.array([float(ik_re), float(ik_im)])
+
+    def _pos(cu, cv):                       # (1, τ)-coordinates → (x, y)
+        return cu * u + cv * v
+
+    grid = [(a, b) for a in range(d) for b in range(d)]   # index ↔ this order
+    kkey = f"ik_ker_{d}"
+    ker = st.session_state.get(kkey)        # chosen generator (a, b) or None
+    if ker is not None and (ker[0] >= d or ker[1] >= d):
+        ker = None
+
+    # kernel subgroup ⟨P⟩ as a set of torsion coordinates
+    ker_set = set()
+    if ker is not None:
+        ker_set = {((ker[0] * k) % d, (ker[1] * k) % d) for k in range(d)}
+
+    # shared square view box (from the fundamental-domain corners)
+    corners = [_pos(0, 0), _pos(1, 0), _pos(1, 1), _pos(0, 1)]
+    cxs = [c[0] for c in corners]; cys = [c[1] for c in corners]
+    cx, cy = (min(cxs) + max(cxs)) / 2, (min(cys) + max(cys)) / 2
+    hs = max(max(cxs) - min(cxs), max(cys) - min(cys)) / 2 + 0.2
+    xrng, yrng = [cx - hs, cx + hs], [cy - hs, cy + hs]
+
+    def _fd_path():
+        c = corners
+        return (f"M {c[0][0]},{c[0][1]} L {c[1][0]},{c[1][1]} "
+                f"L {c[2][0]},{c[2][1]} L {c[3][0]},{c[3][1]} Z")
+
+    def _layout(fig, title):
+        fig.add_shape(type="path", path=_fd_path(),
+                      fillcolor="rgba(140,140,140,0.10)",
+                      line=dict(color="rgba(130,130,130,0.6)", width=1),
+                      layer="below")
+        fig.update_layout(
+            title=dict(text=title, font=dict(size=13), x=0.5, xanchor="center"),
+            xaxis=dict(visible=False, range=xrng),
+            yaxis=dict(visible=False, range=yrng, scaleanchor="x", scaleratio=1),
+            margin=dict(l=0, r=0, t=34, b=0), height=400, showlegend=False,
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        )
+
+    # ── Left figure: domain with clickable d-torsion grid ─────────────────────
+    gx, gy, colors, sizes, symbols = [], [], [], [], []
+    for (a, b) in grid:
+        xy = _pos(a / d, b / d)
+        gx.append(xy[0]); gy.append(xy[1])
+        if (a, b) == (0, 0):
+            colors.append("#888"); sizes.append(10); symbols.append("circle")
+        elif (a, b) == ker:
+            colors.append("crimson"); sizes.append(16); symbols.append("star")
+        elif (a, b) in ker_set:
+            colors.append("crimson"); sizes.append(11); symbols.append("circle")
+        else:
+            colors.append("steelblue"); sizes.append(10); symbols.append("circle")
+
+    figL = go.Figure()
+    figL.add_trace(go.Scatter(
+        x=gx, y=gy, mode="markers",
+        marker=dict(color=colors, size=sizes, symbol=symbols,
+                    line=dict(width=0.6, color="white")),
+        customdata=grid,
+        hovertemplate="P = (%{customdata[0]}, %{customdata[1]}) / "
+                      + str(d) + "<extra></extra>",
+    ))
+    _layout(figL, "Domain  E = ℂ/Λ   (grid = E[d])")
+
+    with ik_left:
+        ev = st.plotly_chart(figL, on_select="rerun", selection_mode="points",
+                             key=f"ik_left_{d}", config={"displayModeBar": False})
+
+    # read the click → new generator
+    new_ab = None
+    try:
+        pts = ev["selection"]["points"]
+    except (TypeError, KeyError):
+        pts = None
+    if pts:
+        pt = pts[-1]
+        idx = pt.get("point_index", pt.get("point_number"))
+        if idx is not None and 0 <= idx < len(grid):
+            cand = grid[idx]
+            if cand != (0, 0):
+                new_ab = cand
+    if new_ab is not None and new_ab != ker:
+        st.session_state[kkey] = new_ab
+        st.rerun()
+
+    # ── Right figure: codomain lattice Λ' = Λ + ZP ────────────────────────────
+    with ik_right:
+        if ker is None:
+            st.info("Click a nonzero point on the left to choose a kernel "
+                    "generator $P$.")
+        else:
+            ox, oy, nx, ny = [], [], [], []
+            for m in range(-1, 3):
+                for n in range(-1, 3):
+                    for k in range(d):
+                        xy = _pos(m + k * ker[0] / d, n + k * ker[1] / d)
+                        if k == 0:
+                            ox.append(xy[0]); oy.append(xy[1])
+                        else:
+                            nx.append(xy[0]); ny.append(xy[1])
+            figR = go.Figure()
+            figR.add_trace(go.Scatter(
+                x=nx, y=ny, mode="markers", name="added by C",
+                marker=dict(color="goldenrod", size=9,
+                            line=dict(width=0.5, color="white")),
+                hoverinfo="skip"))
+            figR.add_trace(go.Scatter(
+                x=ox, y=oy, mode="markers", name="Λ",
+                marker=dict(color="#888", size=9,
+                            line=dict(width=0.5, color="white")),
+                hoverinfo="skip"))
+            _layout(figR,
+                    f"Codomain  E/C = ℂ/Λ′   (P = ({ker[0]},{ker[1]})/{d})")
+            st.plotly_chart(figR, key=f"ik_right_{d}",
+                            config={"displayModeBar": False})
+
+    st.caption(
+        "Left: the $d$-torsion $E[d]$ in a fundamental domain of $\\Lambda$; the "
+        "chosen generator $P$ is the star and its subgroup $\\langle P\\rangle$ is "
+        "red. Right: the codomain lattice $\\Lambda' = \\Lambda + \\mathbb{Z}P$ — "
+        "the original lattice $\\Lambda$ (gray) together with the cosets the kernel "
+        "adds (gold), inside the same fundamental domain. A different kernel gives "
+        "a different $\\Lambda'$."
+    )
 
 
 # ── Tab: Analytic pictures — folding the torus ────────────────────────────────
