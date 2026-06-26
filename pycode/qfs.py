@@ -170,15 +170,10 @@ def gamma_0_orb(qf:tuple[int,int,int],l:int)->list[tuple[int,int,int]]:
     return [act_qf(qf,m) for m in gamma_0_coset_reps(l)]
 
 
-def qf_isogenies_all(qf:tuple[int,int,int],l:int,normalize=True):
-    isoqfs = [fricke_inv(qf0,l) for qf0 in gamma_0_orb(qf,l)]
-    if not normalize:
-        return isoqfs
-    return [qf_mod_gamma(qf0) for qf0 in isoqfs]
 
 def qf_parents(qf:tuple[int,int,int],l:int):
     d = qf_disc(qf)
-    return [qf0 for qf0 in qf_isogenies_all(qf,l) if qf_disc(qf0)>d]
+    return [qf0 for qf0 in qf_isogs(qf,l) if qf_disc(qf0)>d]
 
 def qf_2_mat(qf):
     a,b,c = qf
@@ -265,7 +260,7 @@ def qf_isog_cycle_power(qf0,lk):
     return [cyc[(k*i) % n] for i in range(nm)]
 
 def qf_sibs(qf0:tuple[int,int,int],l:int):
-    sibs = qf_isogs_des(qf_parents(qf0,l)[0],l)
+    sibs = qf_isogs_des(qf_isog_parent(qf0,l),l)
     return [qf0]+[qf for qf in sibs if qf != qf0]
 
 def cycs_from_ancestors(qf0):
