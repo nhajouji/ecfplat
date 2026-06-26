@@ -2113,10 +2113,37 @@ with tab_isog:
     if ker is not None and (ker[0] >= d or ker[1] >= d):
         ker = None
 
-    # kernel subgroup ⟨P⟩ as a set of torsion coordinates
+    # kernel subgroup ⟨P⟩, and a label k ↦ kP for each of its points
     ker_set = set()
+    kmap = {}
     if ker is not None:
-        ker_set = {((ker[0] * k) % d, (ker[1] * k) % d) for k in range(d)}
+        kmap = {((ker[0] * k) % d, (ker[1] * k) % d): k for k in range(d)}
+        ker_set = set(kmap)
+
+    def _ext_gcd(aa, bb):
+        if bb == 0:
+            return (aa, 1, 0)
+        g, x, y = _ext_gcd(bb, aa % bb)
+        return (g, y, x - (aa // bb) * y)
+
+    def _lprime_cell():
+        """Reduced-basis fundamental-domain corners (xy) for Λ' = Λ + ZP."""
+        a0, b0 = ker
+        if a0 % d != 0:
+            _, _s, t = _ext_gcd(d, a0)          # t·a0 ≡ 1 (mod d)
+            V1, V2 = (1, (t * b0) % d), (0, d)
+        else:
+            V1, V2 = (d, 0), (0, 1)
+        f1 = _pos(V1[0] / d, V1[1] / d)
+        f2 = _pos(V2[0] / d, V2[1] / d)
+        for _ in range(50):                     # Gaussian reduction → compact cell
+            if f2 @ f2 < f1 @ f1:
+                f1, f2 = f2, f1
+            m = round((f1 @ f2) / (f1 @ f1))
+            if m == 0:
+                break
+            f2 = f2 - m * f1
+        return f1, f2
 
     # shared square view box (from the fundamental-domain corners)
     corners = [_pos(0, 0), _pos(1, 0), _pos(1, 1), _pos(0, 1)]
@@ -2144,7 +2171,7 @@ with tab_isog:
         )
 
     # ── Left figure: domain with clickable d-torsion grid ─────────────────────
-    gx, gy, colors, sizes, symbols = [], [], [], [], []
+    gx, gy, colors, sizes, symbols, texts = [], [], [], [], [], []
     for (a, b) in grid:
         xy = _pos(a / d, b / d)
         gx.append(xy[0]); gy.append(xy[1])
@@ -2156,12 +2183,24 @@ with tab_isog:
             colors.append("crimson"); sizes.append(11); symbols.append("circle")
         else:
             colors.append("steelblue"); sizes.append(10); symbols.append("circle")
+        # label the kernel points by their multiple of P
+        k = kmap.get((a, b))
+        if k is None:
+            texts.append("")
+        elif k == 0:
+            texts.append("O")
+        elif k == 1:
+            texts.append("P")
+        else:
+            texts.append(f"{k}P")
 
     figL = go.Figure()
     figL.add_trace(go.Scatter(
-        x=gx, y=gy, mode="markers",
+        x=gx, y=gy, mode="markers+text",
         marker=dict(color=colors, size=sizes, symbol=symbols,
                     line=dict(width=0.6, color="white")),
+        text=texts, textposition="top center",
+        textfont=dict(size=11, color="crimson"),
         customdata=grid,
         hovertemplate="P = (%{customdata[0]}, %{customdata[1]}) / "
                       + str(d) + "<extra></extra>",
@@ -2217,16 +2256,27 @@ with tab_isog:
                 hoverinfo="skip"))
             _layout(figR,
                     f"Codomain  E/C = ℂ/Λ′   (P = ({ker[0]},{ker[1]})/{d})")
+            # the smaller fundamental domain of Λ' (area 1/d of the original)
+            f1c, f2c = _lprime_cell()
+            cell = [np.zeros(2), f1c, f1c + f2c, f2c]
+            figR.add_shape(
+                type="path",
+                path=(f"M {cell[0][0]},{cell[0][1]} L {cell[1][0]},{cell[1][1]} "
+                      f"L {cell[2][0]},{cell[2][1]} L {cell[3][0]},{cell[3][1]} Z"),
+                fillcolor="rgba(46,139,87,0.20)",
+                line=dict(color="seagreen", width=2))
             st.plotly_chart(figR, key=f"ik_right_{d}",
                             config={"displayModeBar": False})
 
     st.caption(
         "Left: the $d$-torsion $E[d]$ in a fundamental domain of $\\Lambda$; the "
-        "chosen generator $P$ is the star and its subgroup $\\langle P\\rangle$ is "
-        "red. Right: the codomain lattice $\\Lambda' = \\Lambda + \\mathbb{Z}P$ — "
-        "the original lattice $\\Lambda$ (gray) together with the cosets the kernel "
-        "adds (gold), inside the same fundamental domain. A different kernel gives "
-        "a different $\\Lambda'$."
+        "chosen generator $P$ is the star and its subgroup $\\langle P\\rangle = "
+        "\\{O, P, \\ldots, (d{-}1)P\\}$ is red. Right: the codomain lattice "
+        "$\\Lambda' = \\Lambda + \\mathbb{Z}P$ — the original lattice $\\Lambda$ "
+        "(gray) plus the cosets the kernel adds (gold). The green parallelogram is "
+        "a fundamental domain of $\\Lambda'$; its area is $1/d$ of the original, "
+        "matching the $d$ points of the kernel. A different kernel gives a "
+        "different $\\Lambda'$."
     )
 
 
