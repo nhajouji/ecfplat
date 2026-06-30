@@ -776,7 +776,7 @@ def ecqf_full_bijection_ss_C(p, ls_floor=None):
     sig_to_qf = dict(floor_to_qf)
     for fs, fq in floor_to_qf.items():
         par_sig = [nb for nb in two_isogeny_sigs(*js_to_fg(fs, p), p) if ss_level(nb, p) == 'surface']
-        par_qf = [qf_mod_gamma(q) for q in qf_isogenies_all(fq, 2) if qf_disc(q) == -p]
+        par_qf = [qf_mod_gamma(q) for q in qf_isogs(fq, 2) if qf_disc(q) == -p]
         sig_to_qf[par_sig[0]] = par_qf[0]
     return sig_to_qf
 
@@ -804,7 +804,7 @@ def ecqf_full_bijection_ss_B(p, ls_surf=None):
     for ssig, sqf in surf_to_qf.items():
         child = [nb for nb in two_isogeny_sigs(*js_to_fg(ssig, p), p)
                  if ss_level(nb, p) == 'floor']
-        below = [qf_mod_gamma(q) for q in qf_isogenies_all(sqf, 2) if qf_disc(q) == d_floor]
+        below = [qf_mod_gamma(q) for q in qf_isogs(sqf, 2) if qf_disc(q) == d_floor]
         sig_to_qf[child[0]] = below[0]
     return sig_to_qf
 
