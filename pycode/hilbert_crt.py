@@ -279,7 +279,14 @@ def ap_status(a: int, p: int) -> dict:
     polynomial) supports any volcano depth.  For other l the only candidate is
     Velu's ramified/ascending branch, which is not implemented yet -- flagged
     fixable when the depth is 1; depth >= 2 needs kernel points over extensions
-    of degree ~ l*(l-1), which is out of reach regardless."""
+    of degree ~ l*(l-1), which is out of reach regardless.
+
+    TODO (subring elimination, no isogenies needed): when the target order is
+    identified by discarding the OTHER endo discs of the class, known Hilbert
+    polynomials substitute for the l-graph -- e.g. conductor 37 has only two
+    possible endo discs, and the disc-d0 curves are the roots of H_d0 mod p, so
+    the disc-(d0*37^2) curves are the complement.  Works whenever H_d' is known
+    for every proper superorder disc d' of the target."""
     d0, c = discfac(a * a - 4 * p)
     for l, e in sorted(primefact(c).items()):
         if l in ATKIN_SET:
