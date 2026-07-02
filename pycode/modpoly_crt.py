@@ -46,19 +46,7 @@ from modularpolynomials import hilb_polys_dict
 _DATA_DIR = Path(__file__).parent / 'data'
 
 
-#######################
-# The Hilbert library #
-#######################
-
-def hilbert_library() -> dict:
-    """{d: coefs of H_d, low-to-high}: hilbpolys.json merged with the CRT library."""
-    lib = dict(hilb_polys_dict)
-    crt_path = _DATA_DIR / 'hilbpolys_crt.json'
-    if crt_path.exists():
-        with open(crt_path) as f:
-            for d, cs in json.load(f).items():
-                lib.setdefault(int(d), cs)
-    return lib
+from hilbert_crt import hilbert_library
 
 
 ########################
@@ -130,6 +118,48 @@ def isogenous_pairs_mod_ell(p: int, ell: int) -> list[tuple]:
     return sorted(pairs)
 
 
+def special_value_rows(p: int, hilb: dict = None) -> dict:
+    """Char-0 linear relations on the a_ij from the class-number-1 j0's.
+
+    For h(d0) = 1 the p+1 cyclic p-isogenies from E_{j0} either stay at disc d0
+    (their codomain is E_{j0} itself, 1 + chi of them, chi = kronecker(d0, p))
+    or descend to disc d0 p^2, collapsing under Aut(E_{j0}) into the h(d0 p^2)
+    roots of H_{d0 p^2} with multiplicity u = 3, 2, 1 for d0 = -3, -4, other.
+    In the standard normalization everything is monic:
+
+        Phi_p(X, j0) = (X - j0)^{1+chi} * H_{d0 p^2}(X)^u.
+
+    Each X^i coefficient (i <= p) is one linear relation, valid modulo every ell.
+    Only the j0 with H_{d0 p^2} in the library contribute.  Returns
+    {'rows': dense rows over phi_monomials(p), 'rhs': ints, 'used': [d0...]}."""
+    from modularpolynomials import heeg_js
+    from nt import quad_rec
+    if hilb is None:
+        hilb = hilbert_library()
+    mons = phi_monomials(p)
+    idx = {m: k for k, m in enumerate(mons)}
+    rows, rhs, used = [], [], []
+    Zx = poly_ring(ZZ)
+    for d0 in sorted(heeg_js, reverse=True):
+        dd = d0 * p * p
+        if dd not in hilb:
+            continue
+        j0 = heeg_js[d0]
+        chi = quad_rec(d0 % p, p)
+        u = {-3: 3, -4: 2}.get(d0, 1)
+        F = (Zx.poly([-j0, 1]) ** (1 + chi)) * (Zx.poly(hilb[dd]) ** u)
+        cs = F.int_coefs() + [0] * (p + 2)
+        j0pow = [j0 ** k for k in range(p + 2)]
+        for i in range(p + 1):                 # i = p+1 is the trivial identity 1 = 1
+            row = [0] * len(mons)
+            for j in range(p + 1):
+                row[idx[(max(i, j), min(i, j))]] += j0pow[j]
+            rows.append(row)
+            rhs.append(cs[i] - (j0pow[p + 1] if i == 0 else 0))
+        used.append(d0)
+    return {'rows': rows, 'rhs': rhs, 'used': used}
+
+
 def _solve_unique_mod(rows: list, rhs: list, n: int, ell: int):
     """The unique solution of the linear system over F_ell, or None when the rank
     is < n.  Raises on an inconsistent system -- that means bad isogeny data."""
@@ -150,16 +180,21 @@ def _solve_unique_mod(rows: list, rhs: list, n: int, ell: int):
     return [int(A[i, n]) for i in range(n)]
 
 
-def solve_phi_mod_ell(p: int, ell: int, diag_coefs: list) -> dict:
+def solve_phi_from_pairs(p: int, ell: int, diag_coefs: list, pairs: list,
+                         extra: dict = None) -> dict:
     """{(i, j): a_ij mod ell} for the unknown coefficients of Phi_p, or None when
-    the pairs available at ell leave the system underdetermined.
+    the equations available at ell leave the system underdetermined.
 
     Equations: (a) for each k <= 2p, the anti-diagonal sum equals the char-0
     diagonal coefficient of X^k (minus the known X^{p+1}+Y^{p+1} contribution at
-    k = p+1); (b) for each p-isogenous pair, Phi_p(j1, j2) = 0."""
+    k = p+1); (b) for each supplied p-isogenous pair, Phi_p(j1, j2) = 0;
+    (c) optional char-0 rows from special_value_rows, shared across all ell."""
     mons = phi_monomials(p)
     idx = {m: k for k, m in enumerate(mons)}
     rows, rhs = [], []
+    if extra is not None:
+        rows += extra['rows']
+        rhs += extra['rhs']
     for k in range(2 * p + 1):                 # (a) anti-diagonal sums
         row = [0] * len(mons)
         for (i, j), t in idx.items():
@@ -167,7 +202,7 @@ def solve_phi_mod_ell(p: int, ell: int, diag_coefs: list) -> dict:
                 row[t] = 1 if i == j else 2
         rows.append(row)
         rhs.append((diag_coefs[k] if k < len(diag_coefs) else 0) - (2 if k == p + 1 else 0))
-    for j1, j2 in isogenous_pairs_mod_ell(p, ell):        # (b) evaluations
+    for j1, j2 in pairs:                       # (b) evaluations
         pw1 = [pow(j1, i, ell) for i in range(p + 2)]
         pw2 = [pow(j2, i, ell) for i in range(p + 2)]
         row = [0] * len(mons)
@@ -179,6 +214,12 @@ def solve_phi_mod_ell(p: int, ell: int, diag_coefs: list) -> dict:
     if sol is None:
         return None
     return {m: sol[t] for m, t in idx.items()}
+
+
+def solve_phi_mod_ell(p: int, ell: int, diag_coefs: list, extra: dict = None) -> dict:
+    """solve_phi_from_pairs with the pairs read off the precomputed (ell < 1024)
+    bijections."""
+    return solve_phi_from_pairs(p, ell, diag_coefs, isogenous_pairs_mod_ell(p, ell), extra)
 
 
 ##############################
@@ -198,7 +239,11 @@ def phi_p_via_crt(p: int, ells: list = None, verbose: bool = True) -> dict:
     congruence mod p before returning."""
     if not primeQ(p):
         raise ValueError(f'p = {p} must be prime')
-    diag = phi_diagonal(p).int_coefs()
+    hilb = hilbert_library()
+    diag = phi_diagonal(p, hilb).int_coefs()
+    extra = special_value_rows(p, hilb)
+    if verbose and extra['used']:
+        print(f'  special-value relations from j0 of disc {extra["used"]}')
     if ells is None:
         ells = sorted({l0 for a, l0 in ecqf_ord_1K_pc if a > 0}, reverse=True)
     bound = modpoly_height_bound_log2(p)
@@ -208,7 +253,7 @@ def phi_p_via_crt(p: int, ells: list = None, verbose: bool = True) -> dict:
             continue
         if bits > bound + 1:
             break
-        sol = solve_phi_mod_ell(p, ell, diag)
+        sol = solve_phi_mod_ell(p, ell, diag, extra)
         if sol is None:
             skipped.append(ell)
             continue

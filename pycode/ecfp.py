@@ -251,8 +251,25 @@ def j0_to_j1s_in_sslcycs(j0:int,p:int):
     return j1s
     
 def trfr_to_js(a:int,p:int):
-    js= [j for j in range(1,p) if 
-            (j-1728)%p!=0 and abs(trace_frob(j_to_fg(j),p))==abs(a)]
+    if p < 5:
+        js = [j for j in range(1,p) if
+                (j-1728)%p!=0 and abs(trace_frob(j_to_fg(j),p))==abs(a)]
+    else:
+        # blocked numpy scan: traces of all j at once (j = 0, 1728 handled below)
+        x = np.arange(p, dtype=np.int64)
+        cubes = (x * x % p) * x % p
+        chi = _chi_table(p)
+        jj = np.arange(p, dtype=np.int64)
+        t = (jj - 1728) % p
+        f = (-3 * jj % p) * t % p                          # j_to_fg, vectorized
+        g = (2 * jj % p) * (t * t % p) % p
+        tr = np.empty(p, dtype=np.int64)
+        B = max(1, (1 << 22) // p)
+        for s in range(0, p, B):
+            e = min(s + B, p)
+            vals = (cubes[None, :] + f[s:e, None] * x[None, :] + g[s:e, None]) % p
+            tr[s:e] = -chi[vals].sum(axis=1)
+        js = [j for j in range(1, p) if (j - 1728) % p != 0 and abs(int(tr[j])) == abs(a)]
     d = discfac(a*a-4*p)[0]
     if d==-3 or (d%p == 0 and p % 3 == 2):
         js.append(0)

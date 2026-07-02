@@ -31,6 +31,25 @@ from ecqf_bij import get_ancestor_data_ord, ssprimes
 
 ATKIN_SET = frozenset(ssprimes)     # the 15 primes with an Atkin modular polynomial
 
+
+def hilbert_library() -> dict:
+    """{d: coefs of H_d, low-to-high}: hilbpolys.json merged with the CRT library."""
+    lib = dict(hilb_polys_dict)
+    crt_path = _DATA_DIR / 'hilbpolys_crt.json'
+    if crt_path.exists():
+        with open(crt_path) as f:
+            for d, cs in json.load(f).items():
+                lib.setdefault(int(d), cs)
+    return lib
+
+
+def _padic_val(n: int, l: int) -> int:
+    v = 0
+    while n % l == 0:
+        n //= l
+        v += 1
+    return v
+
 _DATA_DIR = Path(__file__).parent / 'data'
 _EXT_PATH = _DATA_DIR / 'hilbert_roots_ext.json'
 
@@ -104,13 +123,22 @@ def cm_points(d: int) -> list[complex]:
     return [complex(-b, sq) / (2 * a) for a, b, c in get_qfs_strict(d)]
 
 
+def _log2_1p_jtau(tau: complex) -> float:
+    """log2(1 + |j(tau)|), robust to |q| underflowing a double (deep CM points):
+    there j is 1/q to within a relative sliver, so return -ln|q|/ln 2 directly."""
+    lq = -2 * math.pi * tau.imag                          # ln|q|
+    if lq < -650:
+        return -lq / math.log(2)
+    return math.log2(1 + abs(j_numeric(tau)))
+
+
 def hilbert_bound_log2(d: int, safety_bits: float = 8.0) -> float:
     """log2 upper bound on max |coefficient of H_d|.
 
     Coefficients are elementary symmetric functions of the CM j-values, so each is
     at most prod (1 + |j_i|); summing log2(1 + |j_i|) avoids float overflow.  The
     safety bits absorb the truncation/rounding error of the numeric j's."""
-    return sum(math.log2(1 + abs(j_numeric(tau))) for tau in cm_points(d)) + safety_bits
+    return sum(_log2_1p_jtau(tau) for tau in cm_points(d)) + safety_bits
 
 
 #########################
@@ -271,32 +299,102 @@ def crt_prime_candidates(d: int, pmin: int = 1024, pmax: int = 8192,
 
                 # Criterion 2: can we identify the curves? #
 
-def ap_status(a: int, p: int) -> dict:
-    """Can every curve's endomorphism ring in class (a, p) be identified?
-
-    The ancestor data needs the in-class l-isogeny graph for each prime l
-    dividing the conductor of a^2 - 4p.  An Atkin prime (the 15 with a modular
-    polynomial) supports any volcano depth.  For other l the only candidate is
-    Velu's ramified/ascending branch, which is not implemented yet -- flagged
-    fixable when the depth is 1; depth >= 2 needs kernel points over extensions
-    of degree ~ l*(l-1), which is out of reach regardless.
-
-    TODO (subring elimination, no isogenies needed): when the target order is
-    identified by discarding the OTHER endo discs of the class, known Hilbert
-    polynomials substitute for the l-graph -- e.g. conductor 37 has only two
-    possible endo discs, and the disc-d0 curves are the roots of H_d0 mod p, so
-    the disc-(d0*37^2) curves are the complement.  Works whenever H_d' is known
-    for every proper superorder disc d' of the target."""
-    d0, c = discfac(a * a - 4 * p)
-    for l, e in sorted(primefact(c).items()):
+def _elimination_candidates(a: int, p: int, d: int) -> list[int]:
+    """The discs a curve could have once its Atkin conductor-part matches d's:
+    d0 * (A*k)^2 with A = the Atkin part of cond(d), k ranging over divisors of
+    the non-Atkin part of cond(a^2-4p).  The identification trick must discard
+    every one of these except d itself."""
+    D = a * a - 4 * p
+    d0, c = discfac(D)
+    dd0, cd = discfac(d)
+    if dd0 != d0 or c % cd:
+        raise ValueError(f'{d} is not in the discriminant closure of {D}')
+    cf = primefact(c)
+    A = 1
+    for l in cf:
         if l in ATKIN_SET:
+            A *= l ** _padic_val(cd, l)
+    ks = [1]
+    for l, e in cf.items():
+        if l not in ATKIN_SET:
+            ks = [k * l ** i for k in ks for i in range(e + 1)]
+    return sorted({d0 * (A * k) ** 2 for k in ks})
+
+
+def ap_status(a: int, p: int, d: int = None, hilb: dict = None) -> dict:
+    """Can the curves with endomorphism disc d be identified in class (a, p)?
+
+    method='ancestor': every prime l | cond(a^2-4p) is an Atkin prime, so the
+    volcano ancestor data identifies every curve's ring (any depth).
+    method='elimination' (the identification trick): non-Atkin conductor primes
+    are handled without isogenies -- the Atkin ancestor depths pin the Atkin
+    part of each curve's conductor, and inside that group the non-target discs
+    are discarded as roots of their KNOWN Hilbert polynomials.  Needs H_{d'}
+    for every candidate disc d' != d sharing d's Atkin conductor-part; pass the
+    target d and a Hilbert library to enable it."""
+    d0, c = discfac(a * a - 4 * p)
+    bad = [(l, e) for l, e in sorted(primefact(c).items()) if l not in ATKIN_SET]
+    if not bad:
+        return {'ok': True, 'method': 'ancestor', 'fixable': True, 'why': ''}
+    if d is None or hilb is None:
+        return {'ok': False, 'method': None, 'fixable': True,
+                'why': f'non-Atkin conductor primes {[l for l, _ in bad]}: '
+                       f'needs the identification trick (pass d and a Hilbert library)'}
+    missing = [dd for dd in _elimination_candidates(a, p, d) if dd != d and dd not in hilb]
+    if missing:
+        return {'ok': False, 'method': None, 'fixable': True,
+                'why': f'identification trick needs H_d for {missing}'}
+    return {'ok': True, 'method': 'elimination', 'fixable': True, 'why': ''}
+
+
+def _l_levels(nbrs_l: dict, vmax: int) -> dict:
+    """{j: v_l(cond End(j))} from the in-class l-isogeny graph: the graph's
+    degree-1 vertices are the volcano floor (level vmax = v_l(c)) and each
+    ancestor step goes one level up.  First assignment wins, which discards the
+    spurious crater-crater edges tree_edges_to_ancestors can add when the
+    crater cycle is short.  Vertices never reached are on the crater (level 0)."""
+    from ecqf_bij import tree_edges_to_ancestors
+    anc = tree_edges_to_ancestors(nbrs_l)
+    lev = {j: vmax for j in nbrs_l if len(nbrs_l[j]) == 1 and j != 0}
+    batch = list(lev)
+    while batch:
+        nxt = []
+        for j0 in batch:
+            j1 = anc.get(j0)
+            if j1 is not None and j1 not in lev:
+                lev[j1] = max(lev[j0] - 1, 0)
+                nxt.append(j1)
+        batch = nxt
+    return lev
+
+
+def class_target_js(a: int, p: int, d: int, hilb: dict) -> list[int]:
+    """The j's with endomorphism disc exactly d in class (a, p), via the
+    identification trick (see ap_status).  Result is validated against h(d)."""
+    from ecfp import trfr_to_js
+    from ecqf_bij import ecfp_nbr_data_ord_X1, js_to_rabs
+    cd = discfac(d)[1]
+    c = discfac(a * a - 4 * p)[1]
+    atk = [l for l in primefact(c) if l in ATKIN_SET]
+    js = trfr_to_js(a, p)
+    group = js
+    if atk:
+        jdata = {'js': js, 'rabs': js_to_rabs(js, p)}
+        levels = {l: _l_levels(ecfp_nbr_data_ord_X1((a, p), l, jdata), _padic_val(c, l))
+                  for l in atk}
+        group = [j for j in js
+                 if all(levels[l].get(j, 0) == _padic_val(cd, l) for l in atk)]
+    Fp = poly_ring(GF_p(p))
+    remain = set(group)
+    for dd in _elimination_candidates(a, p, d):
+        if dd == d:
             continue
-        if e == 1:
-            return {'ok': False, 'fixable': True,
-                    'why': f'needs the ramified Velu ascent for l={l} || conductor (not implemented)'}
-        return {'ok': False, 'fixable': False,
-                'why': f'{l}^2 | conductor and no Atkin polynomial for {l}'}
-    return {'ok': True, 'fixable': True, 'why': ''}
+        H = Fp.poly(hilb[dd])
+        remain = {j for j in remain if H(j) != (0,)}
+    if len(remain) != len(get_qfs_strict(d)):
+        raise ValueError(f'class ({a},{p}), target {d}: {len(remain)} curves left '
+                         f'after elimination, h(d) = {len(get_qfs_strict(d))}')
+    return sorted(remain)
 
 
 def class_endo_discs(a: int, p: int) -> dict:
@@ -352,13 +450,17 @@ def harvest_class(a: int, p: int, ext: dict = None) -> dict:
 
                 # Search report and end-to-end computation #
 
-def hilbert_search_report(d: int, N: int, pmin: int = 1024, data: dict = None) -> dict:
+def hilbert_search_report(d: int, N: int, pmin: int = 1024, data: dict = None,
+                          hilb: dict = None) -> dict:
     """Both criteria plus the bits budget: what does certifying H_d via primes
     <= N take, and does the search supply it?  No class is computed here."""
     if data is None:
         data = cm_js_by_disc()
+    if hilb is None:
+        hilb = hilbert_library()
     have = data.get(d, {})
-    classes = [{'p': p, 'a': a, 'm': m, **ap_status(a, p)} for p, a, m in find_aps(d, N, pmin)]
+    classes = [{'p': p, 'a': a, 'm': m, **ap_status(a, p, d, hilb)}
+               for p, a, m in find_aps(d, N, pmin)]
     new_ps = sorted({c['p'] for c in classes if c['ok'] and c['p'] not in have})
     bound = hilbert_bound_log2(d)
     bits_have = sum(math.log2(p) for p in have)
@@ -386,7 +488,8 @@ def hilbert_poly_search(d: int, N: int, pmin: int = 1024, data: dict = None,
     whatever is usable even when certification is out of reach."""
     if data is None:
         data = cm_js_by_disc()
-    rep = hilbert_search_report(d, N, pmin, data)
+    hilb = hilbert_library()
+    rep = hilbert_search_report(d, N, pmin, data, hilb)
     if not rep['can_certify'] and not partial:
         return {'status': 'fail', 'reason': rep['verdict'], 'report': rep}
     ext = load_ext()
@@ -399,7 +502,13 @@ def hilbert_poly_search(d: int, N: int, pmin: int = 1024, data: dict = None,
         if not cl['ok'] or p in have:
             continue
         try:
-            groups = harvest_class(a, p, ext)
+            if cl['method'] == 'ancestor':
+                groups = harvest_class(a, p, ext)       # full closure harvest
+            else:
+                groups = {d: class_target_js(a, p, d, hilb)}
+                prev = ext.setdefault(d, {}).setdefault(p, groups[d])
+                if prev != groups[d]:
+                    raise ValueError(f'elimination harvest inconsistent at d={d}, p={p}')
         except ValueError as e:
             if verbose:
                 print(f'  skip (a={a}, p={p}): {e}')
@@ -408,7 +517,7 @@ def hilbert_poly_search(d: int, N: int, pmin: int = 1024, data: dict = None,
             data.setdefault(dd, {}).setdefault(p, js)
         bits += math.log2(p)
         if verbose:
-            print(f'  + p={p} (a={a}, m={cl["m"]}): {bits:.1f} / {target:.1f} bits')
+            print(f'  + p={p} (a={a}, m={cl["m"]}, {cl["method"]}): {bits:.1f} / {target:.1f} bits')
         if save:
             save_ext(ext)
     return hilbert_via_crt(d, data)

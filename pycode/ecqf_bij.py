@@ -7,6 +7,7 @@ from misctools import *
 
 import itertools
 import json
+from functools import lru_cache
 from math import gcd
 from pathlib import Path
 
@@ -467,6 +468,18 @@ def js_to_rabs(js,p):
             ab_to_js[((-j1-j2)%p,(j1*j2)%p)] = (j1,j2)
     return ab_to_js
 
+@lru_cache(maxsize=32)
+def _atk_rab_counts(l, p):
+    """{eval_atk(x): multiplicity} over x in F_p.  Class-independent, so the O(p)
+    Atkin scan is shared by every isogeny class at p instead of being redone per
+    class; the per-class X1 cost drops to O(h^2) dictionary lookups."""
+    counts = {}
+    for x in range(p):
+        evx = eval_atk(x, l, p)
+        counts[evx] = counts.get(evx, 0) + 1
+    return counts
+
+
 def ecfp_nbr_data_ord_X1(ap,l,jdata = {}):
     a,p = ap
     if len(jdata) == 0:
@@ -475,11 +488,10 @@ def ecfp_nbr_data_ord_X1(ap,l,jdata = {}):
     else:
         js = jdata['js']
         rabs = jdata['rabs']
+    counts = _atk_rab_counts(l, p)
     nbrdata = {j:[] for j in js}
-    for x in range(p):
-        evx = eval_atk(x,l,p)
-        if evx in rabs:
-            j1,j2 = rabs[evx]
+    for evx, (j1, j2) in rabs.items():
+        for _ in range(counts.get(evx, 0)):
             nbrdata[j1].append(j2)
             nbrdata[j2].append(j1)
     return nbrdata
