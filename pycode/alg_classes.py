@@ -313,6 +313,7 @@ def GF_p(p: int) -> Field:
 
     F = Field(membership, (0,), negation, addition, (1,), multiplication, inverse)
     F.char, F.degree, F.order = p, 1, p
+    F.int_coercion = lambda c: ((c % p),)
     return F
 
 
@@ -376,6 +377,7 @@ def GF_pn(p: int, modpoly: list[int]) -> Field:
 
     K = Field(membership, zero, negation, addition, one, multiplication, inverse)
     K.char, K.degree, K.order = p, n, order
+    K.int_coercion = lambda c: ((c % p),) + zero[1:]
     return K
 
 
@@ -452,9 +454,333 @@ def GF_pn_auto(p: int, n: int, seed: int = 0) -> Field:
     return GF_pn(p, irreducible_poly(p, n, seed))
 
 
-                    ################
-                    # Polynomials  #
-                    ################
+                # Coefficient rings for polynomial work #
+
+# Z and C as Ring/Field instances, so PolyRing below can be built over them with
+# the same element-tuple convention as GF_p / GF_pn.  CC is floating point: it is
+# meant for numeric estimates (e.g. coefficient bounds from approximate CM
+# j-invariants), not exact arithmetic.
+
+def _make_ZZ() -> Ring:
+    def membership(v):
+        return isinstance(v, tuple) and len(v) == 1 and isinstance(v[0], int)
+    R = Ring(membership, (0,), lambda v: (-v[0],), lambda v1, v2: (v1[0] + v2[0],),
+             (1,), lambda v1, v2: (v1[0] * v2[0],))
+    R.int_coercion = lambda c: (c,)
+    return R
+
+ZZ = _make_ZZ()
+
+
+def _make_CC() -> Field:
+    def membership(v):
+        return isinstance(v, tuple) and len(v) == 1 and isinstance(v[0], (int, float, complex))
+    F = Field(membership, (0,), lambda v: (-v[0],), lambda v1, v2: (v1[0] + v2[0],),
+              (1,), lambda v1, v2: (v1[0] * v2[0],), lambda v: (1 / v[0],))
+    F.int_coercion = lambda c: (c,)
+    return F
+
+CC = _make_CC()
+
+
+                    ####################
+                    # Polynomial rings #
+                    ####################
+
+# R[x] over any Ring R from this module (ZZ, GF_p, GF_pn, CC, ...).  Elements are
+# tuples of base-ring element tuples, low-to-high degree, with trailing zeros
+# stripped; the zero polynomial is the empty tuple ().  Build rings through
+# poly_ring(base) so equal bases share one PolyRing object.
+
+class PolyRing(Ring):
+    def __init__(self, base: Ring):
+        self.base = base
+        bz, badd, bneg, bmul = (base.zero_element, base.addition_map,
+                                base.negation_map, base.multiplication_map)
+
+        def strip(coefs: tuple) -> tuple:
+            n = len(coefs)
+            while n > 0 and coefs[n - 1] == bz:
+                n -= 1
+            return tuple(coefs[:n])
+
+        def membership(v):
+            return isinstance(v, tuple) and all(c in base for c in v)
+
+        def negation(v):
+            return tuple(bneg(c) for c in v)
+
+        def addition(v1, v2):
+            if len(v1) < len(v2):
+                v1, v2 = v2, v1
+            out = list(v1)
+            for i, c in enumerate(v2):
+                out[i] = badd(out[i], c)
+            return strip(tuple(out))
+
+        def multiplication(v1, v2):
+            if not v1 or not v2:
+                return ()
+            out = [bz] * (len(v1) + len(v2) - 1)
+            for i, c1 in enumerate(v1):
+                if c1 == bz:
+                    continue
+                for j, c2 in enumerate(v2):
+                    out[i + j] = badd(out[i + j], bmul(c1, c2))
+            return strip(tuple(out))
+
+        self._strip = strip
+        super().__init__(membership, (), negation, addition, (base.one_element,), multiplication)
+
+    # --- element construction ---
+
+    def coerce_coef(self, c) -> tuple:
+        """Turn an int, a base-ring tuple, or a base-ring element into a base tuple."""
+        if isinstance(c, AbGrElt):
+            c = c.vec
+        if isinstance(c, tuple):
+            if c in self.base:
+                return c
+            raise ValueError(f'{c} is not in the coefficient ring')
+        if isinstance(c, (int, float, complex)) and not isinstance(c, bool):
+            coerce = getattr(self.base, 'int_coercion', None)
+            if coerce is not None:
+                return coerce(c)
+            return self.base.scale_element(self.base.one_element, c)
+        raise ValueError(f'Cannot coerce {c} into the coefficient ring')
+
+    def poly(self, coefs) -> 'Poly':
+        """Polynomial from low-to-high coefficients (ints or base-ring elements)."""
+        return Poly(self._strip(tuple(self.coerce_coef(c) for c in coefs)), self)
+
+    @property
+    def zero(self) -> 'Poly':
+        return Poly((), self)
+
+    @property
+    def one(self) -> 'Poly':
+        return Poly(self.one_element, self)
+
+    @property
+    def x(self) -> 'Poly':
+        return Poly((self.base.zero_element, self.base.one_element), self)
+
+    def from_roots(self, roots) -> 'Poly':
+        """Monic product (x - r_1)...(x - r_n), multiplied as a balanced tree."""
+        bneg, bone = self.base.negation_map, self.base.one_element
+        layer = [(bneg(self.coerce_coef(r)), bone) for r in roots]
+        if not layer:
+            return self.one
+        while len(layer) > 1:
+            nxt = [self.multiply_elements(layer[i], layer[i + 1])
+                   for i in range(0, len(layer) - 1, 2)]
+            if len(layer) % 2:
+                nxt.append(layer[-1])
+            layer = nxt
+        return Poly(layer[0], self)
+
+    # --- division-based operations (coefficients must form a field) ---
+
+    def divmod_polys(self, f: 'Poly', g: 'Poly') -> tuple['Poly', 'Poly']:
+        if not isinstance(self.base, Field):
+            raise ValueError('Polynomial division needs field coefficients')
+        if not g.vec:
+            raise ZeroDivisionError('Division by the zero polynomial')
+        badd, bneg, bmul = (self.base.addition_map, self.base.negation_map,
+                            self.base.multiplication_map)
+        dg = len(g.vec) - 1
+        lc_inv = self.base.invert_element(g.vec[-1])
+        rem = list(f.vec)
+        quo = [self.base.zero_element] * max(len(rem) - dg, 0)
+        while len(rem) - 1 >= dg:
+            if rem[-1] == self.base.zero_element:
+                rem.pop()
+                continue
+            q = bmul(rem[-1], lc_inv)
+            shift = len(rem) - 1 - dg
+            quo[shift] = q
+            for i, c in enumerate(g.vec):
+                rem[i + shift] = badd(rem[i + shift], bneg(bmul(q, c)))
+            rem.pop()
+        return Poly(self._strip(tuple(quo)), self), Poly(self._strip(tuple(rem)), self)
+
+    def gcd_polys(self, f: 'Poly', g: 'Poly') -> 'Poly':
+        """Monic gcd (field coefficients)."""
+        while g.vec:
+            f, g = g, self.divmod_polys(f, g)[1]
+        return f.monic() if f.vec else f
+
+    def resultant(self, f: 'Poly', g: 'Poly'):
+        """Res(f, g) as a base-field element tuple, via the Euclidean algorithm."""
+        if not isinstance(self.base, Field):
+            raise ValueError('resultant needs field coefficients')
+        base = self.base
+        if not f.vec or not g.vec:
+            return base.zero_element if max(f.deg, g.deg) > 0 else base.one_element
+        res = base.one_element
+        while True:
+            if not g.vec:
+                return base.zero_element if f.deg > 0 else res
+            if g.deg == 0:
+                return base.multiply_elements(res, _base_pow(base, g.vec[0], f.deg))
+            r = self.divmod_polys(f, g)[1]
+            dr = r.deg if r.vec else 0
+            res = base.multiply_elements(res, _base_pow(base, g.vec[-1], f.deg - dr))
+            if (f.deg * g.deg) % 2:
+                res = base.negation_map(res)
+            f, g = g, r
+
+    def derivative(self, f: 'Poly') -> 'Poly':
+        sc = self.base.scale_element
+        dcs = tuple(sc(c, i) for i, c in enumerate(f.vec))[1:]
+        return Poly(self._strip(dcs), self)
+
+
+def _base_pow(base: Ring, t: tuple, n: int) -> tuple:
+    out, sq = base.one_element, t
+    while n > 0:
+        if n & 1:
+            out = base.multiply_elements(out, sq)
+        sq = base.multiply_elements(sq, sq)
+        n >>= 1
+    return out
+
+
+_POLY_RINGS: dict = {}
+
+def poly_ring(base: Ring) -> PolyRing:
+    """The polynomial ring over base, one shared object per base ring."""
+    R = _POLY_RINGS.get(id(base))
+    if R is None:
+        R = _POLY_RINGS[id(base)] = PolyRing(base)
+    return R
+
+
+class Poly(RingElement):
+    @property
+    def ring(self) -> PolyRing:
+        return self.grp
+
+    @property
+    def deg(self) -> int:
+        return len(self.vec) - 1          # zero polynomial has degree -1
+
+    @property
+    def lc(self) -> tuple:
+        return self.vec[-1] if self.vec else self.grp.base.zero_element
+
+    def coef(self, i) -> tuple:
+        """Coefficient of x^i as a base-ring tuple (zero beyond the degree)."""
+        return self.vec[i] if 0 <= i <= self.deg else self.grp.base.zero_element
+
+    def int_coefs(self) -> list:
+        """Low-to-high coefficients as plain scalars (for 1-tuple bases: ZZ, GF_p, CC)."""
+        return [c[0] for c in self.vec]
+
+    def __call__(self, x):
+        """Evaluate by Horner. x may be an int, a base element, or a Poly (composition)."""
+        R = self.grp
+        if isinstance(x, Poly):
+            out = R.zero
+            for c in reversed(self.vec):
+                out = out * x + Poly((c,), R)
+            return out
+        x = R.coerce_coef(x)
+        base = R.base
+        out = base.zero_element
+        for c in reversed(self.vec):
+            out = base.addition_map(base.multiplication_map(out, x), c)
+        return out
+
+    def monic(self) -> 'Poly':
+        if not self.vec or self.lc == self.grp.base.one_element:
+            return self
+        lc_inv = self.grp.base.invert_element(self.lc)
+        bmul = self.grp.base.multiplication_map
+        return Poly(tuple(bmul(c, lc_inv) for c in self.vec), self.grp)
+
+    def derivative(self) -> 'Poly':
+        return self.grp.derivative(self)
+
+    def __divmod__(self, other: 'Poly'):
+        return self.grp.divmod_polys(self, other)
+
+    def __floordiv__(self, other: 'Poly') -> 'Poly':
+        return self.grp.divmod_polys(self, other)[0]
+
+    def __mod__(self, other: 'Poly') -> 'Poly':
+        return self.grp.divmod_polys(self, other)[1]
+
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Poly) or other.grp.base is not self.grp.base:
+            return NotImplemented
+        return self.vec == other.vec
+
+    def __hash__(self):
+        return hash((id(self.grp.base), self.vec))
+
+    def __repr__(self):
+        if not self.vec:
+            return '0'
+        terms = []
+        for i in range(self.deg, -1, -1):
+            c = self.vec[i]
+            if c == self.grp.base.zero_element:
+                continue
+            cs = str(c[0]) if len(c) == 1 else str(c)
+            xi = '' if i == 0 else ('x' if i == 1 else f'x^{i}')
+            if xi and cs == '1':
+                terms.append(xi)
+            elif xi and cs == '-1':
+                terms.append(f'-{xi}')
+            else:
+                terms.append(f'{cs} {xi}'.strip())
+        s = terms[0]
+        for t in terms[1:]:
+            s += f' - {t[1:]}' if t.startswith('-') else f' + {t}'
+        return s
+
+
+            # Reduction, lifting, and CRT for integer polynomials #
+
+def poly_mod_p(f: Poly, p: int) -> Poly:
+    """Reduce a ZZ-polynomial mod p, landing in GF_p(p)[x]."""
+    return poly_ring(GF_p(p)).poly(f.int_coefs())
+
+
+def poly_lift(f: Poly, balanced: bool = True) -> Poly:
+    """Lift a GF_p-polynomial to ZZ[x]; balanced puts coefficients in (-p/2, p/2]."""
+    p = f.grp.base.char
+    cs = f.int_coefs()
+    if balanced:
+        cs = [c - p if 2 * c > p else c for c in cs]
+    return poly_ring(ZZ).poly(cs)
+
+
+def poly_crt(residues: list[tuple]) -> tuple[Poly, int]:
+    """CRT a list of (polynomial mod p, p) pairs into (F, M) with F in ZZ[x], M = prod p.
+
+    Each polynomial may be a Poly over GF_p or a low-to-high list of int coefficients.
+    Coefficients of F are the balanced representatives in (-M/2, M/2], which are the
+    true integer coefficients whenever M exceeds twice their largest absolute value."""
+    from nt import crt_list
+    pairs = []
+    for f, p in residues:
+        cs = f.int_coefs() if isinstance(f, Poly) else list(f)
+        pairs.append((cs, p))
+    n = max(len(cs) for cs, _ in pairs)
+    coefs = []
+    for i in range(n):
+        ci, M = crt_list([(cs[i] if i < len(cs) else 0, p) for cs, p in pairs])
+        coefs.append(ci)
+    return poly_ring(ZZ).poly(coefs), M
+
+
+                    ######################
+                    # Legacy polynomials #
+                    ######################
+# Superseded by PolyRing/Poly above; still used by modularpolynomials.py and
+# irreducible_poly.  New code should use poly_ring(...).
 
 def remove_lead_zeros(l, char=0):
     if char != 0:
