@@ -5,6 +5,8 @@ from qfs import *
 
 M2Z = Mat_n_Z(2)
 import json
+import numpy as np
+from functools import lru_cache
 from pathlib import Path
 
 _DATA_DIR = Path(__file__).parent / 'data'
@@ -160,9 +162,23 @@ def trace_and_2tor(fg:tuple[int,int],p:int)->tuple[int,int]:
     qrs = cubic_qrs(fg,p)
     return -sum(qrs),len([s for s in qrs if s == 0])
 
+@lru_cache(maxsize=8)
+def _chi_table(p:int):
+    """Quadratic character of F_p as a length-p int8 lookup table (chi[0] = 0)."""
+    chi = np.full(p, -1, dtype=np.int8)
+    x = np.arange(p, dtype=np.int64)
+    chi[(x * x) % p] = 1
+    chi[0] = 0
+    return chi
+
+
 def trace_frob(fg:tuple[int,int],p:int)->int:
     f,g = fg
-    return - sum([quad_rec(x**3+f*x+g,p) for x in range(p)])
+    if p < 5:                                 # tiny p: keep quad_rec's conventions
+        return - sum([quad_rec(x**3+f*x+g,p) for x in range(p)])
+    x = np.arange(p, dtype=np.int64)
+    vals = ((x * x % p) * x + f * x + g) % p  # x^3+fx+g, staying inside int64
+    return - int(_chi_table(p)[vals].sum())
 
 # Takes a prime as input and returns list of discriminants
 # of all endomorphism rings mod p
