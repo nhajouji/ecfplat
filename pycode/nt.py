@@ -324,6 +324,13 @@ def crt_pair(am1:tuple[int],am2:tuple[int])->tuple[int]:
         a12-=m12
     return (a12,m12)
 
+def crt_list(amlist:list[tuple[int,int]]):
+    if len(amlist)== 0:
+        raise ValueError('Need at least one pair')
+    am0 = amlist[0]
+    for am1 in amlist[1:]:
+        am0 = crt_pair(am0,am1)
+    return am0
 
 ## Root of unity
 def get_rou_mod(m,p):
