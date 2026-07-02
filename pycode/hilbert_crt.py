@@ -26,33 +26,46 @@ from alg_classes import GF_p, poly_ring, poly_crt, Poly
 from ecqf_tools import ecqf_ord_1K_pc
 from qfs import qf_disc, get_qfs_strict
 from modularpolynomials import hilb_polys_dict, _jc
+from nt import primeQ
 
 _DATA_DIR = Path(__file__).parent / 'data'
+_EXT_PATH = _DATA_DIR / 'hilbert_roots_ext.json'
 
 
 ####################################
 # Step 1a: harvest roots from data #
 ####################################
 
-def cm_js_by_disc(source=None) -> dict:
+def class_roots_by_disc(j_to_qf: dict) -> dict:
+    """{disc: sorted j's} for one class's j -> qf bijection."""
+    groups = {}
+    for j, qf in j_to_qf.items():
+        groups.setdefault(qf_disc(qf), []).append(j)
+    return {d: sorted(js) for d, js in groups.items()}
+
+
+def cm_js_by_disc(source=None, include_ext: bool = True) -> dict:
     """{d: {p: sorted j's with endomorphism disc d over F_p}} from the bijection dicts.
 
-    When two classes (a1, p), (a2, p) both see disc d (twists), the root sets must
-    agree; any mismatch means corrupted data, so it raises."""
+    include_ext merges the beyond-1024 extension cache (hilbert_roots_ext.json).
+    When two sources see the same (d, p) (twist classes, or base + extension), the
+    root sets must agree; any mismatch means corrupted data, so it raises."""
     if source is None:
         source = ecqf_ord_1K_pc
     out = {}
     for (a, p), j_to_qf in source.items():
         if a <= 0:
             continue
-        groups = {}
-        for j, qf in j_to_qf.items():
-            groups.setdefault(qf_disc(qf), []).append(j)
-        for d, js in groups.items():
-            js = sorted(js)
+        for d, js in class_roots_by_disc(j_to_qf).items():
             prev = out.setdefault(d, {}).setdefault(p, js)
             if prev != js:
                 raise ValueError(f'Inconsistent roots for d={d}, p={p} (classes with traces +-{a})')
+    if include_ext:
+        for d, by_p in load_ext().items():
+            for p, js in by_p.items():
+                prev = out.setdefault(d, {}).setdefault(p, js)
+                if prev != js:
+                    raise ValueError(f'Extension cache disagrees with base data at d={d}, p={p}')
     return out
 
 
@@ -190,3 +203,100 @@ def save_hilbert_library(lib: dict, path=None):
     with open(path, 'w') as f:
         json.dump({str(d): lib[d] for d in sorted(lib, reverse=True)}, f)
     return path
+
+
+###############################################
+# Extension beyond the p < 1024 precomputes   #
+###############################################
+# The precomputed bijections stop at p < 1024, which certifies only ~120 discs.
+# For a target disc d we mint new CRT primes on demand: any prime p with
+# a^2 - 4p = d*m^2 gives a class whose disc-d group is the full root set of
+# H_d mod p.  The per-disc machinery (rigid l-set + qf labelling) is already
+# cached in rigid_lset_cache.json down to -4096, so each new prime costs only
+# the j-invariant side (ecqf_ord_bij_cached).  Results are persisted to
+# hilbert_roots_ext.json as {d: {p: roots}}, including the groups of every
+# other disc in the class closure -- those primes are free.
+
+def load_ext(path=_EXT_PATH) -> dict:
+    if not Path(path).exists():
+        return {}
+    with open(path) as f:
+        raw = json.load(f)
+    return {int(d): {int(p): js for p, js in by_p.items()} for d, by_p in raw.items()}
+
+
+def save_ext(ext: dict, path=_EXT_PATH):
+    tmp = str(path) + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump({str(d): {str(p): js for p, js in sorted(by_p.items())}
+                   for d, by_p in sorted(ext.items(), reverse=True)}, f)
+    Path(tmp).replace(path)
+
+
+def crt_prime_candidates(d: int, pmin: int = 1024, pmax: int = 8192,
+                         disc_floor: int = -4096) -> list[tuple]:
+    """New CRT primes for d: [(p, a, D)] with a^2 - 4p = D = d*m^2, sorted by p.
+
+    disc_floor keeps every class disc D inside the rigid-lset cache, so no new
+    per-disc search is triggered.  Note m=1 can be structurally empty (d = 1 mod 8
+    forces p even), which is why the m-loop matters."""
+    out = []
+    m = 1
+    while d * m * m >= disc_floor:
+        D = d * m * m
+        a = int(math.isqrt(4 * pmin + D)) + 1 if 4 * pmin + D > 0 else 1
+        if (a * a - D) % 2:
+            a += 1                          # need a^2 = D (mod 2), then mod 4 is automatic
+        while (p := (a * a - D) // 4) <= pmax:
+            if p > pmin and primeQ(p):
+                out.append((p, a, D))
+            a += 2
+        m += 1
+    return sorted(out)
+
+
+def harvest_class(a: int, p: int, ext: dict = None) -> dict:
+    """Compute the (a, p) bijection and fold every disc group into ext."""
+    from rigid_cache import ecqf_ord_bij_cached
+    if ext is None:
+        ext = {}
+    groups = class_roots_by_disc(ecqf_ord_bij_cached((a, p)))
+    for d, js in groups.items():
+        prev = ext.setdefault(d, {}).setdefault(p, js)
+        if prev != js:
+            raise ValueError(f'Extension harvest inconsistent at d={d}, p={p}')
+    return groups
+
+
+def extend_disc(d: int, data: dict = None, pmax: int = 8192, save: bool = True,
+                verbose: bool = True) -> dict:
+    """Mint new primes for d until it is certified (or candidates run out).
+
+    Returns the hilbert_via_crt record computed from the merged data.  Skips
+    primes already known; records nothing when the class computation fails (rare
+    rigid-l-set gaps) and moves on to the next candidate."""
+    ext = load_ext()
+    if data is None:
+        data = cm_js_by_disc()              # already merges the current ext
+    have = data.setdefault(d, {})
+    bound = hilbert_bound_log2(d)
+    bits = sum(math.log2(p) for p in have)
+    for p, a, D in crt_prime_candidates(d, pmax=pmax):
+        if bits > bound + 1:
+            break
+        if p in have:
+            continue
+        try:
+            groups = harvest_class(a, p, ext)
+        except (ValueError, KeyError) as e:
+            if verbose:
+                print(f'  skip (a={a}, p={p}, D={D}): {e}')
+            continue
+        for dd, js in groups.items():
+            data.setdefault(dd, {}).setdefault(p, js)
+        bits += math.log2(p)
+        if verbose:
+            print(f'  + p={p} (a={a}, D={D}): {bits:.1f} / {bound + 1:.1f} bits')
+        if save:
+            save_ext(ext)
+    return hilbert_via_crt(d, data)
