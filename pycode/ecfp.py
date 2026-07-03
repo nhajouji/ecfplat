@@ -250,25 +250,35 @@ def j0_to_j1s_in_sslcycs(j0:int,p:int):
     j1s = list(set(codoms))
     return j1s
     
+@lru_cache(maxsize=8)
+def _trace_table(p:int):
+    """tr[j] = trace of Frobenius of the canonical model j_to_fg(j) over F_p, for
+    every j at once (blocked numpy scan).  Entries at j = 0 and j = 1728 are for
+    the singular formula output and must not be used -- the callers special-case
+    those two j's.  Cached per p: every class at p, and every re-scan within one
+    bijection computation, reads the same table."""
+    x = np.arange(p, dtype=np.int64)
+    cubes = (x * x % p) * x % p
+    chi = _chi_table(p)
+    t = (x - 1728) % p
+    f = (-3 * x % p) * t % p                               # j_to_fg, vectorized
+    g = (2 * x % p) * (t * t % p) % p
+    tr = np.empty(p, dtype=np.int64)
+    B = max(1, (1 << 22) // p)
+    for s in range(0, p, B):
+        e = min(s + B, p)
+        vals = (cubes[None, :] + f[s:e, None] * x[None, :] + g[s:e, None]) % p
+        tr[s:e] = -chi[vals].sum(axis=1)
+    tr.setflags(write=False)
+    return tr
+
+
 def trfr_to_js(a:int,p:int):
     if p < 5:
         js = [j for j in range(1,p) if
                 (j-1728)%p!=0 and abs(trace_frob(j_to_fg(j),p))==abs(a)]
     else:
-        # blocked numpy scan: traces of all j at once (j = 0, 1728 handled below)
-        x = np.arange(p, dtype=np.int64)
-        cubes = (x * x % p) * x % p
-        chi = _chi_table(p)
-        jj = np.arange(p, dtype=np.int64)
-        t = (jj - 1728) % p
-        f = (-3 * jj % p) * t % p                          # j_to_fg, vectorized
-        g = (2 * jj % p) * (t * t % p) % p
-        tr = np.empty(p, dtype=np.int64)
-        B = max(1, (1 << 22) // p)
-        for s in range(0, p, B):
-            e = min(s + B, p)
-            vals = (cubes[None, :] + f[s:e, None] * x[None, :] + g[s:e, None]) % p
-            tr[s:e] = -chi[vals].sum(axis=1)
+        tr = _trace_table(p)
         js = [j for j in range(1, p) if (j - 1728) % p != 0 and abs(int(tr[j])) == abs(a)]
     d = discfac(a*a-4*p)[0]
     if d==-3 or (d%p == 0 and p % 3 == 2):
@@ -325,10 +335,11 @@ def trfr_to_models(a:int,p:int):
             models+=[(0,1),(0,ns)]
         if p % 4 == 3:
             models+=[(p-1,0),(1,0)]
+    table = _trace_table(p) if p >= 5 else None
     for j0 in range(1,p):
         if (j0-1728)%p!=0:
             fg0 = j_to_fg(j0,p)
-            tr0 = trace_frob(fg0,p)
+            tr0 = int(table[j0]) if table is not None else trace_frob(fg0,p)
             if tr0 == a:
                 if a == 0:
                     f0, g0 = fg0
