@@ -250,13 +250,24 @@ def j0_to_j1s_in_sslcycs(j0:int,p:int):
     j1s = list(set(codoms))
     return j1s
     
+TRACE_TABLE_IMPL = None   # optional faster backend; see trace_gpu.enable()
+
+
 @lru_cache(maxsize=8)
 def _trace_table(p:int):
     """tr[j] = trace of Frobenius of the canonical model j_to_fg(j) over F_p, for
     every j at once (blocked numpy scan).  Entries at j = 0 and j = 1728 are for
     the singular formula output and must not be used -- the callers special-case
     those two j's.  Cached per p: every class at p, and every re-scan within one
-    bijection computation, reads the same table."""
+    bijection computation, reads the same table.  A plugged-in backend
+    (TRACE_TABLE_IMPL, e.g. the GPU kernel in trace_gpu) may take over; returning
+    None from it falls back to the numpy scan."""
+    if TRACE_TABLE_IMPL is not None:
+        tr = TRACE_TABLE_IMPL(p)
+        if tr is not None:
+            tr = np.asarray(tr, dtype=np.int64)
+            tr.setflags(write=False)
+            return tr
     x = np.arange(p, dtype=np.int64)
     cubes = (x * x % p) * x % p
     chi = _chi_table(p)
