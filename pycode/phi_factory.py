@@ -98,11 +98,28 @@ def _ensure_rigid(ell: int, headroom: int = 8192):
     _POP_FLOOR[0] = target
 
 
+_EXT_BY_P = None                               # bij_factory store, grouped by prime
+
+def _ext_bijections_at(ell: int):
+    global _EXT_BY_P
+    if _EXT_BY_P is None:
+        from bij_factory import load_ext_bijections
+        _EXT_BY_P = {}
+        for (a, p), bij in load_ext_bijections().items():
+            _EXT_BY_P.setdefault(p, []).append(bij)
+    return _EXT_BY_P.get(ell)
+
+
 def class_bijections_at_ell(ell: int, verbose: bool = False,
                             headroom: int = 8192) -> list[dict]:
     """The j -> form bijections of every ordinary class at ell, skipping classes
-    whose disc has no rigid l-set (the gap discs).  Extends the rigid cache on
-    disk as a side effect (incremental, so this is cheap after the first pass)."""
+    whose disc has no rigid l-set (the gap discs).  Uses the bij_factory
+    extension store when it covers ell (run notebooks/bij_factory.ipynb first
+    and this costs nothing); otherwise computes on the fly, extending the rigid
+    cache on disk as a side effect."""
+    stored = _ext_bijections_at(ell)
+    if stored:
+        return stored
     _ensure_rigid(ell, headroom)
     from rigid_cache import ecqf_ord_bij_cached
     out = []
