@@ -1,23 +1,30 @@
-"""Batch production of classical modular polynomials Phi_p -- the bootstrap driver.
+"""Batch production of classical modular polynomials Phi_l -- the bootstrap driver.
+
+Naming: in all messages (and this module's driver) the ISOGENY DEGREE is l --
+we are computing Phi_l -- and the CHARACTERISTIC we interpolate at is p.  (The
+underlying modpoly_crt module predates this convention and uses Phi_p mod ell;
+only positional arguments cross that boundary.)
 
 Designed for a long unattended run on a separate machine (see
-notebooks/phi_factory.ipynb): for each prime ell above the precomputed range it
-extends the rigid-l-set cache, computes the j <-> form bijections for every
-class at ell (skipping the rare rigid gaps), extracts p-isogenous pairs for
-every unfinished target p, solves for Phi_p mod ell, and folds the solution
+notebooks/phi_factory.ipynb): for each characteristic p above the precomputed
+range it extends the rigid-l-set cache, computes the j <-> form bijections for
+every class at p (skipping the rare rigid gaps), extracts l-isogenous pairs
+for every unfinished target l, solves for Phi_l mod p, and folds the solution
 into a running CRT.  A target finishes when its modulus provably exceeds the
 Broker-Sutherland height bound; the finished matrix must pass the Kronecker
 congruence and is then registered into classical_modpolys.json.
 
 Everything checkpoints: the rigid cache persists per disc, and the CRT state
-(data/phi_factory_state.json) persists after every prime, so the run can be
-interrupted and resumed with the same 'run all'.
+(data/phi_factory_state.json) persists after every characteristic, so the run
+can be interrupted and resumed with the same 'run all'.
 
-Why this needs large ell: a full solve mod ell takes ~(p+1)(p+2)/2 independent
-equations and a prime supplies ~0.55*ell pairs, so p = 37..67 only start
-collecting primes at ell ~ 2500..4500 -- beyond the shipped ell < 1024 data.
-No special-value relations are required (they lower the usable-ell threshold
-when present in the Hilbert library, and are picked up automatically).
+Why this needs large p: a full solve mod p takes ~(l+1)(l+2)/2 independent
+equations and a characteristic supplies ~0.52*p pairs, so l = 37..67 only
+start collecting at p ~ 2500..4500 -- beyond the shipped p < 1024 data.  See
+phi_prime_range_estimate for the predicted range per target (calibrated
+against the first laptop run).  No special-value relations are required (they
+lower the usable-p threshold when present in the Hilbert library, and are
+picked up automatically).
 """
 
 import json
@@ -42,9 +49,34 @@ _SHIPPED_ELLS = frozenset(l0 for a, l0 in ecqf_ord_1K_pc if a > 0)
 WANTED = (37, 43, 53, 61, 67)                 # the non-Atkin primes below 72
 
 
-def factory_targets(lmax_p: int = 71) -> list[int]:
-    """Primes p <= lmax_p with no classical modular polynomial in the cache."""
-    return [p for p in primesBetween(1, lmax_p + 1) if p not in _modpoly_cache]
+def factory_targets(lmax: int = 71) -> list[int]:
+    """Primes l <= lmax with no classical modular polynomial in the cache."""
+    return [l for l in primesBetween(1, lmax + 1) if l not in _modpoly_cache]
+
+
+PAIR_RATE = 0.52          # measured pairs(p) / p across the first laptop run
+
+
+def phi_prime_range_estimate(l: int, n_special_families: int = 0) -> dict:
+    """Predicted characteristic range (p_min, p_max) needed to compute Phi_l.
+
+    p_min: the full-rank threshold -- a characteristic supplies ~PAIR_RATE * p
+    pair equations against (l+1)(l+2)/2 unknowns minus the char-0 rows (2l+1
+    diagonal + (l+1) per special-value family in the library).  p_max: by the
+    prime number theorem the sum of ln p over primes in [a, b] is ~ b - a
+    (Chebyshev theta), and certification needs that sum to reach the
+    Broker-Sutherland height 6l ln l + 16l + 14 sqrt(l) ln l (nats) -- so
+    p_max ~ p_min + height, inflated 8% for skipped/rank-deficient
+    characteristics near the bottom.  Calibrated against the first laptop run:
+    predicted (738, 2077) / (845, 2265) / (1211, 3020) vs actual 773..2179 /
+    863..2389 / 1319..3191 for l = 29 / 31 / 37."""
+    unknowns = (l + 1) * (l + 2) // 2
+    rows0 = 2 * l + 1 + n_special_families * (l + 1)
+    a = max(5, int((unknowns - rows0) / PAIR_RATE))
+    height_nats = 6 * l * math.log(l) + 16 * l + 14 * math.sqrt(l) * math.log(l)
+    b = int(1.08 * (a + height_nats))
+    n = int((b - a) / math.log((a + b) / 2))
+    return {'l': l, 'p_min': a, 'p_max': b, 'n_primes': n}
 
 
 ##############################
@@ -191,9 +223,12 @@ def run_factory(targets: list[int] = None, lmin: int = 1024, lmax: int = 16384,
                    'bound': modpoly_height_bound_log2(p),
                    'min_rows': len(mons) - (2 * p + 1) - len(extra['rows']),
                    'st': st}
-        print(f'target p={p}: {len(mons)} unknowns, bound {work[p]["bound"]:.0f} bits, '
+        est = phi_prime_range_estimate(p, len(extra['used']))
+        print(f'target Phi_{p}: {len(mons)} unknowns, bound {work[p]["bound"]:.0f} bits, '
               f'{math.log2(st["modulus"]):.0f} bits done, '
-              f'{len(extra["used"])} special-value families', flush=True)
+              f'{len(extra["used"])} special-value families; '
+              f'predicted chars ~{est["p_min"]}..{est["p_max"]} (~{est["n_primes"]} primes)',
+              flush=True)
     if not work:
         print('nothing to do: all targets already in classical_modpolys.json')
         return
@@ -224,22 +259,38 @@ def run_factory(targets: list[int] = None, lmin: int = 1024, lmax: int = 16384,
             bits = math.log2(st['modulus'])
             if bits > w['bound'] + 1:
                 st['done'] = _finalize(p, st, w['mons'], save=save)
-                line.append(f'p={p} {"FINISHED" if st["done"] else "KRONECKER FAIL"}')
+                rng = f'chars {min(st["ells"])}..{max(st["ells"])}, {len(st["ells"])} primes'
+                line.append(f'Phi_{p} {"FINISHED (" + rng + ")" if st["done"] else "KRONECKER FAIL"}')
             else:
-                line.append(f'p={p} {bits:.0f}/{w["bound"]:.0f}')
+                line.append(f'Phi_{p} {bits:.0f}/{w["bound"]:.0f}')
         if save:
             save_state(state)
         if line:
-            print(f'ell={ell} ({time.time()-t0:.0f}s): ' + '  '.join(line), flush=True)
+            print(f'p={ell} ({time.time()-t0:.0f}s): ' + '  '.join(line), flush=True)
         if all(w['st']['done'] for w in work.values()):
             break
 
     print('\nsummary:', flush=True)
     for p, w in sorted(work.items()):
         st = w['st']
+        rng = (f'chars {min(st["ells"])}..{max(st["ells"])}, {len(st["ells"])} primes'
+               if st['ells'] else 'no characteristics yet')
         if st['done']:
-            msg = 'DONE, saved to classical_modpolys.json'
+            msg = f'DONE ({rng}), saved to classical_modpolys.json'
         else:
             msg = (f'in progress -- {math.log2(st["modulus"]):.0f} / {w["bound"]:.0f} bits '
-                   f'from {len(st["ells"])} primes (rerun with larger lmax to continue)')
-        print(f'  p={p}: {msg}', flush=True)
+                   f'({rng}; rerun with larger lmax to continue)')
+        print(f'  Phi_{p}: {msg}', flush=True)
+
+
+def factory_report(state: dict = None):
+    """Actual characteristic ranges from the checkpoint vs the predictions."""
+    if state is None:
+        state = load_state()
+    for l in sorted(state):
+        st = state[l]
+        est = phi_prime_range_estimate(l)
+        actual = (f'{min(st["ells"])}..{max(st["ells"])} ({len(st["ells"])} primes)'
+                  if st['ells'] else 'nothing yet')
+        print(f'Phi_{l}: {"DONE  " if st["done"] else "      "} actual {actual:28} '
+              f'predicted {est["p_min"]}..{est["p_max"]} (~{est["n_primes"]})')
