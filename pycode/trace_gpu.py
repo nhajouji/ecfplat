@@ -74,6 +74,10 @@ def enable(min_p: int = 16384, device: str = None, block_elems: int = 1 << 24) -
     (kernel-launch overhead -- measured crossover on Apple MPS is ~16k; CUDA
     machines can likely lower this).  Returns the device used, or 'numpy'."""
     import ecfp
+    if not hasattr(ecfp, '_trace_table'):
+        # a pre-d1b39e7 ecfp is loaded -- usually a Jupyter kernel that was already
+        # running when the repo was pulled.  Restart the kernel and re-run.
+        return 'numpy (stale ecfp module in this session -- restart the kernel)'
     if device is None:
         device = _pick_device()
     if device is None:

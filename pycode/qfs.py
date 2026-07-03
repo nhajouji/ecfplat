@@ -1,3 +1,5 @@
+from functools import lru_cache
+
 from nt import discfac, gcd
 from identities import *
 from alg_classes import MatrixElement, Mat_n_Z
@@ -109,8 +111,32 @@ def qf_to_fun_dom(qf:tuple)->tuple:
             return qf, matrix
     return qf, matrix
 
+def _qf_reduce(qf:tuple[int,int,int])->tuple[int,int,int]:
+    """qf_to_fun_dom without the SL2(Z) matrix bookkeeping: same reduction steps
+    with the transformed form written out directly, no MatrixElement arithmetic.
+    (The matrix-tracking version validated every 2x2 product through the generic
+    ring classes -- millions of checks per rigid-l-set search.)"""
+    while not qf_in_fundom(qf):
+        a,b,c = qf
+        if a > c:
+            qf = (c, -b, a)                              # S
+        elif a < abs(b):
+            k = b // (2*a)
+            if b % (2*a) >= a:
+                k += 1
+            qf = (a, b - 2*a*k, a*k*k - b*k + c)         # T^-k
+        elif a + b == 0:
+            qf = (a, b + 2*a, a + b + c)                 # T
+        elif a == c and b < 0:
+            qf = (c, -b, a)                              # S
+        else:
+            return qf
+    return qf
+
+
+@lru_cache(maxsize=1<<18)
 def qf_mod_gamma(qf:tuple[int,int,int])->tuple[int,int,int]:
-    return qf_make_prim(qf_to_fun_dom(qf)[0])
+    return qf_make_prim(_qf_reduce(qf))
 
 #######################################
 # Generating lists of quadratic forms #
@@ -190,7 +216,8 @@ def prod_tup(t):
     return p
 
 ### Computing isogeny codomains
-def qf_isogs(qf0,l):
+@lru_cache(maxsize=1<<17)
+def _qf_isogs_cached(qf0,l):
     a,b,c = qf0
     qfls = []
     if c % l == 0:
@@ -202,7 +229,10 @@ def qf_isogs(qf0,l):
             bt = (b+2*c*t)
             ct = c*l
             qfls.append(qf_mod_gamma((at,bt,ct)))
-    return qfls
+    return tuple(qfls)
+
+def qf_isogs(qf0,l):
+    return list(_qf_isogs_cached(tuple(qf0),l))
 
 def qf_isogs_hor(qf0,l):
     return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)==qf_disc(qf0)]

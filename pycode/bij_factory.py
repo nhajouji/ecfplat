@@ -177,6 +177,68 @@ def compute_and_save(pmin: int = 1024, pmax: int = 2048, path=_EXT_BIJ_PATH,
 
 
 #########################################
+# The Hilbert factory                   #
+#########################################
+
+def hilbert_factory(save_every: int = 100, verbose: bool = True) -> dict:
+    """Compute every Hilbert polynomial the current data certifies.
+
+    Harvests {d: {p: roots of H_d mod p}} from ALL available bijections -- the
+    shipped p < 1024 data plus everything in the bij_factory extension store --
+    merged with the hilbert_roots_ext cache, then runs the certified-CRT
+    reconstruction for every disc whose primes clear its coefficient bound and
+    is not already in the library.  Results merge into data/hilbpolys_crt.json
+    (checkpointed every save_every discs; re-running skips what is done)."""
+    import math
+    import hilbert_crt as hc
+    from ecqf_tools import ecqf_ord_1K_pc
+    t0 = time.time()
+    source = {ap: bij for ap, bij in ecqf_ord_1K_pc.items() if ap[0] > 0}
+    source.update(load_ext_bijections())
+    data = hc.cm_js_by_disc(source)
+    lib = hc.hilbert_library()
+    if verbose:
+        print(f'harvested {len(data)} discs from {len(source)} classes '
+              f'({time.time()-t0:.0f}s); library already holds {len(lib)}', flush=True)
+    todo = []
+    for n, d in enumerate(sorted(data, reverse=True)):
+        if d in lib:
+            continue
+        if sum(math.log2(p) for p in data[d]) > hc.hilbert_bound_log2(d) + 1:
+            todo.append(d)
+        if verbose and (n + 1) % 4000 == 0:
+            print(f'  ... certification scan {n+1}/{len(data)} ({time.time()-t0:.0f}s)',
+                  flush=True)
+    if verbose:
+        print(f'{len(todo)} new discs certifiable; computing '
+              f'(checkpoint every {save_every})', flush=True)
+    crt_path = hc._DATA_DIR / 'hilbpolys_crt.json'
+    out = {}
+    if crt_path.exists():
+        with open(crt_path) as f:
+            out = {int(k): v for k, v in json.load(f).items()}
+    stats = {'computed': 0, 'failed': 0}
+    for n, d in enumerate(todo):
+        try:
+            rec = hc.hilbert_via_crt(d, data)
+            assert rec['certified'], 'bound not met after selection'
+            out[d] = rec['coefs']
+            stats['computed'] += 1
+        except (ValueError, AssertionError) as e:
+            stats['failed'] += 1
+            if verbose:
+                print(f'  FAILED d={d}: {e}', flush=True)
+        if (n + 1) % save_every == 0 or n + 1 == len(todo):
+            hc.save_hilbert_library(out)
+            if verbose:
+                print(f'  {n+1}/{len(todo)} done, library at {len(out)} discs '
+                      f'({(time.time()-t0)/60:.1f} min)', flush=True)
+    stats['library_size'] = len(out)
+    stats['elapsed_s'] = time.time() - t0
+    return stats
+
+
+#########################################
 # Step 4: the vote                      #
 #########################################
 
@@ -191,7 +253,8 @@ def vote_for_new_modpolys(parts: dict, candidates: tuple = (37, 43, 53, 61, 67, 
     {'votes': {l: [discs]}, 'still_stuck': [discs no single candidate fixes]}."""
     votes = {l: [] for l in candidates}
     stuck = []
-    for d in parts['open']:
+    t0 = time.time()
+    for n, d in enumerate(parts['open']):
         helped = False
         for l in candidates:
             res = disc_rigid_lset_search(d, list(ssprimes) + [l])
@@ -200,6 +263,9 @@ def vote_for_new_modpolys(parts: dict, candidates: tuple = (37, 43, 53, 61, 67, 
                 helped = True
         if not helped:
             stuck.append(d)
+        if verbose and (n + 1) % 25 == 0:
+            print(f'  ... {n+1}/{len(parts["open"])} open discs polled '
+                  f'({time.time()-t0:.0f}s)', flush=True)
     for d in parts['conductor']:
         for l in _conductor_blockers(d):
             if l in votes:
