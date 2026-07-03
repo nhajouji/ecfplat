@@ -101,7 +101,12 @@ def compute_disc_entry(d, pool=ssprimes, include_bijection=True):
 # Load/save #
 #############
 
+_LOADED = {}                            # path -> parsed cache; parsing the (large and
+                                        # growing) JSON per lookup dominated whole batches
+
 def load_cache(path=DEFAULT_CACHE):
+    if path in _LOADED:
+        return _LOADED[path]
     if os.path.exists(path):
         with open(path) as f:
             cache = json.load(f)
@@ -109,6 +114,7 @@ def load_cache(path=DEFAULT_CACHE):
         cache = {}
     cache.setdefault('meta', {})
     cache.setdefault('discriminants', {})
+    _LOADED[path] = cache
     return cache
 
 
@@ -118,6 +124,7 @@ def save_cache(cache, path=DEFAULT_CACHE):
     with open(tmp, 'w') as f:
         json.dump(cache, f)
     os.replace(tmp, path)               # atomic on POSIX
+    _LOADED[path] = cache
 
 
 ###########
