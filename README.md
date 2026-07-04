@@ -1,54 +1,59 @@
 # ecfplat
 
-Code supporting computations related to elliptic curves over finite fields via an explicit bijection between lattice classes and elliptic curves in a given isogeny class.
+Code supporting computations related to elliptic curves over finite fields via an explicit equivalence of categories between CM lattices and elliptic curves in a given isogeny class.
 
 The lattice point data produced here is used as input for shader-rendered artwork by Nadir Hajouji and Steve Trettel, displayed at [elliptic-curves.art](https://elliptic-curves.art/).
 
 ## Overview
 
-Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the isogeny class of elliptic curves over $\mathbb{F}_p$ whose Frobenius has characteristic polynomial `x² - ax + p`. The central object is an explicit bijection between:
+Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the isogeny class of elliptic curves over $\mathbb{F}_p$ whose Frobenius has characteristic polynomial `x² - ax + p`. The central object is an explicit **equivalence of categories** between elliptic curves in that isogeny class (with their $\mathbb{F}_p$-isogenies) and lattices with CM by a root of `x² - ax + p` (with their morphisms). Concretely, the code computes the induced correspondence on isomorphism classes:
 
-- **Lattice classes** with CM by a root of `x² - ax + p` (equivalently, classes of positive definite binary quadratic forms of discriminant `a² - 4p`)
+- **Lattice classes** — classes of positive definite binary quadratic forms of discriminant `a² - 4p`
 - **Elliptic curves** in the corresponding isogeny class over $\mathbb{F}_p$
 
 There are two layers to the code, and it helps to keep them apart:
 
-- **Computing a bijection from scratch.** Given `(a, p)`, the library runs the full pipeline below and returns the curve ↔ lattice-class bijection. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. This end-to-end computation has been run and checked for every prime `p` with `4 ≤ p ≤ 1024` — the supersingular bijection is computed for all such primes, and the ordinary bijections match the trusted tables (see [Validation](#validation)). It is expected to work in general; coverage beyond that range is still being tested.
-- **Using a bijection.** Downstream applications (`ECQFIsogenyClass`) take a bijection as their *input* and read off properties of the curves — e.g. Mordell–Weil group structure, isogeny graphs — by working on the lattice side. For speed these mostly load a **precomputed** bijection (itself produced by the algorithms here and stored under `pycode/data/`), but any bijection, freshly computed or loaded, works the same way.
+- **Computing an equivalence from scratch.** Given `(a, p)`, the library runs the pipeline below and returns the curve ↔ lattice-class correspondence. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. The ordinary computation has been run for **every computable class with `4 ≤ p ≤ 8192`** (~114 000 classes — everything except the ~1 % of discriminants still awaiting new modular polynomials, see below); the supersingular one for all 170 primes up to 1024.
+- **Using an equivalence.** Downstream applications (`ECQFIsogenyClass`) take an equivalence as their *input* and read off properties of the curves — e.g. Mordell–Weil group structure, isogeny graphs — by working on the lattice side. For speed these mostly load a **precomputed** equivalence (produced by the algorithms here and stored under `pycode/data/`), but any equivalence, freshly computed or loaded, works the same way.
 
-### Computing the bijection: the pipeline
+### Computing the equivalence: the pipeline
 
 ```mermaid
 flowchart TD
     A(["(a, p)"]) --> B["d = a² − 4p"]
     B --> C{"a = 0 ?"}
-    C -- "a ≠ 0 (ordinary)" --> O{"do the 15 Atkin primes<br/>generate the class group?"}
-    O -- "yes" --> AT["curve side:<br/>Atkin modular polynomials"]
-    O -- "no" --> V["Vélu-optimized<br/>l-set search"]
-    C -- "a = 0 (supersingular)" --> V
-    V --> K{"a generating l-set with<br/>affordable kernel fields?"}
-    K -- "no" --> X["✗ extension too expensive<br/>(the only failure mode)"]
-    K -- "yes" --> VD["curve side:<br/>Vélu's formulas"]
+    C -- "a ≠ 0 (ordinary)" --> O{"do the modular-polynomial primes<br/>(15 Atkin + computed Φ_l)<br/>generate the class group?"}
+    O -- "yes" --> AT["curve side:<br/>modular polynomials"]
+    O -- "no" --> D["defer: d votes for the next<br/>Φ_l targets (phi factory),<br/>solved on a later pass"]
+    C -- "a = 0 (supersingular)" --> V["curve side:<br/>Vélu's formulas"]
     AT --> M["match labellings<br/>against the lattice side"]
-    VD --> M
-    M --> Z(["✓ curve ↔ lattice-class bijection"])
-    classDef fail fill:#fff0f0,stroke:#cc0000,color:#cc0000;
+    V --> M
+    M --> Z(["✓ curve ↔ lattice-class equivalence"])
+    classDef defer fill:#fffbe6,stroke:#cc8800,color:#885500;
     classDef done fill:#f0fff0,stroke:#00aa00,color:#006600;
-    class X fail;
+    class D defer;
     class Z done;
 ```
 
 Given a pair `(a, p)`:
 
 1. **Discriminant.** Form `d = a² − 4p`, the discriminant of the CM order `ℤ[π]` generated by Frobenius `π`. (In the supersingular case `a = 0`: `π = √−p`, and the relevant orders live in `ℚ(√−p)` — `ℤ[√−p]` of discriminant `−4p` and, when `p ≡ 3 (mod 4)`, the maximal order of discriminant `−p`, the two linked by a depth-1 2-isogeny volcano.)
-2. **Search for a rigid l-set, and choose the curve-side method.** Find primes `ℓ` whose `ℓ`-isogeny directions form an *independent generating set* of the class group — together, when there are two or more directions of order > 2, with a "sum"/pinning element that fixes the relative orientation of the cycles.
-   - For an **ordinary** class the search first uses the 15 Atkin primes `{2, …, 71}` (`disc_rigid_lset_search`). If they generate the class group, the curve side is read directly off Atkin modular polynomials — no isogeny is computed.
-   - If they do not — and always in the **supersingular** case — the search instead draws on a much larger pool of cheap split primes that Vélu can handle, ranked by the size of the extension field each kernel needs. (`ord_rigid_lset` and `ss_rigid_lset` run this Vélu-optimised search for the ordinary and supersingular cases; `ecqf_full_bijection_ord` does the Atkin-first / Vélu-fallback automatically when no l-set is supplied.)
-   Because that Vélu pool is effectively unlimited, a generating set always exists, so the search itself does not fail; it only comes up empty when *no* generating set is cheap enough — which is the single failure mode below.
-3. **Collect neighbour data.** Build `ℓ`-isogeny adjacency on both sides for each chosen `ℓ`. The *lattice side* is the class-group action on quadratic forms (pure form arithmetic — never an obstruction). The *curve side* is read off Atkin modular polynomials when the l-set came from the 15 Atkin primes, and otherwise computed explicitly with **Vélu's formulas**. ⚠️ *This is the pipeline's only real failure mode:* Vélu needs an `ℓ`-torsion kernel living over an extension $\mathbb{F}_{p^k}$, and when `k` is large the computation is infeasible — so a class is out of reach precisely when every generating l-set forces a too-expensive kernel field.
-4. **Match the labellings.** Walking the chosen directions assigns every object an integer-tuple coordinate `(x₁, …, xₙ)`; matching the lattice-side and curve-side labellings coordinate-by-coordinate yields the bijection. A single global orientation freedom (complex conjugation / class-group inversion) is pinned by a deterministic convention.
+2. **Search for a rigid l-set.** Find primes `ℓ` whose `ℓ`-isogeny directions form an *independent generating set* of the class group — together, when there are two or more directions of order > 2, with a "sum"/pinning element that fixes the relative orientation of the cycles (`disc_rigid_lset_search`). The pool is the **modular-polynomial primes**: the 15 Atkin primes `{2, …, 71}`, extended by every classical `Φ_ℓ` the phi factory has delivered. When the search succeeds, the curve side is read directly off modular polynomials — **no isogeny is ever computed** for an ordinary class.
+3. **Deferred classes.** When the pool does not generate the class group (~1 % of discriminants at the current pool), the discriminant joins the open list and *votes* for the modular polynomials that would unblock it (`vote_for_new_modpolys`); it is picked up on a later pass once the phi factory has computed them. (Vélu's formulas remain available as a fallback in the code, but the pipeline no longer relies on them for ordinary classes.)
+4. **Supersingular classes** are the one place Vélu's formulas are still essential: Frobenius has trace 0, so all curve-side neighbour data is computed as explicit isogenies (split-eigenline `ℓ`-isogenies over extension fields, rational 2-torsion 2-isogenies for the volcano). See below.
+5. **Match the labellings.** Walking the chosen directions assigns every object an integer-tuple coordinate `(x₁, …, xₙ)`; matching the lattice-side and curve-side labellings coordinate-by-coordinate yields the equivalence. A single global orientation freedom (complex conjugation / class-group inversion) is pinned by a deterministic convention.
 
-The Vélu isogeny engine is `pycode/velu.py`; the rigid-l-set search and both bijection drivers are in `pycode/ecqf_bij.py`; the coordinate-labelling/cube machinery is in `pycode/graph_tools.py`.
+The rigid-l-set search and both drivers are in `pycode/ecqf_bij.py`; the Vélu isogeny engine is `pycode/velu.py`; the coordinate-labelling/cube machinery is in `pycode/graph_tools.py`.
+
+### The factories: a bootstrapping loop
+
+Three "run-all" notebooks (designed for long unattended runs on a second machine, everything checkpointed and resumable) grow the data in a cycle — each generation of computed objects becomes the tool that computes the next:
+
+1. **Equivalence factory** (`notebooks/bij_factory.ipynb`) — enumerate all classes `(a, p)` for `p` in a target range, partition their discriminants by whether a rigid spanning set exists, compute and store every computable equivalence, and **tally the vote**: which new `Φ_ℓ` would unblock the most open discriminants.
+2. **Phi factory** (`notebooks/phi_factory.ipynb`) — compute classical modular polynomials `Φ_l` by CRT interpolation *across the stored equivalences*: the general symmetric form is constrained by the diagonal `Φ_l(X,X) = −∏ H_d` (a product of Hilbert class polynomials), pinned per characteristic `p` by evaluations at `l`-isogenous pairs read off the lattice side, certified against the Bröker–Sutherland height bound, and checked against the Kronecker congruence. Each new `Φ_l` enlarges the pool in step 2 of the pipeline.
+3. **Hilbert factory** (bottom of `bij_factory.ipynb`) — harvest every stored equivalence into certified Hilbert class polynomials `H_d` (roots of `H_d mod p` are read off the equivalences; balanced CRT with a numeric coefficient bound). These feed the phi factory's diagonal and special-value relations.
+
+The supporting library: `hilbert_crt.py` (Hilbert polynomials via CRT, endomorphism-ring identification), `modpoly_crt.py` (the `Φ_l` interpolation), `bij_factory.py` / `phi_factory.py` (the drivers), `trace_gpu.py` (optional CUDA/MPS backend for the trace-of-Frobenius tables).
 
 ### The supersingular case
 
@@ -59,12 +64,16 @@ Restricting to isogenies and endomorphisms defined over $\mathbb{F}_p$, the supe
 ```
 notebooks/        # Jupyter notebooks (published)
   userguide.ipynb     # Worked examples and basic use cases
+  bij_factory.ipynb   # Equivalence factory: extend the precomputes over a prime
+                      #   range + the modular-polynomial vote + the Hilbert factory
+  phi_factory.ipynb   # Phi factory: batch classical modular polynomials Phi_l
+  hilbcrt.ipynb       # Worked development notebook for the CRT machinery
 
 experiments/      # Local scratch notebooks (not tracked by git)
 
 pages/            # Streamlit multi-page app pages
   0_Homepage.py       # Landing page with project description and navigation
-  1_Isogeny_Class.py  # Isogeny class browser: bijection table, isogeny graph,
+  1_Isogeny_Class.py  # Isogeny class browser: equivalence table, isogeny graph,
                       #   and cross-navigation to EC Search
   2_EC_Search.py      # Single-curve lookup: classical and lattice pictures,
                       #   point download, cross-navigation to Isogeny Class
@@ -74,32 +83,38 @@ pages/            # Streamlit multi-page app pages
 pycode/           # Core Python library
   alg_classes.py      # Algebraic structures: AbGrp/Ring/Field + elements, matrix
                       #   rings (Mat_n_Z), prime/extension fields (GF_p, GF_pn),
-                      #   Polynomial/PolyFp
-  nt.py               # Number theory utilities (gcd, primality, quadratic symbols,
+                      #   polynomial rings (poly_ring over ZZ/GF_p/GF_pn/CC, from_roots,
+                      #   poly_crt) and the legacy Polynomial/PolyFp
+  nt.py               # Number theory utilities (gcd, primality, quadratic symbols, CRT,
                       #   Frobenius-eigenvalue / isogeny-kernel extension degrees, …)
   identities.py       # Algebraic identities used in isogeny computations
   qfs.py              # Quadratic form / lattice utilities and modular group action
   modularpolynomials.py  # Atkin and Hilbert modular polynomial data and evaluation;
-                      #   classical Phi_l(X,Y) computed from the j-function q-expansion
-                      #   for any prime l (compute_modpoly), with eval + root-finding
-                      #   (modpoly_nbrs) and a compute/source cache
+                      #   classical Phi_l(X,Y) from the j-function q-expansion
+                      #   (compute_modpoly), eval + root-finding (modpoly_nbrs), cache
+  hilbert_crt.py      # Hilbert class polynomials H_d via CRT from the equivalences;
+                      #   endomorphism-ring identification (ancestor data + the
+                      #   Hilbert-polynomial elimination trick); fail-or-compute search
+  modpoly_crt.py      # Classical Phi_l via CRT interpolation: diagonal from H_d's,
+                      #   isogenous-pair evaluations, special-value relations,
+                      #   Broker-Sutherland certification, Kronecker check
+  bij_factory.py      # Equivalence factory driver + the vote + the Hilbert factory
+  phi_factory.py      # Phi factory driver (checkpointed CRT state, range predictor)
   ecfp.py             # Elliptic curves over F_p (j-invariants, models, isogeny
-                      #   graphs, Frobenius; Atkin-vs-Velu neighbour-data dispatch)
+                      #   graphs, cached trace-of-Frobenius tables)
   velu.py             # Field-generic Velu isogeny engine: EC arithmetic, codomains,
-                      #   l-isogeny eigenline kernels over F_{p^k}, 2-isogenies,
-                      #   ordinary and supersingular neighbour-data providers
-  ecqf_bij.py         # Rigid l-set search and the lattice <-> curve bijection drivers,
-                      #   ordinary (ecqf_full_bijection_ord) and supersingular
-                      #   (ecqf_full_bijection_ss); disc_rigid_lset_search, ss_rigid_lset
-  rigid_cache.py      # Per-discriminant cache (search + lattice-side bijection) with
+                      #   l-isogeny eigenline kernels over F_{p^k}, 2-isogenies
+  trace_gpu.py        # Optional CUDA/MPS backend for the trace tables (pytorch)
+  ecqf_bij.py         # Rigid l-set search and the lattice <-> curve equivalence
+                      #   drivers, ordinary and supersingular
+  rigid_cache.py      # Per-discriminant cache (search + lattice-side labelling) with
                       #   a populate/update CLI and a cached (a, p) entrypoint
   ldata_cache.py      # Per-discriminant rigid-l-set-data cache + populate/update CLI
-  ss_bij_cache.py     # Recompute the supersingular bijection from scratch over a prime
-                      #   range into the (Velu) data files + populate/update CLI
-  ecqf_tools.py       # Bijection utilities, Frobenius matrices, Mordell–Weil
+  ss_bij_cache.py     # Recompute the supersingular equivalence from scratch over a
+                      #   prime range into the (Velu) data files + populate/update CLI
+  ecqf_tools.py       # Equivalence utilities, Frobenius matrices, Mordell–Weil
                       #   computations, ECQFIsogenyClass, precomputed-table loaders
-  ecqf.py             # Legacy utilities and precomputed-table loading (the bijection
-                      #   algorithms now live in ecqf_bij.py)
+  ecqf.py             # Legacy utilities (the drivers now live in ecqf_bij.py)
   graph_tools.py      # Isogeny graph utilities: adjacency matrices, cycle/tree
                       #   decompositions, the Zⁿ labelling algorithm
   graphic_tools.py    # Helpers for the lattice-point artwork output
@@ -121,7 +136,7 @@ The app has four pages:
 - **Homepage** — project description and links to the two main tools.
 - **Background** — crash course on the underlying mathematics, with interactive applets. Currently implemented: chord-tangent group law on elliptic curves over ℝ, and a τ explorer for the complex lattice ℂ/Λ.
 - **EC Search** — enter coefficients `(f, g, p)` for a curve `y² = x³ + fx + g (mod p)`, look up its trace of Frobenius and associated lattice data, view classical and lattice pictures, and navigate directly to its isogeny class.
-- **Isogeny Class** — enter a pair `(a, p)`, browse the full bijection table, view degree-ℓ isogeny graphs (adjacency matrix + concentric-ring picture with horizontal/vertical edges distinguished by colour), and navigate to any individual curve in EC Search.
+- **Isogeny Class** — enter a pair `(a, p)`, browse the full equivalence table, view degree-ℓ isogeny graphs (adjacency matrix + concentric-ring picture with horizontal/vertical edges distinguished by colour), and navigate to any individual curve in EC Search.
 
 ## Getting started (library)
 
@@ -140,13 +155,13 @@ jupyter notebook notebooks/userguide.ipynb
 The notebook walks through:
 - Checking whether a pair `(a, p)` has precomputed data
 - Initializing an `ECQFIsogenyClass` object
-- Viewing the bijection as a pandas DataFrame
+- Viewing the equivalence as a pandas DataFrame
 - Visualizing lattice classes in the upper half-plane
 - Computing Mordell–Weil group data from the lattice side
 
 ### Quick example
 
-*Using a bijection* (loads precomputed data when available):
+*Using an equivalence* (loads precomputed data when available):
 
 ```python
 import sys
@@ -166,7 +181,7 @@ isoclass.ecqf_df()
 isoclass.adjacency_matrix(5)
 ```
 
-*Computing a bijection from scratch* (no precomputed data needed):
+*Computing an equivalence from scratch* (no precomputed data needed):
 
 ```python
 import sys
@@ -184,43 +199,35 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 
 ## Precomputed data
 
-`pycode/data/` holds two layers of precomputed results, plus supporting modular-polynomial tables.
+`pycode/data/` holds the equivalences, the per-discriminant lattice data, and the modular/Hilbert polynomial tables. Current inventory:
 
-**Per-`(a, p)` bijections** — the end product, the full curve ↔ lattice-class bijection for each pair:
-- `ecqf_ord_pcbij_4_1024.json` — ordinary classes, **6 725** pairs `(a, p)` with `4 ≤ p ≤ 1024`.
-- `ecqf_ord_pcbij_4to256.json` — an earlier / smaller-range variant.
+| dataset | contents |
+|---|---|
+| ordinary equivalences | **113 848 classes** `(a, p)`: 6 725 with `4 ≤ p < 1024` (`ecqf_ord_pcbij_4_1024.json`) + 107 123 with `1024 < p ≤ 8192` from the equivalence factory (`ecqf_ord_pcbij_ext.json`) |
+| supersingular equivalences | all **170** supersingular primes `4 ≤ p ≤ 1024` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`) |
+| per-discriminant lattice data | **14 102 discriminants** down to −32 763 (`rigid_lset_cache.json`): 13 641 with a rigid spanning set from the current pool, 461 open (awaiting new `Φ_ℓ`; see the vote) |
+| Hilbert class polynomials | **748 certified** `H_d`, deepest `d = −86 227` (`hilbpolys.json` + `hilbpolys_crt.json`, grown by the Hilbert factory) |
+| classical modular polynomials | `Φ_ℓ` for **ℓ ∈ {2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41}** (`classical_modpolys.json`; 29+ produced by the phi factory, growing — 43…71 in progress) |
+| Atkin polynomials | the 15 genus-0 primes `ℓ ∈ {2, …, 71}` (`atkinpolys.json`) |
+| supporting tables | j-function q-expansion (`jq_coeffs.json`, OEIS A000521), Heegner data (`jcoefs.json`), phi-factory CRT checkpoints (`phi_factory_state.json`) |
 
-The supersingular bijection is computed from scratch with the Vélu pipeline (`ss_bij_cache.py`) and stored in two equivalent forms (this replaces the earlier Sage tables):
-- `ecqf_ss_pcbij_velu_4_1024.json` — dict form `{p: {"(j, s)": [a, b, c]}}`, **all 170** supersingular primes in `4 ≤ p ≤ 1024`. Loaded by `ecqf_tools.py` (`ecqf_ss_1K_pc`), the data path the web app uses.
-- `ssfp_pc_bij_velu.json` — the same data in list form `[[[j, s], [a, b, c]], …]`, kept in sync; loaded by `ecfp.py`.
+List available keys with `get_aps_pc()` / `get_ssps_pc()` and test membership with `ap_in_pc_data((a, p))` (in `ecqf_tools.py`); the factory store loads via `bij_factory.load_ext_bijections()`.
 
-List available keys with `get_aps_pc()` / `get_ssps_pc()` and test membership with `ap_in_pc_data((a, p))` (all in `ecqf_tools.py`).
-
-**Per-discriminant data** — the `(a, p)`-independent layer. The expensive lattice-side computation depends only on `d = a² − 4p`, so it is precomputed once per discriminant for **all 2 048** discriminants in `[−4096, −3]`:
-- `qf_ldata.json` — the rigid l-set search result for each `d` (generating primes, their orders, the sum/pinning element). **2 036** of the 2 048 admit a rigid spanning set from the 15 supersingular primes `{2, …, 71}`; **14** of those need a prime-power generator `(ℓ, k)`; the remaining **12** are not generated by that 15-prime pool. For these the pipeline falls back to the Vélu search over a wider pool of split primes — which reaches them when the generators it finds are affordable, and otherwise reports the extension-too-expensive failure (some of the 12 do require a kernel field too large to be practical).
-- `rigid_lset_cache.json` — the same search data, plus the `(a, p)`-independent lattice-side labelling `(x₁, …, xₙ) ↦ (a, b, c)` for each `d`.
-
-Both are regenerated/extended with incremental command-line tools (re-running only fills what is missing):
+The per-discriminant layer is regenerated/extended with incremental command-line tools (re-running only fills what is missing):
 
 ```bash
-python pycode/rigid_cache.py --min -8192   # search + lattice-side bijection
-python pycode/ldata_cache.py --min -8192   # search data only (smaller)
-python pycode/ss_bij_cache.py --max 1024   # supersingular bijection, from scratch
+python pycode/rigid_cache.py --min -32768  # search + lattice-side labelling
+python pycode/ldata_cache.py --min -32768  # search data only (smaller)
+python pycode/ss_bij_cache.py --max 1024   # supersingular equivalences, from scratch
 ```
-
-**Modular-polynomial tables** — used to read $\mathbb{F}_p$ isogeny adjacency without computing isogenies:
-- `atkinpolys.json` — Atkin modular polynomials for the 15 primes `ℓ ∈ {2, …, 71}` whose Atkin–Lehner quotient `X₀(ℓ)⁺` has genus 0 (the supersingular primes).
-- `hilbpolys.json`, `jcoefs.json` — Hilbert class polynomials and related data for small discriminants.
-- `jq_coeffs.json` — the q-expansion coefficients of the j-function (`j = q⁻¹ + 744 + 196884q + …`, sourced from OEIS A000521), used by `compute_modpoly` to build the **classical** modular polynomial `Φ_ℓ(X, Y)` for an arbitrary prime ℓ. `Φ_ℓ(j, Y) mod p` factors into the ℓ-isogenous j-invariants — the general-ℓ analogue of the Atkin adjacency, with no isogeny computed over an extension field, so it sidesteps the Vélu extension-degree failure mode. Validated against the published Φ₂/Φ₃ and the Kronecker congruence `Φ_ℓ ≡ (X^ℓ − Y)(X − Y^ℓ) mod ℓ`.
-- `classical_modpolys.json` — a cache of computed `Φ_ℓ` (small ℓ); larger ℓ, where the pure-Python q-expansion computation is slow, can be dropped into the same cache from precomputed tables via `modpoly_from_terms`/`register_modpoly`.
 
 ### Validation
 
 The **ordinary** per-discriminant data has been checked as follows:
 
 - **Determinism / cache integrity.** The lattice-side labelling is a deterministic function of `d`, so a cached entry reproduces a fresh recomputation *exactly*; verified across the cached range and through a JSON round-trip.
-- **Bijectivity.** Every successful search result yields a *complete* bijection of the class group (injective and onto), confirmed by reconstructing the lattice-side labelling for all 2 036 solved discriminants.
-- **Regression against the trusted tables.** Rebuilding each `(a, p)` bijection from the per-discriminant cache reproduces the stored `ecqf_ord_pcbij_4_1024.json` for **3 913** of the 6 725 pairs and its exact complex-conjugate for the other **2 812** — **0 disagreements**. (Both are valid bijections; the labelling is canonicalized to a fixed orientation, so the choice is consistent across pairs.)
-- **Backward compatibility.** Extending the search to allow prime-power generators recovered the 14 additional discriminants noted above while leaving every prime-only result byte-identical (checked on a 300-discriminant sample).
+- **Bijectivity.** Every successful search result yields a *complete* bijection on isomorphism classes (injective and onto), confirmed by reconstructing the lattice-side labelling for the solved discriminants.
+- **Regression against the trusted tables.** Rebuilding each `(a, p)` equivalence from the per-discriminant cache reproduces the stored `ecqf_ord_pcbij_4_1024.json` exactly or up to the global conjugation freedom — **0 disagreements** across all 6 725 pairs.
+- **Independent cross-checks on the factory outputs.** The endomorphism-ring identification (ancestor data) matches the stored equivalences on every class tested; the CRT-built Hilbert polynomials reproduce all **81** classically tabulated `H_d` exactly and pass hold-out checks at primes not used in their construction; the factory-built `Φ_ℓ` pass the Kronecker congruence, and `Φ₂₉`, `Φ₃₁`, `Φ₃₇` were reproduced **exactly** by an independent q-expansion computation (disjoint machinery: Fourier coefficients and Newton identities — no CM, no lattices).
 
-The **supersingular** from-scratch recomputation has been checked against the original Sage tables on all **158** shared primes: every prime has the *same* signature set and the *same* set of lattice forms (so the two bijections match the same objects), with an exact label match on 53 and the rest differing only by the global orientation freedom. The neighbour-data engine was validated independently — signature/model round-trips and Vélu isogeny graphs agree with the lattice-side isogeny graphs — and the resulting bijections are equivariant, root-correct and twist-consistent. The 12 primes missing from the Sage tables are filled and pass the same checks.
+The **supersingular** from-scratch recomputation has been checked against the original Sage tables on all **158** shared primes: every prime has the *same* signature set and the *same* set of lattice forms (so the two equivalences match the same objects), with an exact label match on 53 and the rest differing only by the global orientation freedom. The neighbour-data engine was validated independently — signature/model round-trips and Vélu isogeny graphs agree with the lattice-side isogeny graphs — and the resulting equivalences are equivariant, root-correct and twist-consistent. The 12 primes missing from the Sage tables are filled and pass the same checks.
