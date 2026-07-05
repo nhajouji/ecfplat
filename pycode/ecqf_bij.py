@@ -542,15 +542,21 @@ def disc_ldata(d, ls=None):
     return disc_rigid_lset_search(d, ls)
 
 
-def _velu_cost(a, p, l):
-    """Velu cost of the prime l for the class of trace a over F_p: the larger of the two
-    split-eigenline degrees of Frobenius on E[l] (both +-directions are built), or None if
-    l does not split (no horizontal l-isogeny over F_p).  a = 0 is the supersingular case."""
+def _velu_cost(a, p, l, walk=False):
+    """Velu cost of the prime l for the class of trace a over F_p: the eigenline
+    extension degree the data builder will pay, or None if l does not split (no
+    horizontal l-isogeny over F_p).  a = 0 is the supersingular case.  With
+    walk=False both +-directions are built, so the cost is the LARGER of the two
+    degrees; with walk=True (the one-direction cycle walk, velu_nbr_data_ss_walk)
+    only the cheap eigenline is used, so the cost is the SMALLER."""
     from nt import frob_ext_degrees
     info = frob_ext_degrees(a, p, l)
-    return max(info['degrees']) if info['kind'] == 'split' else None
+    if info['kind'] != 'split':
+        return None
+    return min(info['degrees']) if walk else max(info['degrees'])
 
-def _velu_rigid_lset_info(a, p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4000):
+def _velu_rigid_lset_info(a, p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4000,
+                          walk=False):
     """disc_rigid_lset_search result for discriminant d, drawn from split primes of small
     Velu cost so the eigenline isogenies stay in a manageable extension.  Escalates the cost
     cap until the group is spanned: the default 15-prime pool can force a huge-extension
@@ -560,7 +566,7 @@ def _velu_rigid_lset_info(a, p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4
     A spanning set always exists in principle, so the only obstruction is every generating
     set needing a too-large kernel field (raised as ValueError)."""
     primes = [l for l in primesBetween(2, prime_cap) if l != p]
-    cost = {l: _velu_cost(a, p, l) for l in primes}
+    cost = {l: _velu_cost(a, p, l, walk=walk) for l in primes}
     for cap in deg_caps:
         pool = tuple(sorted((l for l in primes if cost[l] is not None and cost[l] <= cap),
                             key=lambda l: (cost[l], l)))
@@ -571,7 +577,10 @@ def _velu_rigid_lset_info(a, p, d, deg_caps=(1, 2, 4, 6, 8, 12, 18), prime_cap=4
                      f'within kernel-field degree {deg_caps[-1]}')
 
 def ss_rigid_lset_info(p, d, **kw):
-    """Velu-optimised rigid l-set search for the supersingular class over F_p (trace 0)."""
+    """Velu-optimised rigid l-set search for the supersingular class over F_p (trace 0).
+    walk=True: the SS data builders walk one eigenline direction per cycle, so a
+    generator costs its MIN eigenline degree, not the max."""
+    kw.setdefault('walk', True)
     return _velu_rigid_lset_info(0, p, d, **kw)
 
 def ss_rigid_lset(p, d, **kw):
@@ -632,13 +641,25 @@ def _ss_sib_nbrs(p, sig, q):
 def _ss_sum_root_data(p, root, desc):
     """Root-only neighbour data for a sum/pinning direction: the +-1-step of a
     plain prime, the fiber-mates of a sibling descriptor ('sib', q), or the
-    +-k-step of a power (l, k) by walking k Velu steps in each direction along
-    the l-cycle (still no full graph)."""
-    if not isinstance(desc, tuple):
-        return _ss_root_neighbours(p, root, desc)
+    +-k-step of a power (l, k).  When the two eigenline degrees differ, the
+    root's whole l-cycle is walked in the cheap direction (velu_walk_cycle) and
+    both neighbours are read off it -- n cheap isogenies instead of paying the
+    expensive eigenline; with equal degrees the +-steps are computed directly."""
     if _is_sib(desc):
         return _ss_sib_nbrs(p, root, desc[1])
-    l, k = desc
+    l, k = desc if isinstance(desc, tuple) else (desc, 1)
+    from nt import frob_ext_degrees
+    degs = frob_ext_degrees(0, p, l)['degrees']
+    if degs[0] != degs[1]:
+        from velu import velu_walk_cycle
+        cycle, d = velu_walk_cycle(p, l, root)
+        n = len(cycle)
+        pair = [cycle[k % n], cycle[-k % n]]
+        if d == 1:
+            pair.reverse()
+        return list(dict.fromkeys(pair))
+    if k == 1:
+        return _ss_root_neighbours(p, root, l)
     out = []
     for first in _ss_root_neighbours(p, root, l):
         prev, cur = root, first
@@ -1051,7 +1072,7 @@ def ss_horizontal_nbr_data(p, ls, sigs):
     same-level signatures.  Odd l via the eigenline Velu (velu_nbr_data_ss); l = 2 via
     the rational 2-torsion 2-isogenies (two_isogeny_sigs), kept to same-level codomains
     (the horizontal 2-isogenies, which exist on the surface when 2 splits in O_K)."""
-    from velu import velu_nbr_data_ss, two_isogeny_sigs
+    from velu import velu_nbr_data_ss_walk, two_isogeny_sigs
     sset = set(sigs)
     out, base = {}, {}
     for desc in ls:
@@ -1077,7 +1098,7 @@ def ss_horizontal_nbr_data(p, ls, sigs):
                     nb for nb in two_isogeny_sigs(*js_to_fg(sig, p), p) if nb in sset))
                     for sig in sigs}
             else:
-                base[l] = velu_nbr_data_ss(p, l, sigs)
+                base[l] = velu_nbr_data_ss_walk(p, l, sigs)
         out[desc] = _kstep_nbrdata(base[l], desc[1]) if isinstance(desc, tuple) else base[l]
     return out
 

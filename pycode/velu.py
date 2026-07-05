@@ -302,6 +302,69 @@ def two_isogeny_sigs(f, g, p):
     return out
 
 
+def velu_walk_cycle(p, l, start, max_len=None, seed=0):
+    """The horizontal l-isogeny cycle through the signature `start` (supersingular,
+    trace 0), walked in ONE eigenline direction -- the eigenvalue with the SMALLER
+    extension degree -- so each vertex costs one Velu isogeny over F_{p^k_min}
+    instead of two with the larger one over F_{p^k_max}.  Stepping the same
+    eigenvalue index never backtracks: the dual isogeny carries the other
+    eigenvalue (-lam for trace 0, always distinct for odd split l).
+
+    Returns (cycle, d): cycle = [start, v_1, ..., v_{n-1}] in walk order, d the
+    direction index walked, so cycle[i]'s direction-d codomain is cycle[i+1] and
+    its direction-(1-d) codomain is cycle[i-1]."""
+    from nt import frob_ext_degrees
+    from ecfp import js_to_fg, signature
+    info = frob_ext_degrees(0, p, l)
+    if info['kind'] != 'split':
+        raise ValueError(f'l = {l} is not split for the supersingular class over F_{p}')
+    degs = info['degrees']
+    d = 0 if degs[0] <= degs[1] else 1
+    cycle, cur = [start], start
+    while True:
+        f, g = js_to_fg(cur, p)
+        res = {'status': 'kernel_not_found'}
+        for s in range(seed, seed + 4):     # the kernel search is randomized; retry
+            res = velu_l_isog_codomain(f, g, l, p, 0, direction=d, seed=s)
+            if res['status'] == 'ok':
+                break
+        if res['status'] != 'ok':
+            raise RuntimeError(f'l = {l} walk step failed at {cur}: {res["status"]}')
+        cf, cg = res['f'], res['g']
+        if not (isinstance(cf, int) and isinstance(cg, int)):
+            raise RuntimeError(f'l = {l} walk left F_p at {cur} (non-horizontal codomain)')
+        nxt = (res['j'] % p, signature(cf, cg, p))
+        if nxt == start:
+            return cycle, d
+        cycle.append(nxt)
+        cur = nxt
+        if max_len is not None and len(cycle) > max_len:
+            raise RuntimeError(f'l = {l} walk from {start} failed to close '
+                               f'within {max_len} steps')
+
+
+def velu_nbr_data_ss_walk(p, l, sigs, seed=0):
+    """Drop-in replacement for velu_nbr_data_ss: computes each coset cycle by a
+    one-direction walk, |sigs| Velu isogenies at the MIN eigenline degree instead
+    of 2|sigs| at the max.  The output dict is identical -- same neighbour pairs,
+    listed in the same [direction-0, direction-1] order, deduplicated the same
+    way -- so downstream labellings are byte-identical."""
+    sset = set(sigs)
+    out = {}
+    for s0 in sigs:
+        if s0 in out:
+            continue
+        cycle, d = velu_walk_cycle(p, l, s0, max_len=len(sigs), seed=seed)
+        n = len(cycle)
+        for i, v in enumerate(cycle):
+            if v not in sset:
+                raise RuntimeError(f'l = {l} walk visited {v}, outside the signature set')
+            nxt, prv = cycle[(i + 1) % n], cycle[(i - 1) % n]
+            pair = [nxt, prv] if d == 0 else [prv, nxt]
+            out[v] = list(dict.fromkeys(pair))
+    return out
+
+
 def velu_nbr_data_ss(p, l, sigs, max_degree=None):
     """Horizontal l-isogeny neighbour graph {(j,s): [neighbour (j,s)]} for the
     supersingular class over F_p, via Velu.  The objects are signatures (j, s)
