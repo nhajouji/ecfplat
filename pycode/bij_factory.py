@@ -118,6 +118,15 @@ def partition_discs(ds: list[int], save_every: int = 200, verbose: bool = True) 
     return out
 
 
+def _search_stamp() -> list:
+    """Fingerprint of the current search capability: the modular prime pool
+    plus feature tags ('sib23' = free sibling generators for conductor-2/3
+    kernels of order 2/3; 'lift23' = lifted x_q generators for kernel-1
+    descents).  Failed cache entries stamped with the current fingerprint are
+    not retried by refresh_blocked_discs."""
+    return modular_prime_pool() + ['sib23', 'lift23']
+
+
 def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25,
                           verbose: bool = True) -> dict:
     """Retry the cached FAILED rigid searches with the current prime pool.
@@ -130,11 +139,12 @@ def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25
     not in the cache at all -- they unblock automatically once
     _conductor_blockers stops flagging them.
 
-    Each retried failure is stamped with the pool it was tried under, so
-    re-running skips entries the current pool has already been tried on --
-    a re-run after nothing new has landed is free.  Returns
+    Each retried failure is stamped with the search fingerprint it was tried
+    under (the prime pool plus search-feature tags), so re-running skips
+    entries the current search has already been tried on -- a re-run after
+    nothing new has landed is free.  Returns
     {'fixed': [...], 'still_open': [...]}."""
-    pool = modular_prime_pool()
+    pool = _search_stamp()
     cache = rigid_cache.load_cache()
     discs = cache['discriminants']
     ds = [int(k) for k, v in discs.items()

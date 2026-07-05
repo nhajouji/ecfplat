@@ -128,14 +128,99 @@ def _divisors(n):
 def _desc_base(desc):
     return desc[0] if isinstance(desc, tuple) else desc
 
+# Sibling ("free prime") descriptors ('sib', q), q in {2, 3}.  When q divides
+# the conductor, the fibers of the descent Cl(O) -> Cl(O_{c/q}) -- the classes
+# sharing a q-parent, "q-siblings" -- are cosets of its kernel.  When that
+# kernel has order 2 or 3, the UNORDERED fiber data already matches the kernel
+# generator's cycle structure (any arrangement of 2 or 3 elements is a valid
+# cycle; with 4 the pairings abcd vs acbd are inequivalent), so the fibers can
+# serve as a generator direction in a rigid l-set with NO modular polynomial
+# beyond Phi_q itself: on the j side the fibers are read off the q-ancestor
+# data (Atkin q = 2, 3), on the qf side off qf_isogs_des.
+
+def _is_sib(desc):
+    return isinstance(desc, tuple) and desc[0] == 'sib'
+
+def qf_q_siblings(qf, q):
+    """The full fiber (qf included) of classes sharing qf's q-parent."""
+    d = qf_disc(qf)
+    par = qf_isog_parent(tuple(qf), q)
+    return list(dict.fromkeys(x for x in qf_isogs_des(par, q) if qf_disc(x) == d))
+
+def sib_kernel_order(d, q):
+    """|ker(Cl(d) -> Cl(d/q^2))| = size of the sibling fibers; 0 when q does
+    not divide cond(d)."""
+    if discfac(d)[1] % q:
+        return 0
+    return len(qf_q_siblings(class_group_id(d), q))
+
+def _sib_candidates(d, qf0=None):
+    """Usable free-generator candidates [(('sib', q), ('sib', q), order)]."""
+    out = []
+    for q in (2, 3):
+        k = sib_kernel_order(d, q)
+        if k in (2, 3):
+            out.append((('sib', q), ('sib', q), k))
+    return out
+
+# Lifted generators ('lift', q): when the kernel of Cl(d) -> Cl(d/q^2) is
+# TRIVIAL (q splits one level up, so every parent class has exactly one child
+# and the parent map is a bijection), the crater's x_q-action conjugates down
+# to a floor generator: j1 -> j2 iff their q-parents are horizontally
+# q-isogenous.  This makes q itself usable as a generator even though q
+# divides the conductor -- e.g. d = -4*71 gets its complete bijection from the
+# 2-isogeny graph alone.  Equivalent to computing the bijection upstairs and
+# extending down the unique descents.
+
+def qf_q_child(qf_par, q, d):
+    """The unique disc-d class below qf_par (only valid when the kernel of the
+    q-descent is trivial)."""
+    kids = list(dict.fromkeys(x for x in qf_isogs_des(qf_par, q) if qf_disc(x) == d))
+    assert len(kids) == 1, f'{qf_par}: descent to disc {d} is not kernel-1'
+    return kids[0]
+
+def qf_lift_nbrs(qf, q):
+    """The +- neighbours of qf under the lifted x_q: the unique children of
+    its q-parent's horizontal q-neighbours."""
+    d = qf_disc(qf)
+    par = qf_isog_parent(tuple(qf), q)
+    return list(dict.fromkeys(
+        qf_q_child(P, q, d) for P in dict.fromkeys(qf_isogs_hor(par, q))))
+
+def _lift_candidates(d, qf0=None):
+    """Usable lifted-generator candidates [(('lift', q), ('lift', q), order)]."""
+    if qf0 is None:
+        qf0 = class_group_id(d)
+    out = []
+    for q in (2, 3):
+        if sib_kernel_order(d, q) == 1:                 # kernel-1 descent
+            n = len(qf_isog_cycle(qf_isog_parent(qf0, q), q))
+            if n > 1:
+                out.append((('lift', q), ('lift', q), n))
+    return out
+
+def _is_lift(desc):
+    return isinstance(desc, tuple) and desc[0] == 'lift'
+
 def _desc_cycle(qf, desc):
     """Cyclic orbit of qf under the descriptor direction (qf side)."""
+    if _is_sib(desc):
+        return qf_q_siblings(qf, desc[1])
+    if _is_lift(desc):
+        q = desc[1]
+        d = qf_disc(qf)
+        return [qf_q_child(P, q, d)
+                for P in qf_isog_cycle(qf_isog_parent(tuple(qf), q), q)]
     return qf_isog_cycle_power(qf, desc) if isinstance(desc, tuple) else qf_isog_cycle(qf, desc)
 
 def _desc_order(d, desc, qf0=None):
     """Order of the element a descriptor represents."""
     if qf0 is None:
         qf0 = class_group_id(d)
+    if _is_sib(desc):
+        return sib_kernel_order(d, desc[1])
+    if _is_lift(desc):
+        return len(qf_isog_cycle(qf_isog_parent(qf0, desc[1]), desc[1]))
     if isinstance(desc, tuple):
         l, k = desc
         n = len(qf_isog_cycle(qf0, l))
@@ -158,6 +243,10 @@ def gen_from_descs(d, descs):
 
 def _desc_qf_pm(qf, desc):
     """The de-duplicated +- neighbours of qf under the descriptor (qf side)."""
+    if _is_sib(desc):
+        return [x for x in qf_q_siblings(qf, desc[1]) if x != qf]
+    if _is_lift(desc):
+        return qf_lift_nbrs(qf, desc[1])
     if isinstance(desc, tuple):
         l, k = desc
         cyc = qf_isog_cycle(qf, l)
@@ -301,22 +390,32 @@ def disc_rigid_lset_search(d, ls=None):
         return out
 
     cand = _rig_candidates(d, ls, qf0)
-    if len(cand) == 0:
+    frees = _sib_candidates(d) + _lift_candidates(d, qf0)
+    if len(cand) == 0 and len(frees) == 0:
         out['message'] = 'Failed (candidates): no prime in the pool represents a nontrivial element.'
         return out
 
     # Try bare primes first -- this reproduces the historical search exactly, so
-    # discriminants that already succeeded are unchanged.  Only fall back to power
-    # generators (l, k) when the primes alone admit no independent basis.
-    result = _rigid_from_candidates(d, qf0, order, _prime_candidates(cand))
-    if not (result is not None and result[0] == 'ok'):
-        result = _rigid_from_candidates(d, qf0, order, _power_candidates(cand))
+    # discriminants that already succeeded are unchanged.  Fall back to power
+    # generators (l, k) when the primes alone admit no independent basis, and to
+    # the free generators -- siblings ('sib', q) and lifts ('lift', q) -- when
+    # the powers fail too.
+    result = None
+    if cand:
+        result = _rigid_from_candidates(d, qf0, order, _prime_candidates(cand))
+        if not (result is not None and result[0] == 'ok'):
+            result = _rigid_from_candidates(d, qf0, order, _power_candidates(cand))
+    if not (result is not None and result[0] == 'ok') and frees:
+        res3 = _rigid_from_candidates(d, qf0, order, _power_candidates(cand) + frees)
+        if res3 is not None and (result is None or res3[0] == 'ok'):
+            result = res3
 
     if result is None:                              # no independent basis, even with powers
         cand_sorted = sorted(cand, key=lambda l: cand[l], reverse=True)
         best = _best_independent_partial(d, cand_sorted, cand)
         out.update(message='Failed (spanning): the pool has no independent '
-                           'generating set for A (even using prime powers).',
+                           'generating set for A (even using prime powers and '
+                           'the free sibling/lift generators).',
                    best=tuple(best),
                    best_order=len(gen_qfs_d_ls(d, list(best))))
         return out
@@ -454,10 +553,18 @@ def qf_isog_data(d,ls):
     # Collapsing the duplicate lets l2_split correctly read such an l as a
     # length-1 (order-2) direction rather than mistaking it for a long cycle.
     # A descriptor in ls may also be a power (l, k): its data is the k-step of
-    # the base l-graph (no new isogeny data).
+    # the base l-graph (no new isogeny data).  A sibling descriptor ('sib', q)
+    # gets the q-descent fibers (each class's other q-siblings).
     out = {}
     base = {}
     for desc in ls:
+        if _is_sib(desc):
+            out[desc] = {qf: [x for x in qf_q_siblings(qf, desc[1]) if x != qf]
+                         for qf in qfs}
+            continue
+        if _is_lift(desc):
+            out[desc] = {qf: qf_lift_nbrs(qf, desc[1]) for qf in qfs}
+            continue
         l = _desc_base(desc)
         if l not in base:
             base[l] = {qf: list(dict.fromkeys(qf_isogs_hor(qf, l))) for qf in qfs}
@@ -535,11 +642,46 @@ def ecfp_nbr_data_ord(ap,ls):
     # descriptor (l, k) is the k-step of the base l-graph -- same data.
     # Dispatch per prime: any prime with a modular polynomial (Atkin format or a
     # classical Phi_l in the cache) goes through the X1 scan; anything else gets
-    # its horizontal graph from Velu (velu.velu_nbr_data_ord).
+    # its horizontal graph from Velu (velu.velu_nbr_data_ord).  A sibling
+    # descriptor ('sib', q) reads the q-descent fibers off the q-ancestor data:
+    # js sharing a q-parent are each other's siblings (kernel-coset mates).
     out = {}
     base = {}
     has_modpoly = set(ssprimes) | set(_modpoly_cache)
     for desc in ls:
+        if _is_sib(desc) or _is_lift(desc):
+            if desc not in base:
+                q = desc[1]
+                nbrs_q = ecfp_nbr_data_ord_X1(ap, q, jspc)
+                anc = tree_edges_to_ancestors(nbrs_q)
+                # Fibers over the FLOOR leaves only (the walk's vertex set):
+                # tree_edges_to_ancestors can hand crater vertices spurious
+                # ancestors when the crater cycle is short, which would pollute
+                # the leaf fibers.
+                leaves = [j for j in nbrs_q if len(nbrs_q[j]) == 1 and j != 0]
+                fibers = {}
+                for j in leaves:
+                    fibers.setdefault(anc[j], []).append(j)
+                if _is_sib(desc):
+                    sibmap = {}
+                    for grp in fibers.values():
+                        for j in grp:
+                            sibmap[j] = [j2 for j2 in grp if j2 != j]
+                    base[desc] = sibmap
+                else:
+                    # lifted x_q: j1 -> j2 iff their q-parents are horizontal
+                    # q-neighbours; kernel-1, so each parent has one child.
+                    leafset = set(leaves)
+                    child = {P: grp[0] for P, grp in fibers.items()}
+                    liftmap = {}
+                    for j in leaves:
+                        ups = [x for x in dict.fromkeys(nbrs_q[anc[j]])
+                               if x not in leafset]
+                        liftmap[j] = list(dict.fromkeys(child[P] for P in ups
+                                                        if P in child))
+                    base[desc] = liftmap
+            out[desc] = base[desc]
+            continue
         l = _desc_base(desc)
         if l not in base:
             if l in has_modpoly:
