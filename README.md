@@ -13,7 +13,7 @@ Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the iso
 
 There are two layers to the code, and it helps to keep them apart:
 
-- **Computing an equivalence from scratch.** Given `(a, p)`, the library runs the pipeline below and returns the curve ↔ lattice-class correspondence. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. The ordinary computation has been run for **every computable class with `4 ≤ p ≤ 8192`** (~116 500 classes — 99.3 % of the range; the rest await new modular polynomials, see below); the supersingular one for all 170 primes up to 1024.
+- **Computing an equivalence from scratch.** Given `(a, p)`, the library runs the pipeline below and returns the curve ↔ lattice-class correspondence. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. The ordinary computation has been run for **every computable class with `4 ≤ p ≤ 8192`** (117 133 classes — 99.84 % of the range; the rest await new modular polynomials, see below); the supersingular one for all 170 primes up to 1024.
 - **Using an equivalence.** Downstream applications (`ECQFIsogenyClass`) take an equivalence as their *input* and read off properties of the curves — e.g. Mordell–Weil group structure, isogeny graphs — by working on the lattice side. For speed these mostly load a **precomputed** equivalence (produced by the algorithms here and stored under `pycode/data/`), but any equivalence, freshly computed or loaded, works the same way.
 
 ### Computing the equivalence: the pipeline
@@ -208,9 +208,9 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 
 | dataset | contents |
 |---|---|
-| ordinary equivalences | **116 529 classes** `(a, p)`: 6 725 with `4 ≤ p < 1024` (`ecqf_ord_pcbij_4_1024.json`) + 109 804 with `1024 < p ≤ 8192` from the equivalence factory (`ecqf_ord_pcbij_ext.json`) — 99.33 % of the range, 151 open discriminants / 739 classes remaining |
+| ordinary equivalences | **117 133 classes** `(a, p)` covering `4 ≤ p ≤ 8192` in the factory store (`ecqf_ord_pcbij_ext.json`, self-contained) — 99.84 % of the range, 31 open discriminants / 189 classes remaining; `ecqf_ord_pcbij_4_1024.json` is the original `p < 1024` table, kept as a regression reference |
 | supersingular equivalences | all **170** supersingular primes `4 ≤ p ≤ 1024` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`) |
-| per-discriminant lattice data | **20 514 discriminants** down to −41 028 (`rigid_lset_cache.json`): 20 193 with a rigid spanning set from the current pool + free generators, 321 open (awaiting new `Φ_ℓ`; see the vote) |
+| per-discriminant lattice data | **20 514 discriminants** down to −41 028 (`rigid_lset_cache.json`): 20 449 with a rigid spanning set from the current pool + free generators (the search backtracks over bases), 65 open (awaiting new `Φ_ℓ` or the relaxed pinning element; see the vote) |
 | Hilbert class polynomials | **748 certified** `H_d`, deepest `d = −86 227` (`hilbpolys.json` + `hilbpolys_crt.json`, grown by the Hilbert factory) |
 | classical modular polynomials | `Φ_ℓ` for **all ℓ ≤ 67** (`classical_modpolys.json`; ℓ ≥ 29 produced by the phi factory — `Φ₇₁` in progress) |
 | Atkin polynomials | the 15 genus-0 primes `ℓ ∈ {2, …, 71}` (`atkinpolys.json`) |

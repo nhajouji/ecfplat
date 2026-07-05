@@ -280,24 +280,27 @@ def _signed_sum_corners(d, long_descs, qf0):
         frontier = nxt
     return frontier
 
-def _find_basis_desc(d, cands, target):
-    """DFS for an independent generating set over descriptor candidates.
+def _iter_bases_desc(d, cands, target):
+    """DFS over ALL independent generating sets from descriptor candidates,
+    yielded lazily in search order (the first yield reproduces the historical
+    single-basis search).
 
     cands is a list of (desc, base_prime, order) sorted by order descending; at
-    most one descriptor per base prime is used (all powers of x_l share <x_l>)."""
+    most one descriptor per base prime is used (all powers of x_l share <x_l>).
+    Yielding every basis lets the rigidity step backtrack: a basis whose sum
+    element no candidate represents is not the end -- another basis of the
+    same group may admit a pin."""
     def dfs(start, S, used, g):
         if g == target:
-            return list(S)
+            yield list(S)
+            return
         for i in range(start, len(cands)):
             desc, base, m = cands[i]
             if base in used:
                 continue
             if len(gen_from_descs(d, [c[0] for c in S] + [desc])) == g * m:
-                res = dfs(i + 1, S + [cands[i]], used | {base}, g * m)
-                if res is not None:
-                    return res
-        return None
-    return dfs(0, [], set(), 1)
+                yield from dfs(i + 1, S + [cands[i]], used | {base}, g * m)
+    yield from dfs(0, [], set(), 1)
 
 def _best_independent_partial(d, cand_sorted, cand):
     """Largest independent prime-only set -- used to report a near miss."""
@@ -335,28 +338,36 @@ def _rigid_from_candidates(d, qf0, order, cands):
 
     Returns ('ok', longs, twos, l_sum, ls_rig), ('rigidfail', longs, twos), or
     None (no independent basis among these candidates).  longs/twos are lists of
-    (desc, base, order) triples."""
-    basis = _find_basis_desc(d, cands, order)
-    if basis is None:
-        return None
-    longs = sorted([c for c in basis if c[2] > 2], key=lambda c: c[2], reverse=True)
-    twos = [c for c in basis if c[2] == 2]
-    l_sum = None
-    if len(longs) >= 2:
-        corners = _signed_sum_corners(d, [c[0] for c in longs], qf0)
-        used = {c[1] for c in basis}
-        for desc, base, m in cands:
-            if base in used:
+    (desc, base, order) triples.
+
+    Backtracks over bases: when a basis needs a pinning sum element that no
+    candidate represents, the DFS continues to the next basis -- different
+    bases of the same group have different sum elements, and one of them may
+    be represented (e.g. d = -6272: (3, 11) has no pin in the pool, but
+    (3, 43) is pinned by 17).  The first rigidfail is kept for reporting."""
+    first_fail = None
+    for basis in _iter_bases_desc(d, cands, order):
+        longs = sorted([c for c in basis if c[2] > 2], key=lambda c: c[2], reverse=True)
+        twos = [c for c in basis if c[2] == 2]
+        l_sum = None
+        if len(longs) >= 2:
+            corners = _signed_sum_corners(d, [c[0] for c in longs], qf0)
+            used = {c[1] for c in basis}
+            for desc, base, m in cands:
+                if base in used:
+                    continue
+                if any(qf in corners for qf in _desc_qf_pm(qf0, desc) if qf != qf0):
+                    l_sum = desc
+                    break
+            if l_sum is None:
+                if first_fail is None:
+                    first_fail = ('rigidfail', longs, twos)
                 continue
-            if any(qf in corners for qf in _desc_qf_pm(qf0, desc) if qf != qf0):
-                l_sum = desc
-                break
-        if l_sum is None:
-            return ('rigidfail', longs, twos)
-    ls_rig = (tuple(c[0] for c in longs)
-              + ((l_sum,) if l_sum is not None else ())
-              + tuple(c[0] for c in twos))
-    return ('ok', longs, twos, l_sum, ls_rig)
+        ls_rig = (tuple(c[0] for c in longs)
+                  + ((l_sum,) if l_sum is not None else ())
+                  + tuple(c[0] for c in twos))
+        return ('ok', longs, twos, l_sum, ls_rig)
+    return first_fail
 
 
 def disc_rigid_lset_search(d, ls=None):

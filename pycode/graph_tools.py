@@ -39,6 +39,15 @@ def nbrdata_tree_search(nbrdata:dict,l_gens:tuple[int],leaf_cands:list,tree_root
     return [{l_gens[:i]:v for i,v in enumerate(chain)} for chain in chains_admiss]
 
 def nbrdata_tree_search_XCyc(nbrdata:dict,l_gens:tuple[int],leaf_cands:list,tree_root):
+    # TODO (known limitation, fine for now): the radical-word search re-walks
+    # the tree over CYCLIC ROTATIONS of l_gens only.  Every subset of <= 3
+    # generators is a prefix of some rotation, so the contract (determine F at
+    # ALL radical words) holds for up to 3 generators of order > 2; with 4+,
+    # non-adjacent supports like {b1, b3} are prefixes of no rotation and
+    # those radical words are never determined.  Fix: walk one ordering per
+    # radical-word support (any ordering whose prefix is the support).  Not
+    # urgent: no discriminant with |d| < 64000 has 4 such generators (first
+    # 3-generator cases appear near p ~ 16000).
     chains = [[tree_root]]
     l_gens_original_order = {l:i for i,l in enumerate(l_gens)}
     for l in l_gens:

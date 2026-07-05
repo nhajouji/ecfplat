@@ -124,7 +124,7 @@ def _search_stamp() -> list:
     kernels of order 2/3; 'lift23' = lifted x_q generators for kernel-1
     descents).  Failed cache entries stamped with the current fingerprint are
     not retried by refresh_blocked_discs."""
-    return modular_prime_pool() + ['sib23', 'lift23']
+    return modular_prime_pool() + ['sib23', 'lift23', 'basisbt']
 
 
 def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25,
