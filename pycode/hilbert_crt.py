@@ -25,11 +25,17 @@ from pathlib import Path
 from alg_classes import GF_p, poly_ring, poly_crt, Poly
 from ecqf_tools import ecqf_ord_1K_pc
 from qfs import qf_disc, get_qfs_strict
-from modularpolynomials import hilb_polys_dict, _jc
+from modularpolynomials import hilb_polys_dict, _jc, modular_prime_pool
 from nt import primeQ, discfac, primefact
 from ecqf_bij import get_ancestor_data_ord, ssprimes
 
 ATKIN_SET = frozenset(ssprimes)     # the 15 primes with an Atkin modular polynomial
+
+def modular_set() -> frozenset:
+    """Primes usable by the j-side vertical scan: Atkin format OR a classical
+    Phi_l in the cache.  A function, not a constant, because the classical
+    cache grows at runtime (register_modpoly during factory runs)."""
+    return frozenset(modular_prime_pool())
 
 
 def hilbert_library() -> dict:
@@ -300,23 +306,25 @@ def crt_prime_candidates(d: int, pmin: int = 1024, pmax: int = 8192,
                 # Criterion 2: can we identify the curves? #
 
 def _elimination_candidates(a: int, p: int, d: int) -> list[int]:
-    """The discs a curve could have once its Atkin conductor-part matches d's:
-    d0 * (A*k)^2 with A = the Atkin part of cond(d), k ranging over divisors of
-    the non-Atkin part of cond(a^2-4p).  The identification trick must discard
-    every one of these except d itself."""
+    """The discs a curve could have once its modular conductor-part matches d's:
+    d0 * (A*k)^2 with A = the modular part of cond(d) (primes with an available
+    modular polynomial), k ranging over divisors of the non-modular part of
+    cond(a^2-4p).  The identification trick must discard every one of these
+    except d itself."""
     D = a * a - 4 * p
     d0, c = discfac(D)
     dd0, cd = discfac(d)
     if dd0 != d0 or c % cd:
         raise ValueError(f'{d} is not in the discriminant closure of {D}')
+    mset = modular_set()
     cf = primefact(c)
     A = 1
     for l in cf:
-        if l in ATKIN_SET:
+        if l in mset:
             A *= l ** _padic_val(cd, l)
     ks = [1]
     for l, e in cf.items():
-        if l not in ATKIN_SET:
+        if l not in mset:
             ks = [k * l ** i for k in ks for i in range(e + 1)]
     return sorted({d0 * (A * k) ** 2 for k in ks})
 
@@ -324,21 +332,24 @@ def _elimination_candidates(a: int, p: int, d: int) -> list[int]:
 def ap_status(a: int, p: int, d: int = None, hilb: dict = None) -> dict:
     """Can the curves with endomorphism disc d be identified in class (a, p)?
 
-    method='ancestor': every prime l | cond(a^2-4p) is an Atkin prime, so the
-    volcano ancestor data identifies every curve's ring (any depth).
-    method='elimination' (the identification trick): non-Atkin conductor primes
-    are handled without isogenies -- the Atkin ancestor depths pin the Atkin
-    part of each curve's conductor, and inside that group the non-target discs
-    are discarded as roots of their KNOWN Hilbert polynomials.  Needs H_{d'}
-    for every candidate disc d' != d sharing d's Atkin conductor-part; pass the
-    target d and a Hilbert library to enable it."""
+    method='ancestor': every prime l | cond(a^2-4p) has a modular polynomial
+    (Atkin or classical Phi_l), so the volcano ancestor data identifies every
+    curve's ring (any depth).
+    method='elimination' (the identification trick): conductor primes without
+    a modular polynomial are handled without isogenies -- the modular ancestor
+    depths pin the modular part of each curve's conductor, and inside that
+    group the non-target discs are discarded as roots of their KNOWN Hilbert
+    polynomials.  Needs H_{d'} for every candidate disc d' != d sharing d's
+    modular conductor-part; pass the target d and a Hilbert library to enable
+    it."""
     d0, c = discfac(a * a - 4 * p)
-    bad = [(l, e) for l, e in sorted(primefact(c).items()) if l not in ATKIN_SET]
+    mset = modular_set()
+    bad = [(l, e) for l, e in sorted(primefact(c).items()) if l not in mset]
     if not bad:
         return {'ok': True, 'method': 'ancestor', 'fixable': True, 'why': ''}
     if d is None or hilb is None:
         return {'ok': False, 'method': None, 'fixable': True,
-                'why': f'non-Atkin conductor primes {[l for l, _ in bad]}: '
+                'why': f'non-modular conductor primes {[l for l, _ in bad]}: '
                        f'needs the identification trick (pass d and a Hilbert library)'}
     missing = [dd for dd in _elimination_candidates(a, p, d) if dd != d and dd not in hilb]
     if missing:
@@ -375,7 +386,7 @@ def class_target_js(a: int, p: int, d: int, hilb: dict) -> list[int]:
     from ecqf_bij import ecfp_nbr_data_ord_X1, js_to_rabs
     cd = discfac(d)[1]
     c = discfac(a * a - 4 * p)[1]
-    atk = [l for l in primefact(c) if l in ATKIN_SET]
+    atk = [l for l in primefact(c) if l in modular_set()]
     js = trfr_to_js(a, p)
     group = js
     if atk:

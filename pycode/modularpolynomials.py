@@ -244,3 +244,37 @@ def modpoly_nbrs(j:int, l:int, p:int):
     """The j-invariants l-isogenous to j over F_p: the roots of Phi_l(j, Y) mod p."""
     coeffs = modpoly_at_j(j, l, p)                        # low-to-high
     return [y for y in range(p) if poly_eval_mod(coeffs, y, p, rev=True) == 0]
+
+def modpoly_roots_among(j:int, l:int, p:int, candidates) -> dict:
+    """{y: multiplicity} of the roots of Phi_l(j, Y) mod p among candidates.
+
+    Root multiplicity counts the cyclic l-subgroups C with j(E/C) = y, so at
+    j = 0 or 1728 it carries the extra-automorphism factor (3 resp. 2) on top
+    of the isogeny count."""
+    coeffs = modpoly_at_j(j, l, p)                        # low-to-high, deg l+1
+    out = {}
+    for y in dict.fromkeys(candidates):
+        f = coeffs
+        m = 0
+        while poly_eval_mod(f, y, p, rev=True) == 0:
+            m += 1
+            q = [0] * (len(f) - 1)                        # deflate by (Y - y)
+            acc = 0
+            for i in range(len(f) - 1, 0, -1):
+                acc = (acc * y + f[i]) % p
+                q[i - 1] = acc
+            f = q
+        if m:
+            out[y] = m
+    return out
+
+def modpoly_primes() -> list[int]:
+    """Primes with a classical Phi_l in the cache (grows via register_modpoly)."""
+    return sorted(_modpoly_cache)
+
+def modular_prime_pool() -> list[int]:
+    """Every prime with a modular polynomial in SOME format: the 15 genus-0
+    Atkin primes plus the classical Phi_l cache.  This is the prime pool the
+    j-side neighbour/vertical scans can use, hence the pool for the rigid
+    l-set search."""
+    return sorted(set(atkin_polys_dict) | set(_modpoly_cache))

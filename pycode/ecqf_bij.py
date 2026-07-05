@@ -2,7 +2,9 @@ from nt import primesBetween,discfac,quad_rec
 from qfs import *
 from ecfp import trfr_to_js, js_to_fg
 from graph_tools import compute_bijection_zn, cycle_from_neighbor_data
-from modularpolynomials import eval_atk,small_bij_check
+from modularpolynomials import (eval_atk, small_bij_check, atkin_polys_dict,
+                                modpoly_roots_among, modular_prime_pool,
+                                _modpoly_cache)
 from misctools import *
 
 import itertools
@@ -268,8 +270,13 @@ def _rigid_from_candidates(d, qf0, order, cands):
     return ('ok', longs, twos, l_sum, ls_rig)
 
 
-def disc_rigid_lset_search(d, ls=ssprimes):
+def disc_rigid_lset_search(d, ls=None):
     """Search for a rigid spanning l-set for the class group of discriminant d.
+
+    ls defaults to modular_prime_pool(): the 15 Atkin primes plus every prime
+    with a classical Phi_l in the cache, so the pool grows as new modular
+    polynomials are minted.  (Already-cached results are never re-searched by
+    the callers, so enlarging the pool only affects fresh searches.)
 
     Returns a dict.  On success (`success=True`) the key `ls_rig` is a flat
     tuple of primes ready to pass to `ecqf_full_bijection_ord(a, p, ls_rig)`:
@@ -280,6 +287,8 @@ def disc_rigid_lset_search(d, ls=ssprimes):
 
     On failure `success=False`, `message` says which step failed and `best`
     holds the best independent subset found."""
+    if ls is None:
+        ls = modular_prime_pool()
     qf0 = class_group_id(d)
     A = get_qfs_strict(d)
     order = len(A)
@@ -481,20 +490,37 @@ def _atk_rab_counts(l, p):
 
 
 def ecfp_nbr_data_ord_X1(ap,l,jdata = {}):
+    """In-class l-isogeny neighbour data {j: [neighbours, with multiplicity]}.
+
+    Dispatch by modular-polynomial format: the 15 genus-0 primes use the Atkin
+    polynomial scan; any other prime with a classical Phi_l in the cache uses
+    modpoly_roots_among (roots of Phi_l(j, Y) among the class's j's).  The two
+    conventions agree exactly EXCEPT at rows j in {0, 1728} (classical root
+    multiplicity carries the extra-automorphism factor 3 resp. 2) and at
+    self-loops (the Atkin pair scan appends both directions: 2m vs m).  Both
+    consumers are insensitive to the difference: the horizontal path
+    (ecfp_nbr_data_ord) de-duplicates rows, and the vertical leaf/ancestor
+    logic never treats 0 or 1728 as a leaf or mid-tree vertex -- their CM
+    discs are fundamental, so they always sit on the crater."""
     a,p = ap
-    if len(jdata) == 0:
-        js = trfr_to_js(a,p)
-        rabs = js_to_rabs(js,p)
-    else:
-        js = jdata['js']
-        rabs = jdata['rabs']
-    counts = _atk_rab_counts(l, p)
-    nbrdata = {j:[] for j in js}
-    for evx, (j1, j2) in rabs.items():
-        for _ in range(counts.get(evx, 0)):
-            nbrdata[j1].append(j2)
-            nbrdata[j2].append(j1)
-    return nbrdata
+    js = jdata['js'] if len(jdata) > 0 else trfr_to_js(a,p)
+    if l in atkin_polys_dict:
+        rabs = jdata['rabs'] if len(jdata) > 0 else js_to_rabs(js,p)
+        counts = _atk_rab_counts(l, p)
+        nbrdata = {j:[] for j in js}
+        for evx, (j1, j2) in rabs.items():
+            for _ in range(counts.get(evx, 0)):
+                nbrdata[j1].append(j2)
+                nbrdata[j2].append(j1)
+        return nbrdata
+    if l in _modpoly_cache:
+        nbrdata = {j:[] for j in js}
+        for j1 in nbrdata:
+            for j2, m in modpoly_roots_among(j1, l, p, js).items():
+                nbrdata[j1] += [j2] * m
+        return nbrdata
+    raise ValueError(f'no modular polynomial for l = {l}: not one of the 15 '
+                     f'Atkin primes and no classical Phi_l in the cache')
 
 
 def ecfp_nbr_data_ord(ap,ls):
@@ -507,15 +533,16 @@ def ecfp_nbr_data_ord(ap,ls):
     # j side as on the qf side.  The vertical/ancestor code keeps multiplicities by
     # calling ecfp_nbr_data_ord_X1 directly, so it is unaffected by this.  A power
     # descriptor (l, k) is the k-step of the base l-graph -- same data.
-    # Dispatch per prime: the 15 genus-0 primes use the Atkin polynomial; any other
-    # prime gets its horizontal graph from Velu (velu.velu_nbr_data_ord).
+    # Dispatch per prime: any prime with a modular polynomial (Atkin format or a
+    # classical Phi_l in the cache) goes through the X1 scan; anything else gets
+    # its horizontal graph from Velu (velu.velu_nbr_data_ord).
     out = {}
     base = {}
-    atkin = set(ssprimes)
+    has_modpoly = set(ssprimes) | set(_modpoly_cache)
     for desc in ls:
         l = _desc_base(desc)
         if l not in base:
-            if l in atkin:
+            if l in has_modpoly:
                 nbr = ecfp_nbr_data_ord_X1(ap, l, jspc)
                 base[l] = {j: list(dict.fromkeys(nbr[j])) for j in nbr}
             else:

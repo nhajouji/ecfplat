@@ -41,7 +41,7 @@ import datetime
 
 from qfs import class_group_id, get_qfs_strict, qf_isogs_hor, qf_isog_cycle
 from graph_tools import compute_bijection_zn
-from modularpolynomials import small_bij_check
+from modularpolynomials import small_bij_check, modular_prime_pool
 from ecqf_bij import (disc_rigid_lset_search, qf_isog_data, ssprimes,
                       ecqf_full_bijection_ord, canonicalize_qf_labelling)
 
@@ -72,8 +72,9 @@ def _bij_from_json(pairs):
 # Compute one d-entry #
 #######################
 
-def compute_disc_entry(d, pool=ssprimes, include_bijection=True):
-    """Run the search (and optionally the qf-side bijection) for one d."""
+def compute_disc_entry(d, pool=None, include_bijection=True):
+    """Run the search (and optionally the qf-side bijection) for one d.
+    pool defaults to modular_prime_pool() (Atkin + cached classical Phi_l)."""
     res = disc_rigid_lset_search(d, pool)
     entry = {
         'order': res['order'],
@@ -132,7 +133,7 @@ def save_cache(cache, path=DEFAULT_CACHE):
 ###########
 
 def get_disc_entry(d, cache=None, path=DEFAULT_CACHE, compute_if_missing=True,
-                   persist=False, pool=ssprimes, include_bijection=True):
+                   persist=False, pool=None, include_bijection=True):
     """Return the cached entry for d, computing (and optionally storing) it if absent."""
     own = cache is None
     if own:
@@ -216,12 +217,15 @@ def _entry_is_complete(entry, include_bijection):
     return True
 
 
-def populate(dmin, dmax=-3, path=DEFAULT_CACHE, pool=ssprimes,
+def populate(dmin, dmax=-3, path=DEFAULT_CACHE, pool=None,
              include_bijection=True, force=False, save_every=200, verbose=True):
     """Fill the cache for every discriminant in [dmin, dmax].
 
     Skips discriminants already complete (unless force=True), so re-running with a
-    wider range or after a speed-up only computes what is missing."""
+    wider range or after a speed-up only computes what is missing.  pool defaults
+    to modular_prime_pool() at call time (Atkin + cached classical Phi_l)."""
+    if pool is None:
+        pool = modular_prime_pool()
     cache = load_cache(path)
     cache['meta'].update(pool=list(pool), include_bijection=include_bijection,
                          updated=datetime.datetime.now().isoformat(timespec='seconds'))

@@ -27,7 +27,8 @@ from pathlib import Path
 
 from nt import primesBetween, discfac, primefact
 from ecqf_bij import disc_rigid_lset_search, ssprimes
-from hilbert_crt import ATKIN_SET
+from modularpolynomials import modular_prime_pool
+from hilbert_crt import modular_set
 import rigid_cache
 
 _DATA_DIR = Path(__file__).parent / 'data'
@@ -58,9 +59,11 @@ def aps_by_disc(pmin: int = 1024, pmax: int = 2048) -> dict:
 
 
 def _conductor_blockers(d: int) -> list[int]:
-    """Non-Atkin primes dividing cond(d): the vertical j-side scan needs a
-    modular polynomial for each of these, which the 15 Atkin primes don't cover."""
-    return [l for l in primefact(discfac(d)[1]) if l not in ATKIN_SET]
+    """Primes dividing cond(d) with no modular polynomial available: the
+    vertical j-side scan needs one (Atkin format or a classical Phi_l) for
+    each conductor prime."""
+    mset = modular_set()
+    return [l for l in primefact(discfac(d)[1]) if l not in mset]
 
 
 def partition_discs(ds: list[int], save_every: int = 200, verbose: bool = True) -> dict:
@@ -100,6 +103,45 @@ def partition_discs(ds: list[int], save_every: int = 200, verbose: bool = True) 
               f'{len(out["conductor"])} conductor-blocked '
               f'({new} new searches, {time.time()-t0:.0f}s)', flush=True)
     return out
+
+
+def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25,
+                          verbose: bool = True) -> dict:
+    """Retry the cached FAILED rigid searches with the current prime pool.
+
+    partition_discs never re-searches a disc already in rigid_lset_cache.json,
+    so discs recorded as open under an older (smaller) pool stay open even
+    after new Phi_l's land in classical_modpolys.json.  This recomputes every
+    failed cached entry in [dmin, dmax] (default: all of them) with the
+    enlarged pool and updates the cache in place.  Conductor-blocked discs are
+    not in the cache at all -- they unblock automatically once
+    _conductor_blockers stops flagging them.  Returns
+    {'fixed': [...], 'still_open': [...]}."""
+    cache = rigid_cache.load_cache()
+    discs = cache['discriminants']
+    ds = [int(k) for k, v in discs.items() if not v.get('success')]
+    ds = [d for d in ds if d <= dmax and (dmin is None or d >= dmin)
+          and not _conductor_blockers(d)]
+    fixed, still = [], []
+    t0 = time.time()
+    for n, d in enumerate(sorted(ds, reverse=True)):
+        try:
+            entry = rigid_cache.compute_disc_entry(d)
+        except Exception as e:
+            entry = {'order': None, 'success': False,
+                     'message': f'EXC: {type(e).__name__}: {e}'}
+        discs[str(d)] = entry
+        (fixed if entry.get('success') else still).append(d)
+        if (n + 1) % save_every == 0:
+            rigid_cache.save_cache(cache)
+            if verbose:
+                print(f'  ... {n+1}/{len(ds)} retried, {len(fixed)} unblocked '
+                      f'({time.time()-t0:.0f}s)', flush=True)
+    rigid_cache.save_cache(cache)
+    if verbose:
+        print(f'refresh: {len(fixed)} of {len(ds)} unblocked with pool '
+              f'{modular_prime_pool()} ({time.time()-t0:.0f}s)', flush=True)
+    return {'fixed': fixed, 'still_open': still}
 
 
 #########################################
@@ -242,22 +284,23 @@ def hilbert_factory(save_every: int = 100, verbose: bool = True) -> dict:
 # Step 4: the vote                      #
 #########################################
 
-def vote_for_new_modpolys(parts: dict, candidates: tuple = (37, 43, 53, 61, 67, 73, 79, 83, 89, 97, 101),
+def vote_for_new_modpolys(parts: dict, candidates: tuple = (61, 67, 73, 79, 83, 89, 97, 101),
                           verbose: bool = True) -> dict:
     """Which new modular polynomials Phi_l unblock the most blocked discs?
 
-    Open discs vote for each candidate l that, added to the 15 Atkin primes,
-    yields a rigid spanning set (disc_rigid_lset_search with the enlarged pool).
-    Conductor-blocked discs vote for their non-Atkin conductor primes (a Phi_l
-    would also fix the vertical scan, once dispatched).  Returns
+    Open discs vote for each candidate l that, added to the CURRENT pool (Atkin
+    + cached classical Phi_l), yields a rigid spanning set.  Conductor-blocked
+    discs vote for their unavailable conductor primes (a Phi_l also fixes the
+    vertical scan, via the X1 dispatch).  Returns
     {'votes': {l: [discs]}, 'still_stuck': [discs no single candidate fixes]}."""
     votes = {l: [] for l in candidates}
     stuck = []
     t0 = time.time()
+    pool = modular_prime_pool()
     for n, d in enumerate(parts['open']):
         helped = False
         for l in candidates:
-            res = disc_rigid_lset_search(d, list(ssprimes) + [l])
+            res = disc_rigid_lset_search(d, pool + [l])
             if res['success']:
                 votes[l].append(d)
                 helped = True
