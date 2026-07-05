@@ -219,6 +219,54 @@ def verify_bijection(F, nbrdata):
             )
     return True
 
+##########################################
+# Relaxed pin: powered cube -> unit cube #
+##########################################
+# The pinning element of a rigid l-set may be relaxed from the plain sum of
+# the long generators to  sum(c_i * b_i) + tau,  with full support,
+# 0 < c_i < ord(b_i)/2, and tau a word in the order-2 generators.  The
+# assembler then walks the isogeny tree with the c_i-step graphs (leaf set
+# {sum +-c_i b_i}, collision-free by c_i < ord/2), after stripping tau from
+# the pin's neighbours of the root (order-2 steps are orientation-free, and
+# -tau = tau, so both signs strip correctly).  The resulting 0/1 cube has
+# 1-direction i meaning +c_i b_i; cube_from_powered converts it to the unit
+# cube so extend_bijection_zn1 applies unchanged.
+
+def _is_pin_label(x):
+    """Structural check for a relaxed-pin label ('pin', desc, pairs, taus)."""
+    return isinstance(x, tuple) and len(x) == 4 and x[0] == 'pin'
+
+def _offset_first_step(nbrs, v0, vc, c):
+    """v0 and vc sit at distance c (0 < c < n/2) on the direction cycle nbrs:
+    return the 1-step neighbour of v0 on the vc side.  The bound c < n/2 is
+    what makes the side well-defined."""
+    cyc = cycle_from_neighbor_data(v0, nbrs)
+    n = len(cyc)
+    if cyc[c % n] == vc:
+        return cyc[1 % n]
+    assert cyc[(-c) % n] == vc, 'offset vertex not at the stated distance'
+    return cyc[-1]
+
+def cube_from_powered(cube_pow, base_nbrs, cs):
+    """Convert a 0/1 cube whose 1 in direction i means +c_i e_i into the unit
+    cube (+e_i), fixing one coordinate at a time.  base_nbrs[i] is the 1-step
+    graph of direction i.  After fixing coordinate i, the pair (k0, k1) along
+    any later coordinate j still differs by c_j e_j, so the induction holds."""
+    cube = dict(cube_pow)
+    for i, c in enumerate(cs):
+        if c == 1:
+            continue
+        new = {}
+        for k, v in cube.items():
+            if k[i] == 0:
+                new[k] = v
+            else:
+                v0 = cube[k[:i] + (0,) + k[i + 1:]]
+                new[k] = _offset_first_step(base_nbrs[i], v0, v, c)
+        cube = new
+    return cube
+
+
 #######################
 # 2-torsion extension #
 #######################
@@ -277,9 +325,29 @@ def compute_bijection_zn(ls_rig:tuple[int],neighbordata:dict,root):
         bij = extend_bijection_zn1({(0,):v0,(1,):v1},[nbrdata_l])
         return extend_bijection_zn2(bij,neighbordata,ls2)
     else:
+        pin = ls1[-1]
+        leaf_cands = neighbordata[pin][root]
+        if _is_pin_label(pin):
+            # relaxed pin ('pin', pdesc, pairs, taus): pairs[i] = (key of the
+            # c_i-step graph of long generator i, c_i), taus = order-2 labels
+            # to strip from the pin's neighbours before the tree match.
+            _, pdesc, pairs, taus = pin
+            assert len(pairs) == len(ls1) - 1, 'pin pairs misaligned with longs'
+            for t in taus:
+                leaf_cands = [neighbordata[t][v][0] for v in leaf_cands]
+            leaf_cands = list(dict.fromkeys(leaf_cands))
+            cubedata = nbrdata_tree_search_zn(nbrdata=neighbordata,
+                                              l_gens=tuple(pk for pk, c in pairs),
+                                              leaf_cands=leaf_cands,
+                                              tree_root=root)
+            cubedata = cube_from_powered(cubedata,
+                                         [neighbordata[l] for l in ls1[:-1]],
+                                         [c for pk, c in pairs])
+            bij = extend_bijection_zn1(cubedata, [neighbordata[l] for l in ls1[:-1]])
+            return extend_bijection_zn2(bij, neighbordata, ls2)
         cubedata = nbrdata_tree_search_zn(nbrdata=neighbordata,
                                            l_gens=ls1[:-1],
-                                           leaf_cands=neighbordata[ls1[-1]][root],
+                                           leaf_cands=leaf_cands,
                                            tree_root=root)
         bij = extend_bijection_zn1(cubedata,[neighbordata[l] for l in ls1[:-1]])
         return extend_bijection_zn2(bij,neighbordata,ls2)

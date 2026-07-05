@@ -50,8 +50,14 @@ DEFAULT_CACHE = os.path.join(DATA_DIR, 'rigid_lset_cache.json')
 
 
 def _ls_descs(ls):
-    """Restore generator descriptors from JSON: a power [l,k] -> (l,k)."""
-    return tuple(tuple(x) if isinstance(x, list) else x for x in ls)
+    """Restore generator descriptors from JSON: lists -> tuples, recursively
+    (powers [l,k], free generators ['sib',q]/['lift',q], and relaxed pins
+    ['pin', pdesc, pairs, taus] with nested structure)."""
+    def conv(x):
+        if isinstance(x, list):
+            return tuple(conv(y) for y in x)
+        return x
+    return tuple(conv(x) for x in ls)
 
 
 #################

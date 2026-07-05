@@ -202,6 +202,30 @@ def _lift_candidates(d, qf0=None):
 def _is_lift(desc):
     return isinstance(desc, tuple) and desc[0] == 'lift'
 
+# Relaxed pin descriptors ('pin', pdesc, pairs, taus): the pinning element is
+# sum(c_i * b_i) + tau instead of the plain sum of the long generators, with
+# full support, 0 < c_i < ord(b_i)/2, and tau a word in the basis order-2
+# generators.  pdesc is the candidate representing it; pairs[i] = (key of the
+# c_i-step graph of long generator i, c_i); taus = the order-2 descriptors of
+# the tau word.  graph_tools.compute_bijection_zn interprets the label; the
+# data builders below expand it into the needed neighbour graphs.
+
+def _is_pin(desc):
+    return isinstance(desc, tuple) and len(desc) == 4 and desc[0] == 'pin'
+
+def _pow_desc(desc, c):
+    """The neighbour-data key for the c-step of a generator direction."""
+    if c == 1:
+        return desc
+    if _is_sib(desc) or _is_lift(desc):
+        return ('pow', desc, c)
+    if isinstance(desc, tuple):
+        return (desc[0], desc[1] * c)
+    return (desc, c)
+
+def _is_powkey(desc):
+    return isinstance(desc, tuple) and len(desc) == 3 and desc[0] == 'pow'
+
 def _desc_cycle(qf, desc):
     """Cyclic orbit of qf under the descriptor direction (qf side)."""
     if _is_sib(desc):
@@ -370,6 +394,51 @@ def _rigid_from_candidates(d, qf0, order, cands):
     return first_fail
 
 
+def _rigid_relaxed_pin(d, qf0, order, cands):
+    """The relaxed rigidity pass: the pinning element may be any
+    sum(c_i * b_i) + tau with full support, 0 < c_i < ord(b_i)/2, and tau a
+    word in the basis order-2 generators (stripping an order-2 element is
+    orientation-free, and -tau = tau, so both signs of the pin strip to the
+    true corners).  Only runs after the standard pin fails on every basis;
+    returns ('ok', longs, twos, pin_label, ls_rig) or None.
+
+    Deterministic enumeration order: bases in DFS order; per basis
+    coefficient vectors in ascending lexicographic order, tau words in binary
+    order (empty first); the all-ones/empty combination is skipped (that is
+    the standard pin, already tried)."""
+    for basis in _iter_bases_desc(d, cands, order):
+        longs = sorted([c for c in basis if c[2] > 2], key=lambda c: c[2], reverse=True)
+        twos = [c for c in basis if c[2] == 2]
+        if len(longs) < 2:
+            continue                        # nothing to pin -- pass 1 handled it
+        used = {c[1] for c in basis}
+        cs_ranges = [range(1, max((o + 1) // 2, 2)) for _, _, o in longs]
+        tau_subsets = list(itertools.chain.from_iterable(
+            itertools.combinations(range(len(twos)), k) for k in range(len(twos) + 1)))
+        for cs in itertools.product(*cs_ranges):
+            for tsub in tau_subsets:
+                if all(c == 1 for c in cs) and not tsub:
+                    continue                # the standard pin, already tried
+                corners = _signed_sum_corners(
+                    d, [_pow_desc(dd, c) for (dd, _, _), c in zip(longs, cs)], qf0)
+                corners.discard(qf0)
+                for ti in tsub:             # shift the corner set by tau
+                    tdesc = twos[ti][0]
+                    corners = {_desc_qf_pm(q, tdesc)[0] for q in corners}
+                for pdesc, pbase, m in cands:
+                    if pbase in used:
+                        continue
+                    if any(qf in corners for qf in _desc_qf_pm(qf0, pdesc) if qf != qf0):
+                        pairs = tuple((_pow_desc(dd, c), c)
+                                      for (dd, _, _), c in zip(longs, cs))
+                        taus = tuple(twos[ti][0] for ti in tsub)
+                        pin = ('pin', pdesc, pairs, taus)
+                        ls_rig = (tuple(c[0] for c in longs) + (pin,)
+                                  + tuple(c[0] for c in twos))
+                        return ('ok', longs, twos, pin, ls_rig)
+    return None
+
+
 def disc_rigid_lset_search(d, ls=None):
     """Search for a rigid spanning l-set for the class group of discriminant d.
 
@@ -420,6 +489,13 @@ def disc_rigid_lset_search(d, ls=None):
         res3 = _rigid_from_candidates(d, qf0, order, _power_candidates(cand) + frees)
         if res3 is not None and (result is None or res3[0] == 'ok'):
             result = res3
+    if not (result is not None and result[0] == 'ok'):
+        # Last resort: the relaxed pin (any full-support combination of the
+        # long generators, coefficients below half the order, plus an optional
+        # 2-torsion word) over the richest candidate set.
+        res4 = _rigid_relaxed_pin(d, qf0, order, _power_candidates(cand) + frees)
+        if res4 is not None:
+            result = res4
 
     if result is None:                              # no independent basis, even with powers
         cand_sorted = sorted(cand, key=lambda l: cand[l], reverse=True)
@@ -569,6 +645,18 @@ def qf_isog_data(d,ls):
     out = {}
     base = {}
     for desc in ls:
+        if _is_pin(desc):
+            _, pdesc, pairs, taus = desc
+            inner = qf_isog_data(d, (pdesc,) + tuple(pk for pk, c in pairs))
+            out[desc] = inner[pdesc]            # the pin label carries pdesc's graph
+            for pk, c in pairs:
+                out[pk] = inner[pk]
+            continue
+        if _is_powkey(desc):
+            _, bdesc, c = desc
+            inner = qf_isog_data(d, (bdesc,))
+            out[desc] = _kstep_nbrdata(inner[bdesc], c)
+            continue
         if _is_sib(desc):
             out[desc] = {qf: [x for x in qf_q_siblings(qf, desc[1]) if x != qf]
                          for qf in qfs}
@@ -660,6 +748,18 @@ def ecfp_nbr_data_ord(ap,ls):
     base = {}
     has_modpoly = set(ssprimes) | set(_modpoly_cache)
     for desc in ls:
+        if _is_pin(desc):
+            _, pdesc, pairs, taus = desc
+            inner = ecfp_nbr_data_ord(ap, (pdesc,) + tuple(pk for pk, c in pairs))
+            out[desc] = inner[pdesc]            # the pin label carries pdesc's graph
+            for pk, c in pairs:
+                out[pk] = inner[pk]
+            continue
+        if _is_powkey(desc):
+            _, bdesc, c = desc
+            inner = ecfp_nbr_data_ord(ap, (bdesc,))
+            out[desc] = _kstep_nbrdata(inner[bdesc], c)
+            continue
         if _is_sib(desc) or _is_lift(desc):
             if desc not in base:
                 q = desc[1]
