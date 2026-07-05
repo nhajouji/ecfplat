@@ -615,6 +615,39 @@ def _ss_root_neighbours(p, root, l):
             nbrs.append((res['j'] % p, signature(res['f'], res['g'], p)))
     return list(dict.fromkeys(nbrs))
 
+def _ss_sib_nbrs(p, sig, q):
+    """The other members of sig's q-descent fiber on the SS side: the floor
+    signatures sharing sig's surface q-parent ("ascend, descend a different
+    leg").  Entirely rational 2-isogenies over F_p -- no extension fields --
+    so a sib direction is essentially free, mirroring qf_q_siblings."""
+    from velu import two_isogeny_sigs
+    if q != 2:
+        raise NotImplementedError('SS sibling data exists only for q = 2')
+    parent = [nb for nb in two_isogeny_sigs(*js_to_fg(sig, p), p)
+              if ss_level(nb, p) == 'surface']
+    kids = [nb for nb in two_isogeny_sigs(*js_to_fg(parent[0], p), p)
+            if ss_level(nb, p) == 'floor']
+    return [s for s in dict.fromkeys(kids) if s != sig]
+
+def _ss_sum_root_data(p, root, desc):
+    """Root-only neighbour data for a sum/pinning direction: the +-1-step of a
+    plain prime, the fiber-mates of a sibling descriptor ('sib', q), or the
+    +-k-step of a power (l, k) by walking k Velu steps in each direction along
+    the l-cycle (still no full graph)."""
+    if not isinstance(desc, tuple):
+        return _ss_root_neighbours(p, root, desc)
+    if _is_sib(desc):
+        return _ss_sib_nbrs(p, root, desc[1])
+    l, k = desc
+    out = []
+    for first in _ss_root_neighbours(p, root, l):
+        prev, cur = root, first
+        for _ in range(k - 1):
+            step = [s for s in _ss_root_neighbours(p, cur, l) if s != prev] or [prev]
+            prev, cur = cur, step[0]
+        out.append(cur)
+    return list(dict.fromkeys(out))
+
 def _ss_zn_to_sig(p, d, sigs, root):
     """Signature-side Z/n labelling for the SS class on disc d, rooted at `root`, with
     the sum/pinning prime computed only at the root (the only place it is read)."""
@@ -623,7 +656,19 @@ def _ss_zn_to_sig(p, d, sigs, root):
     basis = [x for x in ls if x != l_sum]
     sig_nbr = ss_horizontal_nbr_data(p, basis, sigs)
     if l_sum is not None:
-        sig_nbr[l_sum] = {root: _ss_root_neighbours(p, root, _desc_base(l_sum))}
+        if _is_pin(l_sum):
+            # ('pin', pdesc, pairs, taus): pdesc's graph is read only at the
+            # root; each pairs key (pk, c) is the c-step of a basis generator,
+            # so its graph is the c-step of data already built (no new Velu).
+            _, pdesc, pairs, taus = l_sum
+            for pk, c in pairs:
+                if pk not in sig_nbr:
+                    l, m = pk
+                    dd = l if m == c else (l, m // c)
+                    sig_nbr[pk] = _kstep_nbrdata(sig_nbr[dd], c)
+            sig_nbr[l_sum] = {root: _ss_sum_root_data(p, root, pdesc)}
+        else:
+            sig_nbr[l_sum] = {root: _ss_sum_root_data(p, root, l_sum)}
     return ls, compute_bijection_zn(ls, sig_nbr, root)
 
 
@@ -1010,6 +1055,21 @@ def ss_horizontal_nbr_data(p, ls, sigs):
     sset = set(sigs)
     out, base = {}, {}
     for desc in ls:
+        if _is_pin(desc):
+            # No root known here, so pdesc gets its full graph (the root-only
+            # shortcut lives in _ss_zn_to_sig); mirrors qf_isog_data.
+            _, pdesc, pairs, taus = desc
+            inner = ss_horizontal_nbr_data(p, (pdesc,) + tuple(pk for pk, c in pairs), sigs)
+            out[desc] = inner[pdesc]            # the pin label carries pdesc's graph
+            for pk, c in pairs:
+                out[pk] = inner[pk]
+            continue
+        if _is_sib(desc):
+            out[desc] = {sig: _ss_sib_nbrs(p, sig, desc[1]) for sig in sigs}
+            continue
+        if _is_lift(desc) or _is_powkey(desc):
+            raise NotImplementedError(
+                f'SS signature side has no data builder for descriptor {desc!r}')
         l = _desc_base(desc)
         if l not in base:
             if l == 2:
