@@ -199,7 +199,7 @@ def gamma_0_orb(qf:tuple[int,int,int],l:int)->list[tuple[int,int,int]]:
 
 def qf_parents(qf:tuple[int,int,int],l:int):
     d = qf_disc(qf)
-    return [qf0 for qf0 in qf_isogs(qf,l) if qf_disc(qf0)>d]
+    return [qf0 for qf0 in _qf_isogs_up_cached(tuple(qf),l) if qf_disc(qf0)>d]
 
 def qf_2_mat(qf):
     a,b,c = qf
@@ -216,8 +216,20 @@ def prod_tup(t):
     return p
 
 ### Computing isogeny codomains
+# Two cached enumerations of the index-l sublattice forms:
+#   * _qf_isogs_up_cached: only the IMPRIMITIVE (content-l) sublattice forms,
+#     i.e. the horizontal + ascending codomains (roots of qf0 mod l).  At most
+#     3 entries -- the hot path for the volcano pipeline (cycle walks, rigid
+#     searches, parents), so it stays as cheap as it always was.
+#   * _qf_isogs_all_cached: ALL l+1 sublattices, with multiplicity, so the
+#     descending codomains (disc l^2 d) are included.  qf_isogs exposes this:
+#     its output ALWAYS has exactly l+1 elements.
+# The content-l entries of the full enumeration reduce to exactly the upward
+# ones (reduction commutes with scaling and qf_mod_gamma strips content), so
+# the two agree on the horizontal/ascending values.
+
 @lru_cache(maxsize=1<<17)
-def _qf_isogs_cached(qf0,l):
+def _qf_isogs_up_cached(qf0,l):
     a,b,c = qf0
     qfls = []
     if c % l == 0:
@@ -231,17 +243,31 @@ def _qf_isogs_cached(qf0,l):
             qfls.append(qf_mod_gamma((at,bt,ct)))
     return tuple(qfls)
 
+@lru_cache(maxsize=1<<17)
+def _qf_isogs_all_cached(qf0,l):
+    a,b,c = qf0
+    qfls = [qf_mod_gamma((a*l*l,b*l,c))]                    # x -> l x
+    for t in range(l):
+        qt = a+b*t+c*t*t
+        qfls.append(qf_mod_gamma((qt,(b+2*c*t)*l,c*l*l)))   # y -> t x + l y
+    return tuple(qfls)
+
 def qf_isogs(qf0,l):
-    return list(_qf_isogs_cached(tuple(qf0),l))
+    """All l+1 codomains of the degree-l isogenies from qf0, with multiplicity:
+    descending entries have disc l^2 d, horizontal disc d, ascending disc d/l^2."""
+    return list(_qf_isogs_all_cached(tuple(qf0),l))
 
 def qf_isogs_hor(qf0,l):
-    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)==qf_disc(qf0)]
+    d = qf_disc(qf0)
+    return [qf for qf in _qf_isogs_up_cached(tuple(qf0),l) if qf_disc(qf)==d]
 
 def qf_isogs_asc(qf0,l):
-    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)>qf_disc(qf0)]
+    d = qf_disc(qf0)
+    return [qf for qf in _qf_isogs_up_cached(tuple(qf0),l) if qf_disc(qf)>d]
 
 def qf_isogs_des(qf0,l):
-    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)<qf_disc(qf0)]
+    d = qf_disc(qf0)
+    return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)<d]
 
 def qfs_isogs_int(qfl1,qfl2):
     qf1,l1 = qfl1
@@ -257,22 +283,24 @@ def qf_isog_parent(qf,l):
     if c % l != 0:
         raise ValueError(f'No parents in degree {l}')
     else:
-        cands = [qf0 for qf0 in qf_isogs(qf,l) if discfac(qf_disc(qf0))[1]*l == c]
+        cands = [qf0 for qf0 in _qf_isogs_up_cached(tuple(qf),l)
+                 if discfac(qf_disc(qf0))[1]*l == c]
         assert len(cands)==1
         return cands[0]
-    
-# Computing isogeny cycles
+
+# Computing isogeny cycles (horizontal walks: the upward enumeration, so the
+# descending codomains now in qf_isogs do not derail the cycle)
 def qf_isog_cycle(qf0,l):
-    cyc = qf_isogs(qf0,l)
+    cyc = list(_qf_isogs_up_cached(tuple(qf0),l))
     if len(cyc)==1:
         return [qf0,cyc[0]]
     elif len(cyc)>2:
         raise ValueError('Too many isogenies')
     cyc = [qf0,cyc[0]]
-    nextbatch = [qf for qf in qf_isogs(cyc[-1],l) if qf not in cyc]
+    nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in cyc]
     while len(nextbatch)>0:
         cyc.append(nextbatch[0])
-        nextbatch = [qf for qf in qf_isogs(cyc[-1],l) if qf not in cyc]
+        nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in cyc]
     return cyc
 
 def qf_isog_cycle_power(qf0,lk):
