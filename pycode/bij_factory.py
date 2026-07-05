@@ -16,8 +16,11 @@ plan, per the session notes:
    prime; re-running resumes.
 4. vote_for_new_modpolys: each blocked disc votes for the candidate primes l
    whose (future) modular polynomial would unblock it -- for open discs, the l
-   that completes a rigid spanning set; for conductor discs, the non-Atkin
+   that completes a rigid spanning set; for conductor discs, the unavailable
    conductor primes themselves.  Use the tally to prioritize phi_factory.
+5. bootstrap_refresh: the loop tick.  After phi_factory lands new Phi_l's in
+   classical_modpolys.json, one call retries the stale failed searches with
+   the enlarged pool and mints every newly computable bijection.
 """
 
 import json
@@ -61,9 +64,19 @@ def aps_by_disc(pmin: int = 1024, pmax: int = 2048) -> dict:
 def _conductor_blockers(d: int) -> list[int]:
     """Primes dividing cond(d) with no modular polynomial available: the
     vertical j-side scan needs one (Atkin format or a classical Phi_l) for
-    each conductor prime."""
+    each conductor prime.
+
+    Exception (the trivial-volcano shortcut in get_ancestor_data_ord): when
+    the conductor is EXACTLY one such prime l and the fundamental part has
+    class number 1 (d = d0 * l^2, d0 in heeg_js), the l-volcano has a single
+    identifiable crater vertex and the vertical scan needs no Phi_l at all."""
+    from modularpolynomials import heeg_js
+    d0, c = discfac(d)
     mset = modular_set()
-    return [l for l in primefact(discfac(d)[1]) if l not in mset]
+    bad = [l for l in primefact(c) if l not in mset]
+    if len(bad) == 1 and c == bad[0] and d0 in heeg_js:
+        return []
+    return bad
 
 
 def partition_discs(ds: list[int], save_every: int = 200, verbose: bool = True) -> dict:
@@ -115,11 +128,17 @@ def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25
     failed cached entry in [dmin, dmax] (default: all of them) with the
     enlarged pool and updates the cache in place.  Conductor-blocked discs are
     not in the cache at all -- they unblock automatically once
-    _conductor_blockers stops flagging them.  Returns
+    _conductor_blockers stops flagging them.
+
+    Each retried failure is stamped with the pool it was tried under, so
+    re-running skips entries the current pool has already been tried on --
+    a re-run after nothing new has landed is free.  Returns
     {'fixed': [...], 'still_open': [...]}."""
+    pool = modular_prime_pool()
     cache = rigid_cache.load_cache()
     discs = cache['discriminants']
-    ds = [int(k) for k, v in discs.items() if not v.get('success')]
+    ds = [int(k) for k, v in discs.items()
+          if not v.get('success') and v.get('pool') != pool]
     ds = [d for d in ds if d <= dmax and (dmin is None or d >= dmin)
           and not _conductor_blockers(d)]
     fixed, still = [], []
@@ -130,6 +149,8 @@ def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25
         except Exception as e:
             entry = {'order': None, 'success': False,
                      'message': f'EXC: {type(e).__name__}: {e}'}
+        if not entry.get('success'):
+            entry['pool'] = pool
         discs[str(d)] = entry
         (fixed if entry.get('success') else still).append(d)
         if (n + 1) % save_every == 0:
@@ -140,8 +161,32 @@ def refresh_blocked_discs(dmin: int = None, dmax: int = -3, save_every: int = 25
     rigid_cache.save_cache(cache)
     if verbose:
         print(f'refresh: {len(fixed)} of {len(ds)} unblocked with pool '
-              f'{modular_prime_pool()} ({time.time()-t0:.0f}s)', flush=True)
+              f'{pool} ({time.time()-t0:.0f}s)', flush=True)
     return {'fixed': fixed, 'still_open': still}
+
+
+def bootstrap_refresh(pmin: int = 1024, pmax: int = 2048, verbose: bool = True) -> dict:
+    """One tick of the bootstrap loop: absorb newly minted Phi_l's.
+
+    Run this any time new modular polynomials have landed in
+    classical_modpolys.json (phi_factory registers them there itself when a
+    target certifies -- there is nothing to register by hand).  It
+
+    1. retries every cached failed rigid search whose last attempt used a
+       smaller pool (refresh_blocked_discs), and
+    2. re-partitions the range and mints every newly computable bijection
+       into the extension store (compute_and_save; this also runs fresh
+       searches for discs that just stopped being conductor-blocked).
+
+    Idempotent, and close to free when nothing new has landed.  Returns the
+    compute_and_save stats plus 'refresh_fixed' / 'refresh_still_open'."""
+    if verbose:
+        print(f'bootstrap_refresh with pool {modular_prime_pool()}', flush=True)
+    ref = refresh_blocked_discs(verbose=verbose)
+    stats = compute_and_save(pmin, pmax, verbose=verbose)
+    stats['refresh_fixed'] = ref['fixed']
+    stats['refresh_still_open'] = ref['still_open']
+    return stats
 
 
 #########################################

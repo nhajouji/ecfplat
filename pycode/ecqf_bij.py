@@ -4,7 +4,7 @@ from ecfp import trfr_to_js, js_to_fg
 from graph_tools import compute_bijection_zn, cycle_from_neighbor_data
 from modularpolynomials import (eval_atk, small_bij_check, atkin_polys_dict,
                                 modpoly_roots_among, modular_prime_pool,
-                                _modpoly_cache)
+                                _modpoly_cache, heeg_js)
 from misctools import *
 
 import itertools
@@ -590,9 +590,25 @@ def get_ancestor_data_ord(ap):
     anc_data = {}
     leaf_cands = [j for j in js if j!= 0 and (j-1728)%p !=0]
     for l in ls:
-        nbrs_l = ecfp_nbr_data_ord_X1((a,p),l)
-        anc_data[l]=tree_edges_to_ancestors(nbrs_l)
-        leaf_cands = [j for j in leaf_cands if len(nbrs_l[j])==1]
+        if (c == l and d in heeg_js
+                and l not in atkin_polys_dict and l not in _modpoly_cache):
+            # Trivial-volcano shortcut: the conductor is exactly one prime l
+            # with no modular polynomial, over a class-number-1 fundamental
+            # disc d.  The l-volcano then has two levels -- a SINGLE crater
+            # vertex, the known CM point j(d) (root of the linear H_d) -- so
+            # no Phi_l is needed: everything else is a leaf, and every leaf's
+            # l-ancestor is the crater point.  (vert_isog_ext labels the
+            # crater via qf_parents, forced to the principal form of d.)
+            # Deeper/mixed conductors (e.g. -12 l^2) are NOT covered: their
+            # l-crater has several vertices and ascent needs identification.
+            crater_j = heeg_js[d] % p
+            assert crater_j in set(js), f'CM point j({d}) not in class {ap}'
+            anc_data[l] = {j: crater_j for j in js if j != crater_j}
+            leaf_cands = [j for j in leaf_cands if j != crater_j]
+        else:
+            nbrs_l = ecfp_nbr_data_ord_X1((a,p),l)
+            anc_data[l]=tree_edges_to_ancestors(nbrs_l)
+            leaf_cands = [j for j in leaf_cands if len(nbrs_l[j])==1]
     return {'ancestor_data':anc_data,'leaves':leaf_cands,'js_all':js}
 
 def zn_ecqf_bij(a:int,p:int,ls:tuple[int]):
