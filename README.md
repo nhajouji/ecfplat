@@ -13,7 +13,7 @@ Given a pair `(a, p)` with `p` prime and `a² < 4p`, the code works with the iso
 
 There are two layers to the code, and it helps to keep them apart:
 
-- **Computing an equivalence from scratch.** Given `(a, p)`, the library runs the pipeline below and returns the curve ↔ lattice-class correspondence. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. The ordinary computation has been run for **every computable class with `4 ≤ p ≤ 8192`** (117 155 classes — 99.86 % of the range; the rest await new modular polynomials, see below); the supersingular one for all 170 primes up to 1024.
+- **Computing an equivalence from scratch.** Given `(a, p)`, the library runs the pipeline below and returns the curve ↔ lattice-class correspondence. The ordinary driver is `ecqf_full_bijection_ord`; the supersingular driver is `ecqf_full_bijection_ss`. The ordinary computation has been run for **every computable class with `4 ≤ p ≤ 8192`** (117 155 classes — 99.86 % of the range; the rest await new modular polynomials, see below); the supersingular one for **all 1 026 primes in the same range**.
 - **Using an equivalence.** Downstream applications (`ECQFIsogenyClass`) take an equivalence as their *input* and read off properties of the curves — e.g. Mordell–Weil group structure, isogeny graphs — by working on the lattice side. For speed these mostly load a **precomputed** equivalence (produced by the algorithms here and stored under `pycode/data/`), but any equivalence, freshly computed or loaded, works the same way.
 
 ### Computing the equivalence: the pipeline
@@ -214,7 +214,7 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 | dataset | contents |
 |---|---|
 | ordinary equivalences | **117 155 classes** `(a, p)` covering `4 ≤ p ≤ 8192` in the factory store (`ecqf_ord_pcbij_ext.json`, self-contained) — 99.86 % of the range, 26 open discriminants / 167 classes remaining; `ecqf_ord_pcbij_4_1024.json` is the original `p < 1024` table, kept as a regression reference |
-| supersingular equivalences | **187** supersingular primes `4 ≤ p ≤ 1129` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`) — extending to 8192 via the SS factory |
+| supersingular equivalences | all **1 026** supersingular primes `4 ≤ p ≤ 8192` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`), every entry validated at creation by the factory battery |
 | per-discriminant lattice data | **20 514 discriminants** down to −41 028 (`rigid_lset_cache.json`): 20 467 with a rigid spanning set, 47 open — 44 spanning failures awaiting new `Φ_ℓ` (see the vote) and 3 rigidity failures |
 | Hilbert class polynomials | **748 certified** `H_d`, deepest `d = −86 227` (`hilbpolys.json` + `hilbpolys_crt.json`, grown by the Hilbert factory) |
 | classical modular polynomials | `Φ_ℓ` for **all ℓ ≤ 67** (`classical_modpolys.json`; ℓ ≥ 29 produced by the phi factory — `Φ₇₁` in progress) |
