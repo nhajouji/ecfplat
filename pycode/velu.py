@@ -256,6 +256,71 @@ def velu_l_isog_codomain(f, g, l, p, trace, direction=0, max_degree=None, seed=0
             'k': k, 'lam': lam, 'mu': mu}
 
 
+def velu_l_isog_codomain_twist(f, g, l, p, direction=0, seed=0, tries=300):
+    """Codomain of the horizontal l-isogeny of y^2 = x^3 + f*x + g over F_p
+    (supersingular, trace 0), computed on the QUADRATIC TWIST when the chosen
+    eigenvalue has EVEN order 2m.
+
+    lam^m = -1 then, so Frobenius^{p^m} acts by -1 on the eigenline: kernel
+    x-coordinates land in K = F_{p^m} and the kernel points are K-rational on
+    the twist E^c (c a non-square of K).  The O(l) Velu sum therefore runs in
+    HALF the degree of the plain path; only the O(log p) eigenline projection
+    (pi_p - mu, applied to one point) visits F_{p^2m} = K[t]/(t^2 - c), where
+    the explicit sqrt(c) = t makes the twist pullback exact.  The kernel
+    subgroup is eigenvalue-determined, so the 'ok' payload (j, f, g) is
+    identical to velu_l_isog_codomain's.  Not wired into any default path."""
+    from nt import frob_ext_degrees
+    from alg_classes import QuadExt_auto, FieldElement
+    info = frob_ext_degrees(0, p, l)
+    if info['kind'] != 'split':
+        return {'status': info['kind']}
+    lam, k = info['eigenvalues'][direction], info['degrees'][direction]
+    if k % 2:
+        return {'status': 'odd_order_eigenvalue', 'k': k}    # no twist shortcut
+    m = k // 2
+    mu = (p * pow(lam, -1, l)) % l                            # the other eigenvalue
+    L = QuadExt_auto(p, m)
+    K = L.base_field
+    cK = FieldElement(L.c, K)
+    fc, gc = embed_fp(f, K) * cK ** 2, embed_fp(g, K) * cK ** 3    # E^c over K
+    cL = FieldElement(L.embed(L.c), L)
+    tL = FieldElement((K.zero_element, K.one_element), L)          # t = sqrt(c)
+    fL = embed_fp(f, L)
+    N_twist = 2 * (p ** m + 1) - curve_cardinality(0, p, m)        # p^m + 1 + a_m
+    M = N_twist
+    while M % l == 0:
+        M //= l
+    rng = _random.Random((p * 7919 + f) * 7919 + g + l * 131 + seed)
+    for _ in range(tries):
+        T = ec_mul(M, random_point(fc, gc, rng), fc)          # into the l-Sylow, over K
+        if T is None:
+            continue
+        while ec_mul(l, T, fc) is not None:                   # reduce to an order-l point
+            T = ec_mul(l, T, fc)
+        # pull back through psi^{-1}: (X, Y) -> (X/c, Y/(c*t)), a point of E over L
+        X, Y = T
+        P = (FieldElement(L.embed(X.vec), L) / cL,
+             FieldElement(L.embed(Y.vec), L) / (cL * tL))
+        Q = ec_add(frobenius(P, p), ec_neg(ec_mul(mu, P, fL)), fL)   # onto the lam-line
+        if Q is None:
+            continue                                          # T sat in the mu-line
+        if ec_mul(l, Q, fL) is not None:
+            return {'status': 'projection_not_l_torsion'}     # should not happen
+        # push down: psi(Q) is K-rational on the twist
+        Xc, Yc = cL * Q[0], cL * tL * Q[1]
+        if Xc.vec[1] != K.zero_element or Yc.vec[1] != K.zero_element:
+            return {'status': 'twisted_kernel_not_rational'}  # should not happen
+        Qc = (FieldElement(Xc.vec[0], K), FieldElement(Yc.vec[0], K))
+        A_c, B_c = velu_isogeny(fc, gc, l, Qc)                # the O(l) sum, over K
+        A, B = A_c / cK ** 2, B_c / cK ** 3                   # untwist the codomain
+        j = j_invariant(A, B)
+        def _fp(z):                                           # horizontal => F_p
+            return z.vec[0] if all(x == 0 for x in z.vec[1:]) else z.vec
+        return {'status': 'ok', 'j': _fp(j), 'f': _fp(A), 'g': _fp(B),
+                'k': k, 'm': m, 'lam': lam, 'mu': mu}
+    return {'status': 'kernel_not_found', 'k': k}
+
+
 def velu_nbr_data_ord(ap, l, js=None, max_degree=None):
     """Horizontal l-isogeny neighbour graph {j: [neighbour j's]} for the ordinary
     isogeny class (a, p), via Velu.  Mirrors ecfp_nbr_data_ord_X1 (the Atkin path)
