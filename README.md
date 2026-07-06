@@ -54,9 +54,10 @@ The rigid-l-set search and both drivers are in `pycode/ecqf_bij.py`; the Vélu i
 
 Three "run-all" notebooks (designed for long unattended runs on a second machine, everything checkpointed and resumable) grow the data in a cycle — each generation of computed objects becomes the tool that computes the next:
 
-1. **Equivalence factory** (`notebooks/bij_factory.ipynb`) — enumerate all classes `(a, p)` for `p` in a target range, partition their discriminants by whether a rigid spanning set exists, compute and store every computable equivalence, and **tally the vote**: which new `Φ_ℓ` would unblock the most open discriminants.
-2. **Phi factory** (`notebooks/phi_factory.ipynb`) — compute classical modular polynomials `Φ_l` by CRT interpolation *across the stored equivalences*: the general symmetric form is constrained by the diagonal `Φ_l(X,X) = −∏ H_d` (a product of Hilbert class polynomials), pinned per characteristic `p` by evaluations at `l`-isogenous pairs read off the lattice side, certified against the Bröker–Sutherland height bound, and checked against the Kronecker congruence. Each new `Φ_l` enlarges the pool in step 2 of the pipeline.
+1. **Equivalence factory** (`notebooks/ord_factories/bij_factory.ipynb`) — enumerate all classes `(a, p)` for `p` in a target range, partition their discriminants by whether a rigid spanning set exists, compute and store every computable equivalence, and **tally the vote**: which new `Φ_ℓ` would unblock the most open discriminants.
+2. **Phi factory** (`notebooks/ord_factories/phi_factory.ipynb`) — compute classical modular polynomials `Φ_l` by CRT interpolation *across the stored equivalences*: the general symmetric form is constrained by the diagonal `Φ_l(X,X) = −∏ H_d` (a product of Hilbert class polynomials), pinned per characteristic `p` by evaluations at `l`-isogenous pairs read off the lattice side, certified against the Bröker–Sutherland height bound, and checked against the Kronecker congruence. Each new `Φ_l` enlarges the pool in step 2 of the pipeline.
 3. **Hilbert factory** (bottom of `bij_factory.ipynb`) — harvest every stored equivalence into certified Hilbert class polynomials `H_d` (roots of `H_d mod p` are read off the equivalences; balanced CRT with a numeric coefficient bound). These feed the phi factory's diagonal and special-value relations.
+4. **Supersingular factory** (`notebooks/ss_factory/ss_factory.ipynb`) — extend the supersingular signature ↔ lattice equivalences over a prime range (`ss_bij_cache.populate`): rigid l-sets chosen by minimum Vélu eigenline degree, curve side via one-direction cycle walks, and every fresh entry gated by a validation battery (signature/form sets, genuine supersingularity, `Φ_ℓ` edge check at an unused split prime, root conventions) before it is stored.
 
 The supporting library: `hilbert_crt.py` (Hilbert polynomials via CRT, endomorphism-ring identification), `modpoly_crt.py` (the `Φ_l` interpolation), `bij_factory.py` / `phi_factory.py` (the drivers), `trace_gpu.py` (optional CUDA/MPS backend for the trace-of-Frobenius tables).
 
@@ -69,9 +70,13 @@ Restricting to isogenies and endomorphisms defined over $\mathbb{F}_p$, the supe
 ```
 notebooks/        # Jupyter notebooks (published)
   userguide.ipynb     # Worked examples and basic use cases
-  bij_factory.ipynb   # Equivalence factory: extend the precomputes over a prime
-                      #   range + the modular-polynomial vote + the Hilbert factory
-  phi_factory.ipynb   # Phi factory: batch classical modular polynomials Phi_l
+  ord_factories/      # Ordinary-side factories (run bij before phi)
+    bij_factory.ipynb   # Equivalence factory: extend the precomputes over a prime
+                        #   range + the modular-polynomial vote + the Hilbert factory
+    phi_factory.ipynb   # Phi factory: batch classical modular polynomials Phi_l
+  ss_factory/         # Supersingular factory
+    ss_factory.ipynb    # Extend the SS signature <-> lattice bijections over a
+                        #   prime range, every entry gated by the validation battery
   hilbcrt.ipynb       # Worked development notebook for the CRT machinery
 
 experiments/      # Local scratch notebooks (not tracked by git)
@@ -209,7 +214,7 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 | dataset | contents |
 |---|---|
 | ordinary equivalences | **117 155 classes** `(a, p)` covering `4 ≤ p ≤ 8192` in the factory store (`ecqf_ord_pcbij_ext.json`, self-contained) — 99.86 % of the range, 26 open discriminants / 167 classes remaining; `ecqf_ord_pcbij_4_1024.json` is the original `p < 1024` table, kept as a regression reference |
-| supersingular equivalences | all **170** supersingular primes `4 ≤ p ≤ 1024` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`) |
+| supersingular equivalences | **187** supersingular primes `4 ≤ p ≤ 1129` (`ecqf_ss_pcbij_velu_4_1024.json`, list form `ssfp_pc_bij_velu.json`) — extending to 8192 via the SS factory |
 | per-discriminant lattice data | **20 514 discriminants** down to −41 028 (`rigid_lset_cache.json`): 20 467 with a rigid spanning set, 47 open — 44 spanning failures awaiting new `Φ_ℓ` (see the vote) and 3 rigidity failures |
 | Hilbert class polynomials | **748 certified** `H_d`, deepest `d = −86 227` (`hilbpolys.json` + `hilbpolys_crt.json`, grown by the Hilbert factory) |
 | classical modular polynomials | `Φ_ℓ` for **all ℓ ≤ 67** (`classical_modpolys.json`; ℓ ≥ 29 produced by the phi factory — `Φ₇₁` in progress) |
