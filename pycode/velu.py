@@ -143,12 +143,14 @@ import random as _random
 
 
 def _rand_elt(K, rng):
+    if hasattr(K, 'random_element'):               # nested layouts (e.g. QuadExt)
+        return FieldElement(K.random_element(rng), K)
     return FieldElement(tuple(rng.randrange(K.char) for _ in range(K.degree)), K)
 
 
 def embed_fp(c, K):
     """Embed an F_p element (int) into K = F_{p^k}."""
-    return FieldElement((c % K.char,) + tuple(0 for _ in range(K.degree - 1)), K)
+    return FieldElement(K.int_coercion(c), K)
 
 
 def field_sqrt(c, rng=None):

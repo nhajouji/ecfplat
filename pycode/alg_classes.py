@@ -454,6 +454,100 @@ def GF_pn_auto(p: int, n: int, seed: int = 0) -> Field:
     return GF_pn(p, irreducible_poly(p, n, seed))
 
 
+# --- Relative quadratic extension L = K[t]/(t^2 - c) ---
+# Unlike GF_pn (always built directly over F_p), QuadExt extends ANY Field
+# following the element-tuple pattern, keeping K as a genuine subfield: an
+# element of L is a pair (a, b) of K-element tuples, meaning a + b*t.  This is
+# what the twist-Velu path needs -- kernel data lives in K = F_{p^m}, the
+# eigenline projection upstairs in L = F_{p^2m} -- and it composes into towers.
+
+def _pow_tuple(R: Ring, t: tuple, n: int) -> tuple:
+    """t^n by square-and-multiply on raw element tuples of R."""
+    result, base = R.one_element, t
+    while n > 0:
+        if n & 1:
+            result = R.multiplication_map(result, base)
+        base = R.multiplication_map(base, base)
+        n >>= 1
+    return result
+
+
+@lru_cache(maxsize=None)
+def QuadExt(K: Field, c: tuple) -> Field:
+    """The quadratic extension K[t]/(t^2 - c) of a Field K, for c a non-square
+    element tuple of K (odd characteristic).  Elements are pairs (a, b) of
+    K-tuples.  Cached per (K, c) so element equality/hashing stays consistent,
+    like GF_pn_auto.  Extra attributes: L.base_field = K, L.c = c, and
+    L.embed(a) = (a, 0) lifts a K-element tuple into L."""
+    if K.char == 2:
+        raise ValueError('QuadExt needs odd characteristic')
+    if c not in K:
+        raise ValueError('c must be an element tuple of K')
+    if c == K.zero_element or _pow_tuple(K, c, (K.order - 1) // 2) == K.one_element:
+        raise ValueError('c is a square in K: t^2 - c is not irreducible')
+    kzero, kone = K.zero_element, K.one_element
+    kadd, kneg, kmul = K.addition_map, K.negation_map, K.multiplication_map
+
+    def membership(v: tuple) -> bool:
+        return isinstance(v, tuple) and len(v) == 2 and v[0] in K and v[1] in K
+
+    def negation(v: tuple) -> tuple:
+        return (kneg(v[0]), kneg(v[1]))
+
+    def addition(v1: tuple, v2: tuple) -> tuple:
+        return (kadd(v1[0], v2[0]), kadd(v1[1], v2[1]))
+
+    def multiplication(v1: tuple, v2: tuple) -> tuple:
+        a1, b1 = v1
+        a2, b2 = v2
+        return (kadd(kmul(a1, a2), kmul(c, kmul(b1, b2))),
+                kadd(kmul(a1, b2), kmul(b1, a2)))
+
+    def inverse(v: tuple) -> tuple:               # (a + bt)^-1 = (a - bt)/(a^2 - c b^2)
+        a, b = v
+        norm = kadd(kmul(a, a), kneg(kmul(c, kmul(b, b))))
+        ninv = K.inverse_map(norm)                # nonzero: c is a non-square
+        return (kmul(a, ninv), kmul(kneg(b), ninv))
+
+    L = Field(membership, (kzero, kzero), negation, addition, (kone, kzero),
+              multiplication, inverse)
+    L.char, L.degree, L.order = K.char, 2 * K.degree, K.order ** 2
+    L.int_coercion = lambda n: (K.int_coercion(n), kzero)
+    L.base_field, L.c = K, c
+    L.embed = lambda a: (a, kzero)
+
+    def _rand_base(rng):
+        if hasattr(K, 'random_element'):           # recurse through towers
+            return K.random_element(rng)
+        return tuple(rng.randrange(K.char) for _ in range(K.degree))
+    L.random_element = lambda rng: (_rand_base(rng), _rand_base(rng))
+    return L
+
+
+@lru_cache(maxsize=None)
+def quad_nonsquare(p: int, m: int, seed: int = 0) -> tuple:
+    """A deterministic non-square element tuple of GF_pn_auto(p, m): the first
+    non-square in a fixed enumeration of the field (base-p digit order)."""
+    K = GF_pn_auto(p, m, seed)
+    e = (K.order - 1) // 2
+    for j in range(1, K.order):
+        digits, x = [], j
+        for _ in range(K.degree):
+            digits.append(x % p)
+            x //= p
+        v = tuple(digits)
+        if _pow_tuple(K, v, e) != K.one_element:
+            return v
+    raise ValueError('no non-square found (impossible for odd q)')
+
+
+def QuadExt_auto(p: int, m: int, seed: int = 0) -> Field:
+    """F_{p^2m} as the quadratic extension of K = GF_pn_auto(p, m) by a
+    deterministic non-square; the K-subfield structure is what distinguishes
+    this from the flat GF_pn_auto(p, 2m) model."""
+    return QuadExt(GF_pn_auto(p, m, seed), quad_nonsquare(p, m, seed))
+
+
                 # Coefficient rings for polynomial work #
 
 # Z and C as Ring/Field instances, so PolyRing below can be built over them with
