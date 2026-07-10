@@ -548,7 +548,14 @@ def _velu_cost(a, p, l, walk=False):
     horizontal l-isogeny over F_p).  a = 0 is the supersingular case.  With
     walk=False both +-directions are built, so the cost is the LARGER of the two
     degrees; with walk=True (the one-direction cycle walk, velu_nbr_data_ss_walk)
-    only the cheap eigenline is used, so the cost is the SMALLER."""
+    only the cheap eigenline is used, so the cost is the SMALLER.
+
+    The walk builder additionally routes an even-order direction through the
+    quadratic twist (Velu sum in half the degree), but the SELECTION cost here
+    deliberately ignores that: counting an even k as k/2 lets giant-l primes
+    jump below small-l ones (the model is blind to the O(l) Velu sum), which
+    measurably regressed 1777 and 6637.  Folding the twist into selection
+    needs a real work model (~ l * k_eff^2) and a work-cap ladder."""
     from nt import frob_ext_degrees
     info = frob_ext_degrees(a, p, l)
     if info['kind'] != 'split':
@@ -614,12 +621,12 @@ def _ss_root_neighbours(p, root, l):
     compute_bijection_zn reads the sum/pinning prime's data only at the root, so this is
     all that is needed for it -- no full graph, hence no cost even for a high-degree l.
     (When the root is the j=1728 curve the two neighbours share a j-invariant.)"""
-    from velu import velu_l_isog_codomain
+    from velu import velu_l_isog_codomain_fast
     from ecfp import signature
     f, g = js_to_fg(root, p)
     nbrs = []
     for direction in (0, 1):
-        res = velu_l_isog_codomain(f, g, l, p, 0, direction=direction)
+        res = velu_l_isog_codomain_fast(f, g, l, p, direction=direction)
         if res['status'] == 'ok' and isinstance(res['f'], int) and isinstance(res['g'], int):
             nbrs.append((res['j'] % p, signature(res['f'], res['g'], p)))
     return list(dict.fromkeys(nbrs))

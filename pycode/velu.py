@@ -221,7 +221,10 @@ def kernel_gen_eigenline(a, b, l, lam, mu, p, k, trace, rng, tries=300):
         while ec_mul(l, T, a) is not None:               # reduce to an order-l point
             T = ec_mul(l, T, a)
         Q = ec_add(frobenius(T, p), ec_neg(ec_mul(mu_red, T, a)), a)   # pi(T) - mu*T
-        if Q is not None and point_order(Q, a, l) == l:
+        # T has order l, so Q is in E[l]: Q != O already means order exactly l.
+        # (l*Q == O verified in O(log l) -- point_order here cost O(l) point
+        # additions at full degree, comparable to the Velu sum itself.)
+        if Q is not None and ec_mul(l, Q, a) is None:
             return Q
     return None
 
@@ -321,6 +324,17 @@ def velu_l_isog_codomain_twist(f, g, l, p, direction=0, seed=0, tries=300):
     return {'status': 'kernel_not_found', 'k': k}
 
 
+def velu_l_isog_codomain_fast(f, g, l, p, direction=0, seed=0):
+    """velu_l_isog_codomain for the supersingular class (trace 0), routed
+    through the twist path when the chosen eigenvalue has EVEN order: the
+    payload is identical, but the O(l) Velu sum runs in half the degree."""
+    from nt import frob_ext_degrees
+    info = frob_ext_degrees(0, p, l)
+    if info['kind'] == 'split' and info['degrees'][direction] % 2 == 0:
+        return velu_l_isog_codomain_twist(f, g, l, p, direction=direction, seed=seed)
+    return velu_l_isog_codomain(f, g, l, p, 0, direction=direction, seed=seed)
+
+
 def velu_nbr_data_ord(ap, l, js=None, max_degree=None):
     """Horizontal l-isogeny neighbour graph {j: [neighbour j's]} for the ordinary
     isogeny class (a, p), via Velu.  Mirrors ecfp_nbr_data_ord_X1 (the Atkin path)
@@ -386,13 +400,17 @@ def velu_walk_cycle(p, l, start, max_len=None, seed=0):
     if info['kind'] != 'split':
         raise ValueError(f'l = {l} is not split for the supersingular class over F_{p}')
     degs = info['degrees']
-    d = 0 if degs[0] <= degs[1] else 1
+    # Effective cost per direction: an even-order eigenline runs on the twist
+    # (velu_l_isog_codomain_fast) with its Velu sum in HALF the degree.  Ties
+    # prefer the smaller true degree (an odd direction has no upstairs work).
+    eff = [k // 2 if k % 2 == 0 else k for k in degs]
+    d = 0 if (eff[0], degs[0]) <= (eff[1], degs[1]) else 1
     cycle, cur = [start], start
     while True:
         f, g = js_to_fg(cur, p)
         res = {'status': 'kernel_not_found'}
         for s in range(seed, seed + 4):     # the kernel search is randomized; retry
-            res = velu_l_isog_codomain(f, g, l, p, 0, direction=d, seed=s)
+            res = velu_l_isog_codomain_fast(f, g, l, p, direction=d, seed=s)
             if res['status'] == 'ok':
                 break
         if res['status'] != 'ok':

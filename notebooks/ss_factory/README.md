@@ -66,13 +66,18 @@ corruption), and the j=1728 root convention for p ≡ 3 (mod 4).
 
 ![validation coverage](figs/coverage.png)
 
-## Follow-up: twist-Vélu (prototype in progress)
+## Follow-up: twist-Vélu (landed post-run)
 
-In the {2m, 2m} (m even) case the walk cannot pick a cheaper direction, but
-the kernel x-coordinates live in F_{p^m} and the kernel points on the
-quadratic twist over F_{p^m} — so the O(l) Vélu sum can run in half the
-degree.  m even means the twisting scalar cannot be taken in F_p, so the
-eigenline projection needs a relative quadratic extension F_{p^m}[t]/(t²−c)
-(`QuadExt`).  Modest payoff at 8192 (mostly the k=4 primes → 2, plus
-re-selection of the odd-k tail); the machinery is aimed at the next range
-doubling.
+When an eigenvalue has even order 2m, λ^m = −1: kernel x-coordinates live in
+F_{p^m} and the kernel points are rational on the quadratic twist, so the
+O(l) Vélu sum runs in half the degree; the eigenline projection uses the
+relative quadratic extension F_{p^m}[t]/(t²−c) (`QuadExt`, commit `bb93c71`).
+The path (`velu_l_isog_codomain_twist`, `b04404d`) is verified to produce
+identical codomains, and the walk builder routes even-order directions
+through it.  The rigid-set SELECTION deliberately keeps the true min degree:
+counting even k as k/2 let giant-l primes jump below small-l ones (the model
+is blind to the O(l) Vélu sum) and measurably regressed 1777/6637 — folding
+the twist into selection needs a work model (~ l·k²) and a work-cap ladder,
+deferred to the next range doubling.  The same commit also replaced the
+plain kernel search's O(l) `point_order` verification with an O(log l)
+check, a free across-the-board win (4013: 8.8 → 4.0 s, 6553: 31 → 24.6 s).
