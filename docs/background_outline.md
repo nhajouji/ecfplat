@@ -81,15 +81,29 @@ last.
   *(recipe + closed-form 2-isogeny; 𝔽ₚ applet computes codomain E/C and point
   images, verified images land on E/C and #E = #E/C)*
 
-### §5 — Modular tools  *(Story 3)*
-- ⬜ The j-function & modular forms.
-- ⬜ Modular curves X₀(ℓ).
-- ⬜ Modular polynomials Φ_ℓ — reading off isogenies without computing them.
+### §5 — Modular tools  *(Story 3)*  *(built 2026-07, from the MAA talk)*
+- ✅ Tab "The j-function and modular curves" — j classifies curves up to iso;
+  X(1) = SL₂(ℤ)\ℋ ≅ ℂ; X₀(ℓ) parametrizes cyclic ℓ-isogenies with source/target
+  maps to X(1); genus-0 Atkin primes.
+- ✅ Tab "Modular polynomials Φ_ℓ" — Φ_ℓ(j(E), j(E′)) = 0 ⟺ cyclic ℓ-isogeny;
+  neighbours = roots of Φ_ℓ(j, Y) mod p (no kernels); size/growth ⟹ the
+  bootstrapping loop behind 97.04% → 99.86%.
 
-### §6 — The CM bijection  *(Story 4 — closes the loop)*
-- ⬜ Quadratic forms, lattice classes & the class-group action.
-- ⬜ The bijection: lattice classes ↔ curves in an isogeny class.
-- ⬜ Labelling → the bijection.
+### §6 — The CM bijection  *(Story 4 — closes the loop)*  *(built 2026-07)*
+Rebuilt directly on the MAA talk's Act II. Three tabs:
+- ✅ "The gallery problem and the equivalence" — gallery problem + Setup (the two
+  categories 𝒜(α), ℰ_{𝔽ₚ}(a)) + lifting = equivalence 𝓕_𝔓 + cross-characteristic
+  aside.
+- ✅ "Isogeny graphs and rigidity" — equivalence ⟹ ℓ-graph isos; **ported disc
+  −368 volcano widget** (pills relabel the one graph as lattices or j mod p for
+  many (a,p)); rigid spanning set S.
+- ✅ "The algorithm and the gallery" — initial values (𝓕(𝒪), orientation) +
+  forced propagation (Cayley graphs of Cl(𝒪)); **ported gallery widget**
+  (rotate/reflect/reset over the 12 labelings, with mini-torus curve cards).
+
+Graphics ported from the talk via `pycode/slide_viz.py` + `st.components.v1.html`:
+the interactive **CM torus** (in §3, "Elliptic curves" tab), the **volcano**, and
+the **gallery**. Self-contained canvas/JS with their own validated data.
 
 ### Miscellaneous topics  *(catch-all, unnumbered, last)*
 - ✅ Isogenies over 𝔽ₚ & the volcano structure — **moved here** from Isogenies

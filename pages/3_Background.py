@@ -1,9 +1,16 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
+
 import streamlit as st
+import streamlit.components.v1 as components
 import numpy as np
 import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.patches import Arc as MplArc
+
+import slide_viz
 
 
 def _click_index(event):
@@ -78,6 +85,19 @@ with st.expander("§4 — Isogenies", expanded=False):
         "Isogenies: kernels and degree",
         "Analytic pictures: folding the torus",
         "Vélu's formulas over $\\mathbb{F}_p$",
+    ])
+
+with st.expander("§5 — Modular tools", expanded=False):
+    (tab_jfun, tab_modpoly) = st.tabs([
+        "The $j$-function and modular curves",
+        "Modular polynomials $\\Phi_\\ell$",
+    ])
+
+with st.expander("§6 — The CM bijection", expanded=False):
+    (tab_setup, tab_rigid, tab_algo) = st.tabs([
+        "The gallery problem and the equivalence",
+        "Isogeny graphs and rigidity",
+        "The algorithm and the gallery",
     ])
 
 with st.expander("Miscellaneous topics", expanded=False):
@@ -2015,6 +2035,23 @@ with tab_ell:
         "above). The classical $\\mathbb{F}_5$ grid simply has nowhere to put them."
     )
 
+    st.divider()
+
+    st.markdown("#### Explore the lattice picture")
+    st.markdown(
+        "The applet above is pinned to the four $j = 1728$ twists over "
+        "$\\mathbb{F}_5$. Here is the same construction set loose: pick any prime "
+        "$p$, any trace $a$ (so $\\#E(\\mathbb{F}_p) = p + 1 - a$), and any lattice "
+        "class of discriminant $a^2 - 4p$. The dots are the "
+        "$N = \\#\\,\\mathrm{Fix}([\\alpha]) = \\chi(1)$ solutions of "
+        "$(\\alpha - 1)\\,z \\in \\Lambda$ inside the fundamental domain "
+        "$\\langle 1, \\tau\\rangle$ — i.e. the group $E(\\mathbb{F}_p)$ drawn on "
+        "the CM torus. Every lattice class of a given discriminant carries the "
+        "*same* number of points; they are the different curves in one isogeny "
+        "class."
+    )
+    components.html(slide_viz.cm_torus_html(), height=440, scrolling=False)
+
 
 # ── Tab: Isogenies — kernels and degree ───────────────────────────────────────
 with tab_isog:
@@ -2645,6 +2682,259 @@ with tab_velu:
                 "$\\varphi(P)$ on the codomain $E/C$. Every point of $E$ maps to a "
                 "point of $E/C$, exactly $\\ell$-to-$1$."
             )
+
+
+# ══ §5 — Modular tools ════════════════════════════════════════════════════════
+
+# ── Tab: the j-function and modular curves ────────────────────────────────────
+with tab_jfun:
+    st.subheader("The $j$-function and Modular Curves")
+
+    st.markdown(
+        "So far we have moved between a curve and its lattice by hand. To do this "
+        "*in bulk* — and to read off isogenies without ever writing down a kernel "
+        "— we need the classical machinery of **modular curves**."
+    )
+    st.markdown(
+        "The **$j$-invariant** is a single number $j(E) \\in \\overline{\\mathbb{F}}_p$ "
+        "(or $\\mathbb{C}$) that determines an elliptic curve up to isomorphism over "
+        "the algebraic closure. Over $\\mathbb{C}$, writing $E = \\mathbb{C}/\\langle "
+        "1, \\tau\\rangle$, the value $j(\\tau)$ depends only on the lattice, and "
+        "$j$ identifies the quotient"
+    )
+    st.latex(r"X(1) \;=\; \mathrm{SL}_2(\mathbb{Z}) \backslash \mathcal{H}"
+             r"\;\xrightarrow{\;\sim\;}\; \mathbb{C}, \qquad \tau \longmapsto j(\tau).")
+    st.markdown(
+        "So a point of the **modular curve $X(1)$** *is* an isomorphism class of "
+        "elliptic curves. This is the space our whole gallery lives in."
+    )
+    st.markdown(
+        "To talk about isogenies we go one level up. The modular curve "
+        "**$X_0(\\ell)$** parametrizes pairs $(E, C)$ where $C \\subset E$ is a "
+        "cyclic subgroup of order $\\ell$ — equivalently, a cyclic $\\ell$-isogeny "
+        "$E \\to E/C$. It comes with two maps down to $X(1)$,"
+    )
+    st.latex(r"(E, C) \;\longmapsto\; j(E) \quad\text{and}\quad (E, C) \;\longmapsto\; j(E/C),")
+    st.markdown(
+        "the *source* and *target* $j$-invariants. The image of the combined map "
+        "$X_0(\\ell) \\to X(1) \\times X(1)$ is a plane curve — and its defining "
+        "equation is exactly the **modular polynomial** of the next tab. For small "
+        "$\\ell$ these curves have genus $0$ (the *Atkin primes* "
+        "$\\ell \\in \\{2, \\dots, 71\\}$ this project leans on), which is what makes "
+        "them cheap to compute with."
+    )
+
+# ── Tab: modular polynomials Φ_ℓ ──────────────────────────────────────────────
+with tab_modpoly:
+    st.subheader("Modular Polynomials $\\Phi_\\ell$")
+
+    st.markdown(
+        "The **modular polynomial** $\\Phi_\\ell(X, Y) \\in \\mathbb{Z}[X, Y]$ is a "
+        "symmetric polynomial with integer coefficients characterized by a single "
+        "property:"
+    )
+    st.latex(r"\Phi_\ell\big(j(E),\, j(E')\big) = 0 \quad\Longleftrightarrow\quad"
+             r"\text{there is a cyclic } \ell\text{-isogeny } E \to E'.")
+    st.markdown(
+        "Because the defining property is about $j$-invariants alone, the *same* "
+        "polynomial works over $\\mathbb{C}$ and over every $\\mathbb{F}_p$ (reduce "
+        "the coefficients mod $p$). This is the tool that turns isogenies into "
+        "**root-finding**:"
+    )
+    st.markdown(
+        "- The neighbours of a curve $E$ in the **$\\ell$-isogeny graph** are exactly "
+        "the roots $Y$ of the one-variable polynomial $\\Phi_\\ell\\big(j(E), Y\\big) "
+        "\\bmod p$.\n"
+        "- So we can walk the isogeny graph **without ever computing a kernel or a "
+        "quotient** — just factor $\\Phi_\\ell(j, Y)$ over $\\mathbb{F}_p$. (Vélu's "
+        "formulas of §4 are the alternative, and remain a fallback in the code.)"
+    )
+    st.markdown(
+        "The catch is size: $\\Phi_\\ell$ has degree $\\ell + 1$ in each variable and "
+        "coefficients that grow very quickly, so only finitely many are practical to "
+        "store. `ecfplat` ships the genus-$0$ Atkin polynomials $\\ell \\in \\{2, "
+        "\\dots, 71\\}$ and extends the pool with classical $\\Phi_\\ell$ computed on "
+        "demand (via a CRT / Hilbert-class-polynomial construction) whenever a "
+        "discriminant needs a prime the current pool cannot provide — the "
+        "**bootstrapping loop** behind the $97.04\\% \\to 99.86\\%$ jump on the home "
+        "page."
+    )
+
+
+# ══ §6 — The CM bijection ═════════════════════════════════════════════════════
+
+# ── Tab: the gallery problem and the equivalence ──────────────────────────────
+with tab_setup:
+    st.subheader("The Gallery Problem and the Equivalence")
+
+    st.markdown(
+        "The lattice pictures of §3 look great and they faithfully capture the "
+        "arithmetic, so of course we want a whole **gallery**: one labelled picture "
+        "for every curve in an isogeny class. Here is the obstruction."
+    )
+    st.markdown(
+        "Over $\\mathbb{F}_p$ there are always **many curves with the same trace of "
+        "Frobenius $a$ and the same endomorphism ring**. We can draw all their "
+        "pictures immediately — one per lattice class of discriminant $a^2 - 4p$ — "
+        "and we can label *one* of them freely: as long as the endomorphism rings "
+        "match, some prime ideal $\\mathfrak{P}$ makes that one labelling correct. "
+        "**After that first choice we are stuck.** Labelling the rest of the gallery "
+        "requires real mathematics — and that is what §6 is about."
+    )
+
+    st.divider()
+    st.markdown("#### Setup: two categories")
+    st.markdown(
+        "Fix $\\chi(x) = x^2 - a x + p$ with $a^2 - 4p < 0$, and let $\\alpha$ be a "
+        "root — a well-defined algebraic integer once the class is **ordinary** "
+        "($a \\neq 0$). We compare two categories:"
+    )
+    st.markdown(
+        "- $\\mathcal{A}(\\alpha)$ — the category of **analytic curves** "
+        "$E_\\Lambda = \\mathbb{C}/\\Lambda$ equipped with a root "
+        "$[\\alpha] \\in \\mathrm{End}(E_\\Lambda)$ of $\\chi$.\n"
+        "- $\\mathcal{E}_{\\mathbb{F}_p}(a)$ — the category of **elliptic curves over "
+        "$\\mathbb{F}_p$** with trace of Frobenius $a$; morphisms are isogenies "
+        "defined over $\\mathbb{F}_p$. (The “defined over $\\mathbb{F}_p$” "
+        "condition only bites when $a = 0$.)"
+    )
+
+    st.divider()
+    st.markdown("#### Lifting is an equivalence of categories")
+    st.markdown(
+        "Every curve downstairs has a **unique** lift of Frobenius "
+        "$(E_\\Lambda, [\\alpha])$ upstairs, and every object upstairs is the lift of "
+        "a unique curve downstairs. Choosing a prime ideal $\\mathfrak{P}$ turns this "
+        "into an **equivalence of categories**"
+    )
+    st.latex(r"\mathcal{F}_\mathfrak{P} : \mathcal{A}(\alpha) \;\xrightarrow{\;\sim\;}\; \mathcal{E}_{\mathbb{F}_p}(a),")
+    st.markdown(
+        "and conversely **every** equivalence $\\mathcal{A}(\\alpha) \\to "
+        "\\mathcal{E}_{\\mathbb{F}_p}(a)$ arises as $\\mathcal{F}_\\mathfrak{P}$ for "
+        "some $\\mathfrak{P}$. The upshot reframes the whole problem:"
+    )
+    st.info(
+        "**Labelling the gallery $\\iff$ computing any equivalence of categories** — "
+        "and both categories have only finitely many objects."
+    )
+    st.markdown(
+        "**An aside worth the price of admission.** The category "
+        "$\\mathcal{E}_{\\mathbb{F}_p}(a)$ depends only on the discriminant "
+        "$a^2 - 4p$. So if $a_1^2 - 4p_1 = a_2^2 - 4p_2$ then"
+    )
+    st.latex(r"\mathcal{E}_{\mathbb{F}_{p_1}}(a_1) \;\simeq\; \mathcal{E}_{\mathbb{F}_{p_2}}(a_2)")
+    st.markdown(
+        "— an equivalence between elliptic curves in **different characteristics**, "
+        "invisible to methods that work one prime at a time."
+    )
+
+# ── Tab: isogeny graphs and rigidity ──────────────────────────────────────────
+with tab_rigid:
+    st.subheader("Isogeny Graphs and Rigidity")
+
+    st.markdown(
+        "How do we pin the equivalence down? Through its shadow on **isogeny "
+        "graphs**. Write $X(\\mathcal{C})$ for the set of isomorphism classes in a "
+        "category $\\mathcal{C}$; the $\\ell$-isogeny graph puts one edge "
+        "$[E_1] \\to [E_2]$ per degree-$\\ell$ morphism. An equivalence of categories "
+        "induces **isomorphisms of $\\ell$-isogeny graphs for every $\\ell$** at "
+        "once."
+    )
+    st.markdown(
+        "Below is the $2$-isogeny graph for $\\mathrm{disc} = -368$: a **volcano** "
+        "(a crater rim of curves with the maximal endomorphism ring, plus trees "
+        "descending to the sub-orders). The point of the equivalence is that this is "
+        "the **same graph** for the lattice classes and for *every* $(a, p)$ with "
+        "$a^2 - 4p = -368$. Use the pills to relabel the identical graph — abstract "
+        "lattice classes, or the $j$-invariants mod $p$ for a series of primes:"
+    )
+    components.html(slide_viz.volcano_html(), height=650, scrolling=False)
+
+    st.divider()
+    st.markdown("#### Rigidity: a finite certificate")
+    st.markdown(
+        "The converse is what makes the labelling *computable*. For each $\\chi$ "
+        "there is a **finite** set $S = \\{\\ell_1, \\dots, \\ell_n\\}$ — a **rigid "
+        "spanning set** — with the property that any bijection "
+        "$X(\\mathcal{A}(\\alpha)) \\to X(\\mathcal{E}_{\\mathbb{F}_p}(a))$ that "
+        "induces isomorphisms of $\\ell$-isogeny graphs **for all $\\ell \\in S$** "
+        "already arises from an equivalence of categories. Checking finitely many "
+        "graphs certifies the whole labelling."
+    )
+    st.markdown(
+        "An explicit small $S$ can be read off the class group "
+        "$\\mathrm{Cl}(\\mathbb{Z}[\\alpha])$:"
+    )
+    st.markdown(
+        "- one prime $\\ell_\\mathfrak{b}$ for each generator $(\\mathfrak{b})$ in a "
+        "**minimal generating set** $B$ of $\\mathrm{Cl}(\\mathbb{Z}[\\alpha])$ "
+        "(spanning $\\iff$ generating);\n"
+        "- one **orientation prime** $\\ell^{*}$ when two or more generators have "
+        "order $> 2$;\n"
+        "- the prime factors of $\\mathrm{cond}(\\mathbb{Z}[\\alpha])$, to handle the "
+        "vertical extension up and down the volcano."
+    )
+
+# ── Tab: the algorithm and the gallery ────────────────────────────────────────
+with tab_algo:
+    st.subheader("The Algorithm and the Gallery")
+
+    st.markdown(
+        "The equivalences form a **single orbit** under "
+        "$\\mathrm{Cl}(\\mathcal{O}) \\times \\{\\pm 1\\}$ — there are far more "
+        "curves to label than there are degrees of freedom in the labelling. That "
+        "gap is exactly what makes the gallery rigid, and it splits the algorithm "
+        "into **a few free choices** followed by **forced propagation**."
+    )
+    st.markdown("#### The initial values (the only free choices)")
+    st.markdown(
+        "- Pick $\\mathcal{F}((\\mathcal{O}))$ — where the **trivial class** goes. "
+        "This is essentially the choice of prime ideal $\\mathfrak{P}$.\n"
+        "- Pick an **orientation**: $\\mathcal{F}((\\mathfrak{b}^{*}))$ among the two "
+        "neighbours of $\\mathcal{F}((\\mathcal{O}))$ in the $\\ell^{*}$-graph "
+        "(this is the $\\mathfrak{P} \\leftrightarrow \\overline{\\mathfrak{P}}$ "
+        "ambiguity)."
+    )
+    st.markdown("#### Propagation (everything else is forced)")
+    st.markdown(
+        "Read the rest straight off the graphs for $\\ell \\in S$, since these "
+        "graphs are **Cayley graphs of $\\mathrm{Cl}(\\mathcal{O})$**:"
+    )
+    st.markdown(
+        "- **radical words** via the isogeny trees $\\to$ **oriented cycle walks** "
+        "around the crater;\n"
+        "- **order-$2$ generators** are unambiguous (no orientation needed);\n"
+        "- **vertical** steps: match $\\ell$-ancestors up the volcano through "
+        "$\\mathrm{cond}(\\mathbb{Z}[\\alpha])$."
+    )
+    st.markdown(
+        "The output is the **unique** bijection extending the chosen initial values "
+        "that arises from an equivalence: a complete, correctly labelled gallery."
+    )
+
+    st.divider()
+    st.markdown("#### The gallery — and all of its labellings")
+    st.markdown(
+        "Here is the payoff for $(a, p) = (6, 101)$, $\\mathrm{disc} = -368$: the "
+        "same graph carrying the $2$-isogeny edges (solid) and $3$-isogeny cycles "
+        "(dashed), with a lattice picture beside each floor class. The buttons walk "
+        "the orbit of valid labellings:"
+    )
+    st.markdown(
+        "- **rotate** = act by a class of norm $3$; every label steps along its "
+        "$3$-isogeny cycle.\n"
+        "- **reflect** = complex conjugation, "
+        "$\\mathfrak{P} \\leftrightarrow \\overline{\\mathfrak{P}}$."
+    )
+    components.html(slide_viz.gallery_html(), height=580, scrolling=False)
+    st.caption(
+        "The cards show the six floor classes with their lattice pictures; hover a "
+        "card for its Weierstrass equation. All "
+        "$12 = |\\mathrm{Cl}(\\mathbb{Z}[\\alpha])| \\cdot |\\{\\pm 1\\}|$ labellings "
+        "are equally correct, and none is canonical. This computation has been "
+        "carried out for 117,155 ordinary classes with $4 \\leq p \\leq 8192$ "
+        "(99.86%), plus every supersingular class in that range."
+    )
 
 
 # ── Tab: Isogenies over 𝔽ₚ — volcanoes ────────────────────────────────────────

@@ -45,13 +45,29 @@ with col2:
 
 st.divider()
 
+st.markdown("### Dataset coverage")
+m1, m2, m3 = st.columns(3)
+m1.metric("Ordinary classes computed", "117,155")
+m2.metric("Coverage, $4 \\leq p \\leq 8192$", "99.86%")
+m3.metric("Supersingular primes", "1,026 / 1,026")
+st.caption(
+    "The elliptic-curve ↔ CM-lattice bijection has been computed for **117,155** ordinary "
+    "isogeny classes with $4 \\leq p \\leq 8192$ — **99.86%** of the range, up from **97.04%** "
+    "using modular polynomials alone. The bootstrapping method fills in the harder, "
+    "high-class-number discriminants, cutting the blocked classes roughly 20-fold. The "
+    "supersingular correspondence is complete for all **1,026** primes in the same range. "
+    "The interactive tools above currently load the $p \\leq 1024$ tables."
+)
+
+st.divider()
+
 st.markdown("### Updates")
 st.markdown(
     "**June 2026** — Public beta release. "
     "Isogeny class browser, EC search, isogeny graph visualisation, "
     "and Background lessons (algebraic curves, real and $\\mathbb{F}_p$ elliptic curves, "
     "analytic viewpoint, endomorphisms and CM). "
-    "Data and features currently available for primes $p \\leq 1024$."
+    "Interactive features currently available for primes $p \\leq 1024$."
 )
 
 st.divider()
