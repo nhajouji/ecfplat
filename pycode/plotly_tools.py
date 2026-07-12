@@ -580,3 +580,228 @@ def isogeny_graph_figure(isoclass, l, colors, qf_to_row, qf_to_hover,
     fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1,
                      range=[min(ys_all) - pad, max(ys_all) + pad])
     return fig
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Supersingular ℓ-isogeny graph over F_{p²} — Frobenius-mirror layout
+# ─────────────────────────────────────────────────────────────────────────────
+
+_SS_RATIONAL  = "#DAA520"                 # F_p-rational vertices (on the axis)
+_SS_EDGE      = "#8a99a8"                 # default edge colour
+_SS_EDGE_DIM  = "rgba(150,150,150,0.30)"  # non-incident edges while selected
+_SS_FIX_EDGE  = _H_EDGE                   # Frobenius-fixed edges
+_SS_SWAP_EDGE = _V_EDGE                   # Frobenius-swapped edges
+_SS_PAIR_LINK = "rgba(120,120,120,0.55)"  # conjugate-pair connector
+
+
+def _ss_positions(graph):
+    """Vertex coordinates with Frobenius acting as reflection across y = 0.
+
+    Conjugate pairs sit mirrored at angles ±θ on a circle of radius R; the
+    F_p-rational vertices lie on the fixed locus of the reflection, spread
+    along the horizontal diameter.  When every vertex is rational (no pairs)
+    fall back to a regular n-gon.
+    """
+    rational, frob = graph["rational"], graph["frob"]
+    n = len(graph["vertices"])
+    rats  = [i for i in range(n) if rational[i]]
+    pairs = [(i, frob[i]) for i in range(n) if i < frob[i]]
+    pos = {}
+    if not pairs:
+        R = max(_ngon_radius(n), 1.2)
+        for k, i in enumerate(rats):
+            ang = math.pi / 2 - (2 * math.pi * k / n if n > 1 else 0.0)
+            pos[i] = (R * math.cos(ang), R * math.sin(ang))
+        return pos, R
+    c, r = len(pairs), len(rats)
+    R = max(1.5, (c + 1) * _NODE_SPACING / math.pi,
+            (r + 1) * _NODE_SPACING / 1.6)
+    for k, (i, i2) in enumerate(pairs):
+        th = math.pi * (k + 1) / (c + 1)
+        pos[i]  = (R * math.cos(th),  R * math.sin(th))
+        pos[i2] = (R * math.cos(th), -R * math.sin(th))
+    xs = np.linspace(-0.8 * R, 0.8 * R, r) if r > 1 else [0.0]
+    for x, i in zip(xs, rats):
+        pos[i] = (float(x), 0.0)
+    return pos, R
+
+
+def _ss_edge_geometry(p0, p1):
+    """(unstyled shape dict, point-at-t map) for the edge p0 → p1.
+
+    Edges between two axis vertices bow upward (quadratic Bézier) so the
+    collinear rational vertices don't hide each other's edges; everything
+    else is a straight segment.
+    """
+    if abs(p0[1]) < 1e-9 and abs(p1[1]) < 1e-9:
+        cx, cy = 0.5 * (p0[0] + p1[0]), 0.45 * abs(p1[0] - p0[0])
+
+        def at(t):
+            u = 1.0 - t
+            return (u * u * p0[0] + 2 * t * u * cx + t * t * p1[0],
+                    u * u * p0[1] + 2 * t * u * cy + t * t * p1[1])
+
+        shape = dict(type="path",
+                     path=(f"M {p0[0]:.4f},{p0[1]:.4f} "
+                           f"Q {cx:.4f},{cy:.4f} {p1[0]:.4f},{p1[1]:.4f}"))
+        return shape, at
+
+    def at(t):
+        return (p0[0] + t * (p1[0] - p0[0]), p0[1] + t * (p1[1] - p0[1]))
+
+    return dict(type="line", x0=p0[0], y0=p0[1], x1=p1[0], y1=p1[1]), at
+
+
+def ss_graph_figure(graph, selected=None, mark_rational=True,
+                    show_frob_pairs=False, frob_edge_colors=False):
+    """Clickable Plotly picture of a supersingular ℓ-isogeny graph over F_{p²}.
+
+    `graph` is the dict returned by `ss_graph.ss_isogeny_graph(p, l)`.  The
+    layout realizes Frobenius as the reflection across the horizontal axis:
+    F_p-rational j's sit on the axis, conjugate pairs are mirrored on the
+    circle.  Nodes are numbered and carry `customdata` = vertex index, so a
+    click selects a vertex via the same mechanism as the other figures.
+
+    - mark_rational    : paint F_p-rational vertices gold + a faint axis line.
+    - show_frob_pairs  : dotted connector between each conjugate pair.
+    - frob_edge_colors : steelblue = Frobenius-fixed edge, orange = swapped.
+    - selected         : vertex index to highlight (red ring + incident edges).
+
+    Asymmetric multiplicities (only at j = 0, 1728, by Eichler's weighted
+    symmetry) are shown as one "×m" per edge end: the number of kernels
+    leaving that endpoint along the edge.
+    """
+    from ss_graph import jstr
+
+    p, l, s = graph["p"], graph["l"], graph["s"]
+    verts, rational = graph["vertices"], graph["rational"]
+    frob, adj = graph["frob"], graph["adj"]
+    n = len(verts)
+    pos, R = _ss_positions(graph)
+    pairs = [(i, frob[i]) for i in range(n) if i < frob[i]]
+
+    # ── Edges (layout shapes) + multiplicity labels ──────────────────────────
+    shapes, mult_labels, loop_extents = [], [], []
+    loop_r = 0.30
+    for ed in graph["edges"]:
+        i, k, m, m_rev = ed["i"], ed["k"], ed["m"], ed["m_rev"]
+        if i == k:
+            # Self-loop: small circle offset radially outward — except at axis
+            # vertices, where sideways loops collide with their neighbours, so
+            # hang the loop below the axis instead.
+            x, y = pos[i]
+            d = math.hypot(x, y)
+            if abs(y) < 1e-9:
+                ux, uy = 0.0, -1.0
+            else:
+                ux, uy = (x / d, y / d) if d > 1e-9 else (0.0, 1.0)
+            lcx, lcy = x + ux * (loop_r + 0.16), y + uy * (loop_r + 0.16)
+            color = _SS_EDGE
+            if frob_edge_colors:
+                color = _SS_FIX_EDGE if ed["frob_class"] == "fixed" else _SS_SWAP_EDGE
+            if selected is not None:
+                color = _RED if selected == i else _SS_EDGE_DIM
+            shapes.append(dict(type="circle", xref="x", yref="y",
+                               x0=lcx - loop_r, y0=lcy - loop_r,
+                               x1=lcx + loop_r, y1=lcy + loop_r,
+                               line=dict(color=color, width=1.5), layer="below"))
+            loop_extents += [(lcx - loop_r, lcy - loop_r),
+                             (lcx + loop_r, lcy + loop_r)]
+            if m > 1:
+                mult_labels.append((x + ux * (2 * loop_r + 0.42),
+                                    y + uy * (2 * loop_r + 0.42), f"×{m}"))
+            continue
+        shape, at = _ss_edge_geometry(pos[i], pos[k])
+        color, width = _SS_EDGE, 1.5
+        if frob_edge_colors:
+            color = _SS_FIX_EDGE if ed["frob_class"] == "fixed" else _SS_SWAP_EDGE
+        if selected is not None:
+            if selected in (i, k):
+                color, width = _RED, 2.5
+            else:
+                color, width = _SS_EDGE_DIM, 1.2
+        shape.update(line=dict(color=color, width=width), layer="below")
+        shapes.append(shape)
+        if m == m_rev:
+            if m > 1:
+                mult_labels.append((*at(0.5), f"×{m}"))
+        else:
+            # Asymmetric (an endpoint is j = 0 or 1728): outgoing count at
+            # each end.
+            mult_labels.append((*at(0.25), f"×{m}"))
+            mult_labels.append((*at(0.75), f"×{m_rev}"))
+
+    # ── Overlays ─────────────────────────────────────────────────────────────
+    if mark_rational and pairs and any(rational):
+        shapes.append(dict(type="line", x0=-0.92 * R, y0=0, x1=0.92 * R, y1=0,
+                           line=dict(color="rgba(218,165,32,0.30)", width=1,
+                                     dash="dash"), layer="below"))
+    if show_frob_pairs:
+        for i, i2 in pairs:
+            shapes.append(dict(type="line",
+                               x0=pos[i][0], y0=pos[i][1],
+                               x1=pos[i2][0], y1=pos[i2][1],
+                               line=dict(color=_SS_PAIR_LINK, width=1,
+                                         dash="dot"), layer="below"))
+
+    # ── Nodes ────────────────────────────────────────────────────────────────
+    size = max(12, min(26, int(420 / max(n, 16))))
+    fs   = max(7, min(12, int(220 / max(n, 16))))
+    xs, ys, node_colors, txt_colors, labels, hover, cdata = [], [], [], [], [], [], []
+    sizes, line_colors, line_widths = [], [], []
+    for i in range(n):
+        x, y = pos[i]
+        xs.append(x); ys.append(y)
+        # Hex (not the named "steelblue") so text_color_for can parse it.
+        col = _SS_RATIONAL if (mark_rational and rational[i]) else "#4682B4"
+        node_colors.append(col)
+        txt_colors.append(text_color_for(col))
+        labels.append(str(i))
+        cdata.append(i)
+        nbrs = "<br>".join(
+            f"  {jstr(verts[k], s)}" + (f"  ×{adj[i][k]}" if adj[i][k] > 1 else "")
+            for k in range(n) if adj[i][k])
+        tag = ("𝔽_p-rational" if rational[i]
+               else f"conjugate of #{frob[i]} = {jstr(verts[frob[i]], s)}")
+        hover.append(f"j = {jstr(verts[i], s)}<br>{tag}"
+                     f"<br>ℓ-isogenous to:<br>{nbrs}")
+        sel = (selected == i)
+        sizes.append(size + 8 if sel else size)
+        line_colors.append(_RED if sel else "black")
+        line_widths.append(3.0 if sel else 0.8)
+
+    node_trace = go.Scatter(
+        x=xs, y=ys, mode="markers+text",
+        marker=dict(color=node_colors, size=sizes,
+                    line=dict(color=line_colors, width=line_widths)),
+        text=labels, textposition="middle center",
+        textfont=dict(size=fs, color=txt_colors),
+        customdata=cdata,
+        hovertext=hover, hoverinfo="text",
+        selected=dict(marker=dict(opacity=1.0)),
+        unselected=dict(marker=dict(opacity=1.0)),
+    )
+
+    mult_anns = [dict(x=mx, y=my, text=t, showarrow=False,
+                      font=dict(size=11, color=_H_EDGE),
+                      bgcolor="rgba(255,255,255,0.75)")
+                 for (mx, my, t) in mult_labels]
+
+    fig = go.Figure(node_trace)
+    fig.update_layout(
+        title=dict(text=(f"Supersingular ℓ-isogeny graph over 𝔽_p²   "
+                         f"(p = {p}, ℓ = {l})"),
+                   x=0.5, xanchor="center", font=dict(size=16, color="black")),
+        shapes=shapes,
+        annotations=mult_anns,
+        margin=dict(l=10, r=10, t=44, b=10),
+        showlegend=False, plot_bgcolor="white", height=620,
+    )
+    xs_all = [q[0] for q in pos.values()] + [e[0] for e in loop_extents]
+    ys_all = [q[1] for q in pos.values()] + [e[1] for e in loop_extents]
+    pad = 0.9
+    fig.update_xaxes(visible=False,
+                     range=[min(xs_all) - pad, max(xs_all) + pad])
+    fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1,
+                     range=[min(ys_all) - pad, max(ys_all) + pad])
+    return fig
