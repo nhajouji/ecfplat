@@ -105,12 +105,13 @@ Graphics ported from the talk via `pycode/slide_viz.py` + `st.components.v1.html
 the interactive **CM torus** (in §3, "Elliptic curves" tab), the **volcano**, and
 the **gallery**. Self-contained canvas/JS with their own validated data.
 
-### Miscellaneous topics  *(catch-all, unnumbered, last)*
-- ✅ Isogenies over 𝔽ₚ & the volcano structure — **moved here** from Isogenies
-  (discussed too early in the main arc; kept, not deleted).
-  *(schematic applet: crater rim + descending ℓ-ary trees, params ℓ/rim/depth)*
-- ⬜ Quadratic twists, Hilbert class polynomials, the analytic class number
-  formula, supersingular specifics, … — slotted in as they come up.
+### Miscellaneous topics  *(removed 2026-07-12)*
+The catch-all "Miscellaneous topics" expander (which held the schematic
+𝔽ₚ-volcano applet) was **deleted**: the real volcano now lives in §6 (ported
+disc −368 widget) and the live computed ℓ-isogeny graphs are on the Isogeny
+Class page, so the schematic was redundant. May return later as its own
+*chapter* once there's content for it (quadratic twists, Hilbert class
+polynomials, analytic class number formula, supersingular specifics, …).
 
 ## Notes
 - Two existing tabs move out of the "Analytic Methods" expander: ℂ-tori → §1,
