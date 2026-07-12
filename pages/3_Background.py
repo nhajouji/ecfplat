@@ -471,10 +471,19 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "$\\mathcal{F}$ — a connected region, symmetric about the imaginary "
             "axis when $\\ell$ is odd."
         )
-        st.caption(
-            "_Picture to come: the $\\Gamma_0(\\ell)$ fundamental domain as $\\ell"
-            "+1$ tiles of $\\mathcal{F}$, with $\\ell$ selectable._"
+        st.markdown(
+            "The applet makes the dictionary concrete. A point of $X_0(\\ell)$ is "
+            "**a curve $E$ plus one of its $\\ell+1$ order-$\\ell$ subgroups**. On "
+            "the right, $E = \\mathbb{C}/\\langle 1, \\tau\\rangle$ carries its "
+            "$\\ell^2$ points of order dividing $\\ell$, coloured by which cyclic "
+            "subgroup they generate — click any point and its whole subgroup "
+            "lights up. Toggle **choose the curve $E$** to drag $\\tau$ around "
+            "$X(1)$, or **choose a point of $X_0(\\ell)$** to drag a marker across "
+            "the $\\ell+1$ tiles of the $\\Gamma_0(\\ell)$ domain — each tile is "
+            "one subgroup, so a single point fixes the curve *and* the subgroup at "
+            "once."
         )
+        components.html(modular_viz.x0_subgroup_html(), height=470, scrolling=False)
 
     # ── §9.2 — the j-map and Fricke involution ────────────────────────────────
     with tab_x0j:
@@ -608,8 +617,9 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "The full computations — the universal isogeny, larger $\\ell$, and "
             "the singularity resolution glossed over here — are carried out in "
             "the appendices of the author's papers on Mordell–Weil torsion and "
-            "F-theory (2019) and on computing supersingular isogeny graphs via "
-            "modular curves (2023)."
+            "F-theory ([arXiv:1910.04095](https://arxiv.org/abs/1910.04095), "
+            "2019) and on computing supersingular isogeny graphs via modular "
+            "curves ([arXiv:2303.09096](https://arxiv.org/abs/2303.09096), 2023)."
         )
 
 
