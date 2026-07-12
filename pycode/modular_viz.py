@@ -452,16 +452,25 @@ function drawE(){
   const c0=P(lat(0,0)),c1=P(lat(1,0)),c11=P(lat(1,1)),c01=P(lat(0,1));
   eCtx.strokeStyle="#4a4f55"; eCtx.lineWidth=1.5;
   eCtx.beginPath(); eCtx.moveTo(...c0); eCtx.lineTo(...c1); eCtx.lineTo(...c11); eCtx.lineTo(...c01); eCtx.closePath(); eCtx.stroke();
-  // subgroup lines (selected): segments 0 -> each generator multiple
-  const selPts=[];
-  for(let a=0;a<ell;a++)for(let b=0;b<ell;b++){
-    if(a===0&&b===0)continue;
-    const sIdx = (b===0)? ell : (a*modinv(b,ell))%ell;
-    if(sIdx===sub) selPts.push([a,b]);
-  }
-  if(selPts.length){
-    eCtx.strokeStyle=subColor(sub,true); eCtx.lineWidth=1.4;
-    for(const [a,b] of selPts){ const p=P(lat(a/ell,b/ell)); eCtx.beginPath(); eCtx.moveTo(...P(lat(0,0))); eCtx.lineTo(...p); eCtx.stroke(); }
+  // selected subgroup drawn as a torus geodesic 0, g, 2g, ... : a straight line
+  // of slope g wound onto the torus, wrapping across the edges (rather than
+  // jumping back to 0). Uses a minimal-winding generator v/ell.
+  {
+    const v = (sub===ell) ? [1,0] : [kkOf(sub),1];   // generator step v/ell
+    const wind = Math.abs(v[0]) + Math.abs(v[1]);
+    const NS = Math.max(240, 70*ell*wind);
+    eCtx.strokeStyle=subColor(sub,true); eCtx.lineWidth=1.7;
+    eCtx.beginPath();
+    let pen=false, px=0, py=0;
+    for(let i=0;i<=NS;i++){
+      const t=i/NS*ell;
+      const x=((t*v[0]/ell)%1+1)%1, y=((t*v[1]/ell)%1+1)%1;
+      const q=P(lat(x,y));
+      if(pen && (Math.abs(x-px)>0.5 || Math.abs(y-py)>0.5)) pen=false;  // wrapped -> lift pen
+      if(!pen){ eCtx.moveTo(q[0],q[1]); pen=true; } else eCtx.lineTo(q[0],q[1]);
+      px=x; py=y;
+    }
+    eCtx.stroke();
   }
   // torsion points
   window._eHit=[];
