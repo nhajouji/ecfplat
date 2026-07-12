@@ -340,11 +340,11 @@ draw(); showPanel();
 def x0_subgroup_html() -> str:
     """§9.1 applet: a point of X_0(l) = a curve + an order-l subgroup.
 
-    Right panel: E = C/<1,tau> with its l^2 torsion points, coloured by which of
-    the l+1 cyclic order-l subgroups they lie in; click a point to light its
-    subgroup. Left panel: either X(1) (drag the curve's shape tau) or the
-    Gamma_0(l) fundamental domain (l+1 tiles, one per subgroup -- drag the marker
-    to choose a point of X_0(l), which sets tau AND the subgroup at once).
+    Left panel: the Gamma_0(l) fundamental domain -- l+1 tiles, one per subgroup;
+    drag the marker to choose a point of X_0(l), which sets tau AND the subgroup
+    at once. Right panel: E = C/<1,tau> with its l^2 torsion points, coloured by
+    which of the l+1 cyclic order-l subgroups they lie in; click a point to light
+    its subgroup.
 
     Geometry: tile delta_k = S T^k = (0 -1; 1 k) carries the base subgroup
     <(1,0)> to <(k,1)>, and the point (shape s, subgroup C_k) sits at
@@ -353,10 +353,7 @@ def x0_subgroup_html() -> str:
     return _HEAD + r"""
 <div class="panel">
   <div class="modebar">
-    <button class="seg on" id="segCurve">choose the curve E</button>
-    <button class="seg" id="segX0">choose a point of X₀(ℓ)</button>
-    <span style="flex:1"></span>
-    <span style="align-self:center;color:var(--muted);font-size:.85rem;margin-right:6px;">ℓ =</span>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">a point of X₀(ℓ), &nbsp; ℓ =</span>
     <button class="seg ellbtn" data-l="2">2</button>
     <button class="seg ellbtn" data-l="3">3</button>
     <button class="seg ellbtn on" data-l="5">5</button>
@@ -364,7 +361,7 @@ def x0_subgroup_html() -> str:
   </div>
   <div class="stage">
     <div class="cell">
-      <div class="cap" id="capL">the curve E — its shape in X(1)</div>
+      <div class="cap">a point of X₀(ℓ) — the Γ₀(ℓ) tiling</div>
       <canvas id="mvX" width="340" height="340"></canvas>
     </div>
     <div class="cell">
@@ -390,7 +387,7 @@ function reduceFD(z){let t=C(z.re,z.im);for(let g=0;g<80;g++){const n=Math.round
 const inFD=z=>Math.abs(z.re)<=0.5+1e-6 && cabs2(z)>=1-1e-6 && z.im>0;
 
 // ---- state ----
-let ell=5, mode="curve";
+let ell=5;
 let s=C(0.20,1.25);   // shape tau in F
 let sub=ell;          // subgroup index: 0..ell-1 => C_k=<(k,1)>, ell => C_inf=<(1,0)>
 let dragging=false;
@@ -398,7 +395,6 @@ let dragging=false;
 const xCv=document.getElementById("mvX"), xCtx=xCv.getContext("2d");
 const eCv=document.getElementById("mvE"), eCtx=eCv.getContext("2d");
 const info=document.getElementById("mvInfo"), hint=document.getElementById("mvHint");
-const capL=document.getElementById("capL");
 
 const nSub=()=>ell+1;
 const subHue=i=>`${Math.round(360*i/nSub())}`;
@@ -425,30 +421,21 @@ function drawX(){
   xCtx.clearRect(0,0,xCv.width,xCv.height);
   xCtx.strokeStyle=GRID; xCtx.lineWidth=1;
   xCtx.beginPath(); xCtx.moveTo(0,xY(0)); xCtx.lineTo(xCv.width,xY(0)); xCtx.stroke();
-  if(mode==="curve"){
-    // level-1 fundamental domain + tau
-    fdPath(xCtx, z=>[xX(z.re),xY(z.im)]);
-    xCtx.fillStyle="rgba(77,163,216,0.10)"; xCtx.fill();
-    xCtx.strokeStyle="rgba(77,163,216,0.45)"; xCtx.lineWidth=1.5; xCtx.stroke();
-    xCtx.fillStyle=ACC; xCtx.beginPath(); xCtx.arc(xX(s.re),xY(s.im),6.5,0,7); xCtx.fill();
-    xCtx.fillStyle=INK; xCtx.font="13px system-ui"; xCtx.fillText("τ",xX(s.re)+9,xY(s.im)-8);
-  } else {
-    // Gamma_0(l) tiling: base F (C_inf) + petals delta_kk . F, coloured by subgroup
-    for(let sIdx=0;sIdx<ell;sIdx++){
-      const kk=kkOf(sIdx);
-      fdPath(xCtx, z=>{const w=mob(0,-1,1,kk,z); return [xX(w.re),xY(w.im)];});
-      xCtx.fillStyle=`hsla(${subHue(sIdx)},45%,52%,${sub===sIdx?0.34:0.14})`; xCtx.fill();
-      xCtx.strokeStyle=subColor(sIdx, sub===sIdx); xCtx.lineWidth=sub===sIdx?1.8:1; xCtx.stroke();
-    }
-    // base tile (C_inf)
-    fdPath(xCtx, z=>[xX(z.re),xY(z.im)]);
-    xCtx.fillStyle=`hsla(${subHue(ell)},45%,52%,${sub===ell?0.30:0.12})`; xCtx.fill();
-    xCtx.strokeStyle=subColor(ell, sub===ell); xCtx.lineWidth=sub===ell?1.8:1; xCtx.stroke();
-    // marker at delta . s
-    const m = (sub===ell) ? s : mob(0,-1,1,kkOf(sub),s);
-    xCtx.fillStyle="#fff"; xCtx.beginPath(); xCtx.arc(xX(m.re),xY(m.im),5.5,0,7); xCtx.fill();
-    xCtx.strokeStyle=subColor(sub,true); xCtx.lineWidth=2; xCtx.stroke();
+  // Gamma_0(l) tiling: base F (C_inf) + petals delta_kk . F, coloured by subgroup
+  for(let sIdx=0;sIdx<ell;sIdx++){
+    const kk=kkOf(sIdx);
+    fdPath(xCtx, z=>{const w=mob(0,-1,1,kk,z); return [xX(w.re),xY(w.im)];});
+    xCtx.fillStyle=`hsla(${subHue(sIdx)},45%,52%,${sub===sIdx?0.34:0.14})`; xCtx.fill();
+    xCtx.strokeStyle=subColor(sIdx, sub===sIdx); xCtx.lineWidth=sub===sIdx?1.8:1; xCtx.stroke();
   }
+  // base tile (C_inf)
+  fdPath(xCtx, z=>[xX(z.re),xY(z.im)]);
+  xCtx.fillStyle=`hsla(${subHue(ell)},45%,52%,${sub===ell?0.30:0.12})`; xCtx.fill();
+  xCtx.strokeStyle=subColor(ell, sub===ell); xCtx.lineWidth=sub===ell?1.8:1; xCtx.stroke();
+  // marker at delta . s
+  const m = (sub===ell) ? s : mob(0,-1,1,kkOf(sub),s);
+  xCtx.fillStyle="#fff"; xCtx.beginPath(); xCtx.arc(xX(m.re),xY(m.im),5.5,0,7); xCtx.fill();
+  xCtx.strokeStyle=subColor(sub,true); xCtx.lineWidth=2; xCtx.stroke();
 }
 
 function drawE(){
@@ -495,14 +482,11 @@ function drawE(){
 function subName(){ return sub===ell ? "⟨1/ℓ⟩" : `⟨(${kkOf(sub)}·1+τ)/ℓ⟩`; }
 function render(){
   drawX(); drawE();
-  const which = sub===ell ? ell : ((kkOf(sub)%ell)+ell)%ell + 1;
   const idx = sub===ell ? (ell+1) : (sub+1);
   info.innerHTML = `E = ℂ/⟨1, τ⟩, &nbsp; τ = ${s.re.toFixed(2)} + ${s.im.toFixed(2)}i `
     + `&nbsp;·&nbsp; subgroup C = <b style="color:${subColor(sub,true)}">${subName()}</b> `
     + `(${idx} of ℓ+1 = ${ell+1}) &nbsp;→&nbsp; a point of X₀(${ell}).`;
-  hint.textContent = mode==="curve"
-    ? "drag τ on the left to move the curve; click a torsion point on the right to pick its subgroup"
-    : "drag the marker on the left to choose a point of X₀(ℓ); or click a torsion point on the right";
+  hint.textContent = "drag the marker on the left to choose a point of X₀(ℓ); or click a torsion point on the right";
 }
 
 // ---- interaction ----
@@ -515,8 +499,7 @@ eCv.addEventListener("pointerdown",e=>{
   if(best>=0){ sub=best; render(); }
 });
 
-// left panel
-function setTauFromPx(p){const z=xInv(p.x,p.y); s=C(z.re, Math.max(0.06,z.im)); render();}
+// left panel: drag a point of X_0(l); locate its tile -> (tau, subgroup)
 function setX0FromPx(p){
   const z=xInv(p.x,p.y);
   // find the tile whose delta^{-1} z lands in F
@@ -529,18 +512,10 @@ function setX0FromPx(p){
   }
   sub=bestSub; s=reduceFD(bestCand); if(s.im<0.06)s=C(s.re,0.06); render();
 }
-xCv.addEventListener("pointerdown",e=>{dragging=true; xCv.setPointerCapture(e.pointerId); (mode==="curve"?setTauFromPx:setX0FromPx)(evt(xCv,e)); e.preventDefault();});
-xCv.addEventListener("pointermove",e=>{if(dragging)(mode==="curve"?setTauFromPx:setX0FromPx)(evt(xCv,e));});
+xCv.addEventListener("pointerdown",e=>{dragging=true; xCv.setPointerCapture(e.pointerId); setX0FromPx(evt(xCv,e)); e.preventDefault();});
+xCv.addEventListener("pointermove",e=>{if(dragging)setX0FromPx(evt(xCv,e));});
 window.addEventListener("pointerup",()=>{dragging=false;});
 
-function setMode(m){mode=m;
-  document.getElementById("segCurve").classList.toggle("on",m==="curve");
-  document.getElementById("segX0").classList.toggle("on",m==="x0");
-  capL.textContent = m==="curve" ? "the curve E — its shape in X(1)" : "a point of X₀(ℓ) — the Γ₀(ℓ) tiling";
-  render();
-}
-document.getElementById("segCurve").addEventListener("click",()=>setMode("curve"));
-document.getElementById("segX0").addEventListener("click",()=>setMode("x0"));
 document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
   ell=+b.dataset.l; sub=ell;
   document.querySelectorAll(".ellbtn").forEach(x=>x.classList.toggle("on",x===b));

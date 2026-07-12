@@ -410,8 +410,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         "Here we turn that fact into geometry: a modular curve whose points *are* "
         "the cyclic $\\ell$-isogenies. We keep writing $X(1) = \\Gamma\\backslash"
         "\\mathcal{H}$ for the modular curve of §7–§8 (level $1$; its coordinate "
-        "$j$ makes it the $j$-line), matching the family $X(N) = \\Gamma(N)"
-        "\\backslash\\mathcal{H}$. Throughout, $\\ell$ is prime and we work "
+        "$j$ makes it the $j$-line). Throughout, $\\ell$ is prime and we work "
         "analytically first."
     )
     (tab_x0a, tab_x0j, tab_x0alg) = st.tabs([
@@ -473,15 +472,14 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         st.markdown(
             "The applet makes the dictionary concrete. A point of $X_0(\\ell)$ is "
-            "**a curve $E$ plus one of its $\\ell+1$ order-$\\ell$ subgroups**. On "
-            "the right, $E = \\mathbb{C}/\\langle 1, \\tau\\rangle$ carries its "
-            "$\\ell^2$ points of order dividing $\\ell$, coloured by which cyclic "
-            "subgroup they generate — click any point and its whole subgroup "
-            "lights up. Toggle **choose the curve $E$** to drag $\\tau$ around "
-            "$X(1)$, or **choose a point of $X_0(\\ell)$** to drag a marker across "
-            "the $\\ell+1$ tiles of the $\\Gamma_0(\\ell)$ domain — each tile is "
-            "one subgroup, so a single point fixes the curve *and* the subgroup at "
-            "once."
+            "**a curve $E$ plus one of its $\\ell+1$ order-$\\ell$ subgroups**. Drag "
+            "the marker across the $\\ell+1$ tiles of the $\\Gamma_0(\\ell)$ "
+            "fundamental domain on the left: each tile is one subgroup, so a single "
+            "point fixes the curve *and* the subgroup at once. On the right, "
+            "$E = \\mathbb{C}/\\langle 1, \\tau\\rangle$ shows its $\\ell^2$ points "
+            "of order dividing $\\ell$, coloured by which cyclic subgroup they "
+            "generate — you can also click a point there to pick its subgroup "
+            "directly, and the whole subgroup lights up."
         )
         components.html(modular_viz.x0_subgroup_html(), height=470, scrolling=False)
 
