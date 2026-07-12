@@ -242,3 +242,96 @@ document.getElementById("segBasis").addEventListener("click",()=>setMode("basis"
 render();
 </script>
 """
+
+
+import json as _json
+
+
+def hilbert_applet_html(entries) -> str:
+    """Singular moduli / Hilbert class polynomials: CM points in the fundamental
+    domain, coloured by discriminant. Click a point to light up its
+    same-endomorphism-ring siblings and load H_D. ``entries`` is a list of
+    ``{d, h, pts:[[re,im]...], poly:<html>, j0}`` (see the page builder)."""
+    data = _json.dumps(entries)
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 300px 1fr;">
+    <div class="cell">
+      <div class="cap">CM points in Γ∖ℍ</div>
+      <canvas id="hcm" width="300" height="470"></canvas>
+    </div>
+    <div class="cell" style="justify-content:flex-start;">
+      <div class="cap" style="text-align:left;">the singular modulus / its class polynomial</div>
+      <div id="hpanel" style="border:1px solid #23272c;border-radius:8px;padding:14px;min-height:150px;"></div>
+      <div class="hint" style="text-align:left;margin-top:8px;">each colour is one discriminant D; click a point to select its class</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const ENTRIES = """ + data + r""";
+const ACC="#4da3d8", INK="#d7d9dc", MUT="#9aa4ad";
+const cv=document.getElementById("hcm"), ctx=cv.getContext("2d");
+const panel=document.getElementById("hpanel");
+
+// view window in ℍ
+let Imax=1.5; ENTRIES.forEach(e=>e.pts.forEach(p=>{ if(p[1]>Imax)Imax=p[1]; }));
+Imax+=0.35;
+const Rmin=-0.62, Rmax=0.62, Imin=0.42;
+const X=re=>(re-Rmin)/(Rmax-Rmin)*cv.width;
+const Y=im=>cv.height-(im-Imin)/(Imax-Imin)*cv.height;
+const colOf=i=>`hsl(${(i*137.5)%360}, 62%, 60%)`;
+
+let sel = ENTRIES.reduce((b,e,i)=> e.h>ENTRIES[b].h ? i : b, 0);  // default: a high-h class
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  // fundamental domain boundary
+  ctx.strokeStyle="rgba(77,163,216,0.35)"; ctx.lineWidth=1.4;
+  ctx.beginPath();
+  ctx.moveTo(X(-0.5),0); ctx.lineTo(X(-0.5),Y(Math.sqrt(3)/2));
+  for(let a=120;a>=60;a-=2){const r=a*Math.PI/180; ctx.lineTo(X(Math.cos(r)),Y(Math.sin(r)));}
+  ctx.lineTo(X(0.5),0);
+  ctx.stroke();
+  // points
+  ENTRIES.forEach((e,i)=>{
+    const on = i===sel;
+    e.pts.forEach(p=>{
+      const x=X(p[0]), y=Y(p[1]);
+      ctx.beginPath(); ctx.arc(x,y, on?5.5:3.6, 0,7);
+      ctx.fillStyle = on ? colOf(i) : `hsla(${(i*137.5)%360},45%,55%,0.45)`;
+      ctx.fill();
+      if(on){ ctx.strokeStyle="#fff"; ctx.lineWidth=1.6; ctx.stroke(); }
+    });
+  });
+}
+
+function showPanel(){
+  const e=ENTRIES[sel];
+  let html = `<div style="font-size:1.02rem;color:${INK};margin-bottom:6px;">`
+    + `discriminant <b>D = ${e.d}</b> &nbsp;·&nbsp; class number <b>h = ${e.h}</b></div>`;
+  html += `<div style="color:${MUT};font-size:.86rem;margin-bottom:10px;">`
+    + (e.h===1 ? `one CM point — a single singular modulus`
+              : `${e.h} CM points, all sharing this endomorphism ring`) + `</div>`;
+  html += `<div style="color:${MUT};font-size:.86rem;">Hilbert class polynomial</div>`;
+  html += `<div style="color:${INK};font-size:1.05rem;line-height:1.7;word-break:break-word;margin-top:2px;">`
+    + `H<sub>${e.d}</sub>(x) = ${e.poly}</div>`;
+  if(e.j0!==null && e.j0!==undefined)
+    html += `<div style="color:${ACC};font-size:.95rem;margin-top:8px;">singular modulus &nbsp; j = ${e.j0}</div>`;
+  panel.innerHTML=html;
+}
+
+cv.addEventListener("pointerdown",e=>{
+  const r=cv.getBoundingClientRect();
+  const px=(e.clientX-r.left)*cv.width/r.width, py=(e.clientY-r.top)*cv.height/r.height;
+  let best=-1, bd=14*14;
+  ENTRIES.forEach((en,i)=>en.pts.forEach(p=>{
+    const dx=X(p[0])-px, dy=Y(p[1])-py, d2=dx*dx+dy*dy;
+    if(d2<bd){bd=d2; best=i;}
+  }));
+  if(best>=0){ sel=best; draw(); showPanel(); }
+});
+
+draw(); showPanel();
+</script>
+"""
