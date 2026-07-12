@@ -404,6 +404,214 @@ with st.expander("§8 — The $j$-invariant", expanded=False):
         "so this view is deliberately pruned by discriminant and coefficient size."
     )
 
+with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
+    st.markdown(
+        "In §4 an isogeny was determined, up to isomorphism, by its **kernel**. "
+        "Here we turn that fact into geometry: a modular curve whose points *are* "
+        "the cyclic $\\ell$-isogenies. We keep writing $X(1) = \\Gamma\\backslash"
+        "\\mathcal{H}$ for the modular curve of §7–§8 (level $1$; its coordinate "
+        "$j$ makes it the $j$-line), matching the family $X(N) = \\Gamma(N)"
+        "\\backslash\\mathcal{H}$. Throughout, $\\ell$ is prime and we work "
+        "analytically first."
+    )
+    (tab_x0a, tab_x0j, tab_x0alg) = st.tabs([
+        "The analytic model",
+        "The $j$-map and Fricke involution",
+        "Algebraic models",
+    ])
+
+    # ── §9.1 — the analytic model ─────────────────────────────────────────────
+    with tab_x0a:
+        st.subheader("The Analytic Model of $X_0(\\ell)$")
+        st.markdown(
+            "Fix $E = \\mathbb{C}/\\Lambda$. A cyclic subgroup $C \\subset E$ of "
+            "order $\\ell$ pulls back to a **superlattice** $\\Lambda' \\supset "
+            "\\Lambda$ with $\\Lambda'/\\Lambda = C$ cyclic of order $\\ell$; the "
+            "isogeny is the quotient map $\\mathbb{C}/\\Lambda \\to \\mathbb{C}/"
+            "\\Lambda'$. So a cyclic $\\ell$-isogeny out of $E$ is the same data "
+            "as an **index-$\\ell$ superlattice** of $\\Lambda$."
+        )
+        st.markdown(
+            "For prime $\\ell$ we can choose bases of both lattices at once: there "
+            "is always a basis $\\omega_1, \\omega_2$ of $\\Lambda$ for which "
+            "$\\tfrac{1}{\\ell}\\omega_1, \\omega_2$ is a basis of $\\Lambda'$. "
+            "Dividing through by $\\omega_1$ as in §7,"
+        )
+        st.latex(r"\Lambda \sim \langle 1, \tau\rangle \;\subset\; "
+                 r"\langle \tfrac{1}{\ell},\, \tau\rangle \sim \Lambda',"
+                 r"\qquad \tau = \omega_2/\omega_1 \in \mathcal{H}.")
+        st.markdown(
+            "Now $\\tau$ records the **whole inclusion** — the domain *and* its "
+            "chosen order-$\\ell$ subgroup $C = \\langle\\tfrac{1}{\\ell}\\rangle$ "
+            "— not just the shape of $E$."
+        )
+        st.markdown(
+            "How much freedom is left? Exactly the changes of basis of $\\Lambda$ "
+            "that preserve the flag, i.e. that fix the subgroup $C$. A matrix "
+            "$\\left(\\begin{smallmatrix} a & b \\\\ c & d\\end{smallmatrix}"
+            "\\right) \\in \\mathrm{SL}(2,\\mathbb{Z})$ does so precisely when "
+            "$c \\equiv 0 \\pmod{\\ell}$ — which *defines*"
+        )
+        st.latex(r"\Gamma_0(\ell) = \left\{ \left(\begin{smallmatrix} a & b \\ "
+                 r"c & d\end{smallmatrix}\right) \in \mathrm{SL}(2,\mathbb{Z}) : "
+                 r"c \equiv 0 \pmod{\ell} \right\}.")
+        st.markdown(
+            "The definition falls out of the geometry rather than being imposed. "
+            "The moduli space of cyclic $\\ell$-isogenies is therefore"
+        )
+        st.latex(r"X_0(\ell) = \Gamma_0(\ell)\backslash\mathcal{H}.")
+        st.markdown(
+            "How big is it over $X(1)$? The $\\ell$-torsion $E[\\ell] \\cong "
+            "(\\mathbb{Z}/\\ell)^2$ has exactly $\\ell + 1$ cyclic subgroups of "
+            "order $\\ell$ — the lines in $\\mathbb{F}_\\ell^{\\,2}$ — matching the "
+            "index $[\\Gamma(1) : \\Gamma_0(\\ell)] = \\ell + 1$. Choosing "
+            "$\\ell+1$ coset representatives $\\gamma_0, \\dots, \\gamma_\\ell$, a "
+            "fundamental domain for $X_0(\\ell)$ is the union of the $\\ell+1$ "
+            "translates $\\gamma_i \\cdot \\mathcal{F}$ of the level-$1$ domain "
+            "$\\mathcal{F}$ — a connected region, symmetric about the imaginary "
+            "axis when $\\ell$ is odd."
+        )
+        st.caption(
+            "_Picture to come: the $\\Gamma_0(\\ell)$ fundamental domain as $\\ell"
+            "+1$ tiles of $\\mathcal{F}$, with $\\ell$ selectable._"
+        )
+
+    # ── §9.2 — the j-map and Fricke involution ────────────────────────────────
+    with tab_x0j:
+        st.subheader("The $j$-map and the Fricke Involution")
+        st.markdown(
+            "A point of $X_0(\\ell)$ is a whole isogeny $[E \\to E']$. Two "
+            "functions pull the arithmetic back out of it."
+        )
+        st.markdown(
+            "**The $j$-map.** Forgetting the subgroup gives a map $X_0(\\ell) "
+            "\\to X(1)$, $(E, C) \\mapsto E$; post-composing with $j$ gives"
+        )
+        st.latex(r"j : X_0(\ell) \to \mathbb{P}^1, \qquad j\big([E \to E']\big) = j(E),")
+        st.markdown(
+            "the isomorphism class of the **domain**. In the $\\tau$-model it is "
+            "simply $\\tau \\mapsto j(\\tau)$."
+        )
+        st.markdown(
+            "**The Fricke involution.** Sending an isogeny to its dual gives an "
+            "involution $w_\\ell : X_0(\\ell) \\to X_0(\\ell)$, $[E \\to E'] "
+            "\\mapsto [E' \\to E]$. On $\\mathcal{H}$ it is the Atkin–Lehner "
+            "matrix $\\left(\\begin{smallmatrix} 0 & -1 \\\\ \\ell & 0"
+            "\\end{smallmatrix}\\right)$, i.e."
+        )
+        st.latex(r"w_\ell : \tau \mapsto -\frac{1}{\ell\,\tau}.")
+        st.markdown(
+            "It normalizes $\\Gamma_0(\\ell)$ (so it descends to $X_0(\\ell)$), "
+            "squares to the identity ($w_\\ell^2\\tau = \\tau$), and carries the "
+            "flag $\\langle 1,\\tau\\rangle \\subset \\langle\\tfrac1\\ell,\\tau"
+            "\\rangle$ to the dual flag."
+        )
+        st.markdown(
+            "Now the payoff. The codomain is $E' = \\mathbb{C}/\\Lambda'$ with "
+            "$\\Lambda' = \\langle\\tfrac1\\ell,\\tau\\rangle \\sim \\langle 1, "
+            "\\ell\\tau\\rangle$, so $j(E') = j(\\ell\\tau)$. And since $j(-1/z) = "
+            "j(z)$,"
+        )
+        st.latex(r"j\big(w_\ell\, \tau\big) = j\!\left(-\tfrac{1}{\ell\tau}\right) "
+                 r"= j(\ell\tau) = j(E').")
+        st.markdown(
+            "So $j$ and $j \\circ w_\\ell$ hand you the **two endpoints** of the "
+            "isogeny — the domain and codomain $j$-invariants. This is exactly the "
+            "pair $(j, j')$ that the modular polynomial $\\Phi_\\ell$ relates (§5). "
+            "With *any* model of $X_0(\\ell)$ plus these two functions, a point "
+            "tells you both."
+        )
+        st.markdown(
+            "**Where the two agree.** The isogeny is an endomorphism ($E \\cong "
+            "E'$) exactly when $j(\\tau) = j(\\ell\\tau)$ — the Fricke-fixed points, "
+            "and the Fricke-swapped pairs collapsing to a single $j$. These are the "
+            "**CM points**: the singular moduli of §8, and precisely the diagonal "
+            "$\\Phi_\\ell(X, X) = 0$. So $X_0(\\ell)$ sees the CM world again — the "
+            "thread we pull to build the bijection of §6."
+        )
+        st.caption(
+            "_Picture to come: a point on $X_0(\\ell)$ showing its domain $j(\\tau)$ "
+            "and codomain $j(\\ell\\tau)$, with Fricke swapping them and the CM "
+            "points lit up._"
+        )
+
+    # ── §9.3 — algebraic models ───────────────────────────────────────────────
+    with tab_x0alg:
+        st.subheader("Algebraic Models")
+        st.markdown(
+            "The analytic model says *what* $X_0(\\ell)$ is; to compute over "
+            "$\\mathbb{F}_p$ we need it as an **algebraic curve** with explicit "
+            "equations. The clean route runs through universal families."
+        )
+        st.markdown(
+            "**From the universal curve to $X_1(\\ell)$.** Take the universal "
+            "elliptic curve carrying a marked point $P$ — a Weierstrass family "
+            "with a few parameters. Imposing “$P$ has exact order $\\ell$” is a "
+            "polynomial condition on those parameters, and the relation it cuts "
+            "out is a model of $X_1(\\ell)$, the curve parametrizing pairs "
+            "$(E, P)$ with $P$ of order $\\ell$. (Smooth for small $\\ell$; we "
+            "won't dwell on the resolution needed for larger $\\ell$.)"
+        )
+        st.markdown(
+            "**Down to $X_0(\\ell)$.** A point of $X_0(\\ell)$ remembers only the "
+            "*subgroup* $C = \\langle P\\rangle$, not the chosen generator, so"
+        )
+        st.latex(r"X_0(\ell) = X_1(\ell)\big/\langle m\rangle, \qquad "
+                 r"(E, P) \mapsto (E, mP),")
+        st.markdown(
+            "where $m$ generates $(\\mathbb{Z}/\\ell)^\\times/\\{\\pm 1\\}$ (the "
+            "diamond operator)."
+        )
+        st.markdown(
+            "**The maps, explicitly.** Because we hold the universal curve in "
+            "hand, $j$ is an explicit rational function of the parameters; it "
+            "descends to the $j$-map $X_0(\\ell) \\to \\mathbb{P}^1$. For the "
+            "*other* endpoint, apply **Vélu's formulas** (§4) to the universal "
+            "curve to get the universal degree-$\\ell$ isogeny $E \\to E/C$; the "
+            "$j$-invariant of its codomain is $j \\circ w_\\ell$ as a rational "
+            "function. (Computing this universal isogeny can even shortcut the "
+            "quotient above.)"
+        )
+        st.markdown(
+            "**Worked example: $\\ell = 5$.** Here $X_0(5)$ has genus $0$, so a "
+            "single **Hauptmodul** $t$ coordinatizes it and both maps are rational "
+            "in $t$:"
+        )
+        st.latex(r"j = \frac{(t^2 + 250\,t + 3125)^3}{t^5}, \qquad "
+                 r"j \circ w_5 = \frac{(t^2 + 10\,t + 5)^3}{t},")
+        st.markdown(
+            "with the Fricke involution acting as $t \\mapsto 125/t$ — indeed "
+            "$j(125/t)$ reproduces the second formula. Dialling $t$ walks along "
+            "$X_0(5)$, and the two rational functions read off the domain and "
+            "codomain $j$-invariants of the corresponding $5$-isogeny."
+        )
+        st.markdown(
+            "**Why these levels.** The repository stores such $j$-maps for the "
+            "prime levels where $X_0(\\ell)$ is genus $0$ — $\\ell \\in \\{2, 3, "
+            "5, 7, 13\\}$ — with Fricke always of the tidy form $t \\mapsto m/t$, "
+            "where"
+        )
+        st.latex(r"m = \ell^{\,12/(\ell - 1)} \in \{4096,\ 729,\ 125,\ 49,\ 13\}.")
+        st.markdown(
+            "The exponent $12/(\\ell-1)$ is an integer exactly when $\\ell - 1 "
+            "\\mid 12$ — that is, for $\\ell \\in \\{2,3,5,7,13\\}$, which is "
+            "*precisely* the list of genus-$0$ prime levels. The same arithmetic "
+            "that keeps $t \\mapsto m/t$ clean is what makes the curve a "
+            "$\\mathbb{P}^1$."
+        )
+        st.caption(
+            "_Picture to come: a genus-$0$ dial — pick $\\ell \\in \\{2,3,5,7,13\\}$, "
+            "move $t$, and read $j(\\text{domain}) = j(t)$ and $j(\\text{codomain}) "
+            "= j(m/t)$ straight off the model._"
+        )
+        st.markdown(
+            "The full computations — the universal isogeny, larger $\\ell$, and "
+            "the singularity resolution glossed over here — are carried out in "
+            "the appendices of the author's papers on Mordell–Weil torsion and "
+            "F-theory (2019) and on computing supersingular isogeny graphs via "
+            "modular curves (2023)."
+        )
+
 
 # ── Tab 0: Algebraic curves over ℝ ───────────────────────────────────────────
 with tab0:
