@@ -536,11 +536,18 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "$\\Phi_\\ell(X, X) = 0$. So $X_0(\\ell)$ sees the CM world again — the "
             "thread we pull to build the bijection of §6."
         )
-        st.caption(
-            "_Picture to come: a point on $X_0(\\ell)$ showing its domain $j(\\tau)$ "
-            "and codomain $j(\\ell\\tau)$, with Fricke swapping them and the CM "
-            "points lit up._"
+        st.markdown(
+            "Drag the point $\\tau$ around $X_0(\\ell)$ on the left. On the right, "
+            "the isogeny it names is drawn as the two lattices $\\Lambda = \\langle "
+            "1, \\tau\\rangle \\subset \\Lambda'$ — the domain in blue, the "
+            "index-$\\ell$ superlattice (the codomain $E' = \\mathbb{C}/\\Lambda'$) "
+            "in gold. The gold point $w(\\tau) = -1/(\\ell\\tau)$ on the left is the "
+            "**dual** isogeny. The coloured dots are the **endomorphism points** — "
+            "the $\\tau$ with $j(\\tau) = j(\\ell\\tau)$, one colour per CM "
+            "discriminant — computed with the repository's quadratic-form tools; "
+            "watch $\\tau$ and $w(\\tau)$ meet as you pass through one."
         )
+        components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
 
     # ── §9.3 — algebraic models ───────────────────────────────────────────────
     with tab_x0alg:

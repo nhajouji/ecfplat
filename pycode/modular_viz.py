@@ -534,3 +534,188 @@ document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
 render();
 </script>
 """
+
+
+# Endomorphism points on X_0(l): CM points where the l-isogeny is an endo
+# (j(tau)=j(l tau) -- the Fricke-fixed / same-j locus). Precomputed with
+# qfs.qf_x0_endos over |D| <= 80, as [re, im, disc] on the Gamma_0(l) tiling.
+_X0_ENDOS = {
+  "2": [[0.5,0.5,-4],[0.375,0.3307,-7],[0.25,0.6614,-7],[0.0,0.7071,-8]],
+  "3": [[0.5,0.2887,-3],[0.3333,0.4714,-8],[-0.3333,0.4714,-8],[0.1667,0.5528,-11],[-0.1667,0.5528,-11],[0.0,0.5774,-12]],
+  "5": [[0.4,0.2,-4],[-0.4,0.2,-4],[0.3,0.3317,-11],[-0.3,0.3317,-11],[0.2,0.4,-16],[-0.2,0.4,-16],[0.1,0.4359,-19],[-0.1,0.4359,-19],[0.0,0.4472,-20],[0.3333,0.1491,-20]],
+  "7": [[0.3571,0.1237,-3],[-0.3571,0.1237,-3],[0.25,0.0945,-7],[0.2857,0.2474,-12],[-0.2857,0.2474,-12],[0.2143,0.3113,-19],[-0.2143,0.3113,-19],[0.1429,0.3499,-24],[-0.1429,0.3499,-24],[0.2857,0.1166,-24],[-0.2857,0.1166,-24],[0.0714,0.3712,-27],[-0.0714,0.3712,-27],[0.0,0.378,-28]]
+}
+
+
+def x0_fricke_html() -> str:
+    """§9.2 applet: the j-maps and the Fricke involution.
+
+    Left: the Gamma_0(l) tiling (zoomed to the cusp), with the permanent
+    endomorphism points (coloured by discriminant), a draggable point tau, and
+    its Fricke image w(tau) = -1/(l tau) reduced back into the tiling. Right: the
+    two lattices of the isogeny E -> E' -- the domain Lambda = <1,tau> and the
+    index-l superlattice Lambda' in a second colour.
+    """
+    import json as _j
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">an isogeny in X₀(ℓ), &nbsp; ℓ =</span>
+    <button class="seg ellbtn" data-l="2">2</button>
+    <button class="seg ellbtn" data-l="3">3</button>
+    <button class="seg ellbtn on" data-l="5">5</button>
+    <button class="seg ellbtn" data-l="7">7</button>
+  </div>
+  <div class="stage">
+    <div class="cell">
+      <div class="cap">X₀(ℓ): τ, its dual w(τ), and the endomorphism points</div>
+      <canvas id="mvX" width="340" height="340"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">the isogeny Λ ⊂ Λ′ &nbsp;(domain · superlattice)</div>
+      <canvas id="mvE" width="340" height="340"></canvas>
+    </div>
+  </div>
+  <div class="info" id="mvInfo"></div>
+  <div class="hint" id="mvHint"></div>
+</div>
+<script>
+"use strict";
+const DOM="#4da3d8", SUP="#e0b64f", INK="#d7d9dc", MUT="#9aa4ad", GRID="#3a3f45";
+const ENDO=""" + _j.dumps(_X0_ENDOS) + r""";
+
+const C=(re,im)=>({re,im});
+const cabs2=z=>z.re*z.re+z.im*z.im;
+const cmul=(a,b)=>C(a.re*b.re-a.im*b.im, a.re*b.im+a.im*b.re);
+const cinv=z=>{const d=cabs2(z);return C(z.re/d,-z.im/d);};
+const mob=(a,b,c,d,z)=>cmul(C(a*z.re+b,a*z.im), cinv(C(c*z.re+d,c*z.im)));
+
+let ell=5, s=C(0.20,1.30), sub=0, dragging=false, DCOL={};  // sub=0 (a petal) so tau is in the zoomed view
+const kkOf=sIdx => (sIdx <= (ell-1)/2 ? sIdx : sIdx-ell);
+
+const xCv=document.getElementById("mvX"), xCtx=xCv.getContext("2d");
+const eCv=document.getElementById("mvE"), eCtx=eCv.getContext("2d");
+const info=document.getElementById("mvInfo"), hint=document.getElementById("mvHint");
+
+// left window: zoomed toward the cusp so the endo points spread out
+const XW={xmin:-0.62,xmax:0.62,ymin:0.0,ymax:1.2};
+const xX=re=>(re-XW.xmin)/(XW.xmax-XW.xmin)*xCv.width;
+const xY=im=>xCv.height-(im-XW.ymin)/(XW.ymax-XW.ymin)*xCv.height;
+const xInv=(px,py)=>C(XW.xmin+px/xCv.width*(XW.xmax-XW.xmin), XW.ymin+(xCv.height-py)/xCv.height*(XW.ymax-XW.ymin));
+
+function reduceMat(z){
+  let t=C(z.re,z.im), g=[[1,0],[0,1]];
+  for(let it=0;it<120 && t.im>1e-9;it++){
+    const n=Math.round(t.re);
+    if(n!==0){ t=C(t.re-n,t.im); g=[[g[0][0]-n*g[1][0],g[0][1]-n*g[1][1]],[g[1][0],g[1][1]]]; }
+    if(cabs2(t)<1-1e-9){ const d=cabs2(t); t=C(-t.re/d,t.im/d); g=[[-g[1][0],-g[1][1]],[g[0][0],g[0][1]]]; }
+    else break;
+  }
+  return {s:t,g:g};
+}
+// FD representative of the X_0(l) point of any w in H: its tile + position
+function x0pos(w){
+  const r=reduceMat(w), g=r.g;
+  const gi=[[g[1][1],-g[0][1]],[-g[1][0],g[0][0]]];   // g^{-1}
+  const m=x=>(((x%ell)+ell)%ell);
+  let sb=ell;
+  if(m(gi[1][0])!==0){ for(let k=0;k<ell;k++) if(m(gi[1][0]*kkOf(k)-gi[1][1])===0){sb=k;break;} }
+  const pos = sb===ell ? r.s : mob(0,-1,1,kkOf(sb),r.s);
+  return {sub:sb, s:r.s, pos};
+}
+
+function buildDiscColors(){
+  const ds=[...new Set((ENDO[ell]||[]).map(e=>e[2]))].sort((a,b)=>b-a);
+  DCOL={}; ds.forEach((D,i)=>DCOL[D]=`hsl(${Math.round(360*i/Math.max(1,ds.length))},64%,62%)`);
+}
+const discColor=D=>DCOL[D]||"#888";
+
+function fdPath(ctx, map){
+  ctx.beginPath(); let first=true;
+  const push=z=>{const p=map(z); if(first){ctx.moveTo(p[0],p[1]);first=false;} else ctx.lineTo(p[0],p[1]);};
+  for(let im=XW.ymax+0.6; im>=Math.sqrt(3)/2; im-=0.1) push(C(-0.5,im));
+  for(let a=120;a>=60;a-=3) push(C(Math.cos(a*Math.PI/180),Math.sin(a*Math.PI/180)));
+  for(let im=Math.sqrt(3)/2; im<=XW.ymax+0.6; im+=0.1) push(C(0.5,im));
+}
+
+function drawX(){
+  xCtx.clearRect(0,0,xCv.width,xCv.height);
+  xCtx.strokeStyle=GRID; xCtx.lineWidth=1;
+  xCtx.beginPath(); xCtx.moveTo(0,xY(0)); xCtx.lineTo(xCv.width,xY(0)); xCtx.stroke();
+  // faint tiles
+  xCtx.strokeStyle="rgba(150,160,170,0.16)"; xCtx.lineWidth=1;
+  for(let k=0;k<ell;k++){ fdPath(xCtx, z=>{const w=mob(0,-1,1,kkOf(k),z);return [xX(w.re),xY(w.im)];}); xCtx.stroke(); }
+  fdPath(xCtx, z=>[xX(z.re),xY(z.im)]); xCtx.stroke();
+  // permanent endomorphism points
+  for(const [re,im,D] of (ENDO[ell]||[])){
+    xCtx.fillStyle=discColor(D); xCtx.beginPath(); xCtx.arc(xX(re),xY(im),4.5,0,7); xCtx.fill();
+    xCtx.strokeStyle="rgba(0,0,0,0.35)"; xCtx.lineWidth=1; xCtx.stroke();
+  }
+  // tau and its Fricke dual
+  const tau = sub===ell ? s : mob(0,-1,1,kkOf(sub),s);
+  const w = cmul(C(-1,0), cinv(C(ell*tau.re, ell*tau.im)));   // -1/(l tau)
+  const fr = x0pos(w).pos;
+  xCtx.fillStyle="rgba(224,182,79,0.55)"; xCtx.beginPath(); xCtx.arc(xX(fr.re),xY(fr.im),6.5,0,7); xCtx.fill();
+  xCtx.strokeStyle=SUP; xCtx.lineWidth=1.6; xCtx.stroke();
+  xCtx.fillStyle=INK; xCtx.font="12px system-ui"; xCtx.fillText("w(τ)", xX(fr.re)+9, xY(fr.im)-6);
+  xCtx.fillStyle="#fff"; xCtx.beginPath(); xCtx.arc(xX(tau.re),xY(tau.im),6.5,0,7); xCtx.fill();
+  xCtx.strokeStyle=DOM; xCtx.lineWidth=2; xCtx.stroke();
+  xCtx.fillStyle=INK; xCtx.fillText("τ", xX(tau.re)+9, xY(tau.im)-6);
+}
+
+function drawE(){
+  eCtx.clearRect(0,0,eCv.width,eCv.height);
+  const gv = sub===ell ? [1/ell,0] : [kkOf(sub)/ell, 1/ell];  // subgroup generator in (a,b) coords
+  const cpx=(a,b)=>C(a + b*s.re, b*s.im);
+  const pad=24;
+  const xsAll=[0,2,2+2*s.re,2*s.re], ysAll=[0,2*s.im];
+  const xmin=Math.min(...xsAll), xmax=Math.max(...xsAll), ymax=Math.max(...ysAll);
+  const sc=Math.min((eCv.width-2*pad)/(xmax-xmin),(eCv.height-2*pad)/ymax);
+  const ox=pad-xmin*sc, oy=eCv.height-pad;
+  const P=z=>[ox+z.re*sc, oy-z.im*sc];
+  // superlattice extra points (Lambda' \ Lambda)
+  for(let mm=-1;mm<=2;mm++)for(let nn=-1;nn<=2;nn++)for(let i=1;i<ell;i++){
+    const p=P(cpx(mm+i*gv[0], nn+i*gv[1]));
+    if(p[0]<-2||p[0]>eCv.width+2||p[1]<-2||p[1]>eCv.height+2)continue;
+    eCtx.fillStyle="rgba(224,182,79,0.9)"; eCtx.beginPath(); eCtx.arc(p[0],p[1],2.5,0,7); eCtx.fill();
+  }
+  // domain lattice points
+  for(let mm=-1;mm<=2;mm++)for(let nn=-1;nn<=2;nn++){
+    const p=P(cpx(mm,nn));
+    if(p[0]<-2||p[0]>eCv.width+2||p[1]<-2||p[1]>eCv.height+2)continue;
+    eCtx.fillStyle=DOM; eCtx.beginPath(); eCtx.arc(p[0],p[1],3.7,0,7); eCtx.fill();
+  }
+  // one fundamental parallelogram of Lambda
+  const c0=P(cpx(0,0)),c1=P(cpx(1,0)),c11=P(cpx(1,1)),c01=P(cpx(0,1));
+  eCtx.strokeStyle="#565b61"; eCtx.lineWidth=1.3;
+  eCtx.beginPath(); eCtx.moveTo(...c0);eCtx.lineTo(...c1);eCtx.lineTo(...c11);eCtx.lineTo(...c01);eCtx.closePath(); eCtx.stroke();
+}
+
+function subName(){
+  if(sub===ell) return "⟨1/ℓ⟩";
+  const kk=kkOf(sub);
+  const g = kk===0 ? "τ" : (kk>0 ? `${kk}+τ` : `τ−${-kk}`);
+  return `⟨(${g})/ℓ⟩`;
+}
+function render(){
+  drawX(); drawE();
+  info.innerHTML = `<b style="color:${DOM}">E = ℂ/Λ</b>, Λ = ⟨1, τ⟩ &nbsp;→&nbsp; `
+    + `<b style="color:${SUP}">E′ = ℂ/Λ′</b> (degree ℓ, subgroup ${subName()}). `
+    + `Fricke sends τ to <b style="color:${SUP}">w(τ) = −1/(ℓτ)</b> — the dual isogeny E′ → E.`;
+  hint.textContent = "drag anywhere on the left to move the isogeny τ; coloured dots are the endomorphisms (j(τ)=j(ℓτ)), one colour per discriminant";
+}
+
+function evt(cv,e){const r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)*cv.width/r.width, y:(e.clientY-r.top)*cv.height/r.height};}
+function setFromPx(p){ const r=x0pos(xInv(p.x,p.y)); sub=r.sub; s=r.s; if(s.im<0.06)s=C(s.re,0.06); render(); }
+xCv.addEventListener("pointerdown",e=>{dragging=true; xCv.setPointerCapture(e.pointerId); setFromPx(evt(xCv,e)); e.preventDefault();});
+xCv.addEventListener("pointermove",e=>{if(dragging)setFromPx(evt(xCv,e));});
+window.addEventListener("pointerup",()=>{dragging=false;});
+document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
+  ell=+b.dataset.l; sub=0; s=C(0.20,1.30);
+  document.querySelectorAll(".ellbtn").forEach(x=>x.classList.toggle("on",x===b));
+  buildDiscColors(); render();
+}));
+
+buildDiscColors(); render();
+</script>
+"""
