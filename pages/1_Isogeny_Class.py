@@ -5,7 +5,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 import streamlit as st
 import pandas as pd
 
-from ecqf_tools import ECQFIsogenyClass, ap_in_pc_data, ec_eq_str_base
+from ecqf import ECQFIsogenyClass, ap_in_pc_data, ec_eq_str_base
 from plotly_tools import fd_points_figure, isogeny_graph_figure
 from palette import row_colors
 from nt import primeQ
