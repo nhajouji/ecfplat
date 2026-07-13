@@ -10,73 +10,12 @@ import matplotlib.pyplot as plt
 import plotly.graph_objects as go
 from matplotlib.patches import Polygon as MplPolygon
 from matplotlib.patches import Arc as MplArc
-from matplotlib.colors import hsv_to_rgb
 
 import slide_viz
 import modular_viz
 
 
 # ── Chapter 3 (Modular Curves) helpers ────────────────────────────────────────
-# First few q-expansion coefficients of j = 1/q + 744 + c(1)q + ...  (enough for
-# a domain-coloring picture; in the fundamental domain |q| is tiny so the series
-# converges after a handful of terms).
-_JC = [196884, 21493760, 864299970, 20245856256, 333202640600,
-       4252023300096, 44656994071935, 401490886656000]
-
-
-@st.cache_data(show_spinner=False)
-def _j_domain_coloring(w: int = 440, h: int = 300):
-    """RGB domain-coloring of j over a window of ℍ. Each τ is first reduced to
-    the fundamental domain (j is Γ-invariant, so j(τ) = j(reduced τ) exactly),
-    which both makes the q-series converge and reveals the Γ-tiling."""
-    xs = np.linspace(-2.0, 2.0, w)
-    ys = np.linspace(2.0, 0.05, h)
-    Z = xs[None, :] + 1j * ys[:, None]
-    z = Z.copy()
-    for _ in range(60):                       # reduce to fundamental domain
-        z -= np.round(z.real)
-        m = np.abs(z) < 1 - 1e-9
-        if not m.any():
-            break
-        z[m] = -1.0 / z[m]
-    q = np.exp(2j * np.pi * z)                 # j via q-expansion
-    j = 1.0 / q + 744.0
-    qn = q.copy()
-    for c in _JC:
-        j += c * qn
-        qn *= q
-    mag = np.abs(j)
-    hue = (np.angle(j) / (2 * np.pi)) % 1.0
-    val = 0.34 + 0.46 * (0.5 + 0.5 * np.sin(np.log(mag + 1e-9) * 1.7))  # log-|j| bands
-    hsv = np.stack([hue, np.full_like(mag, 0.58), np.clip(val, 0, 1)], axis=-1)
-    return hsv_to_rgb(hsv)
-
-
-def _j_coloring_figure():
-    rgb = _j_domain_coloring()
-    fig, ax = plt.subplots(figsize=(6.4, 4.3))
-    ax.imshow(rgb, extent=[-2, 2, 0.05, 2], origin="upper",
-              aspect="auto", interpolation="bilinear")
-    th = np.linspace(np.pi / 3, 2 * np.pi / 3, 120)   # fundamental-domain outline
-    ax.plot(np.cos(th), np.sin(th), color="white", lw=1.1, alpha=0.6)
-    ax.plot([-0.5, -0.5], [np.sqrt(3) / 2, 2], color="white", lw=1.1, alpha=0.6)
-    ax.plot([0.5, 0.5], [np.sqrt(3) / 2, 2], color="white", lw=1.1, alpha=0.6)
-    ax.scatter([0], [1], s=22, color="white", zorder=5)
-    ax.annotate("i  (j = 1728)", (0, 1), color="white", fontsize=8,
-                xytext=(6, -3), textcoords="offset points")
-    ax.scatter([0.5], [np.sqrt(3) / 2], s=22, color="white", zorder=5)
-    ax.annotate("ρ  (j = 0)", (0.5, np.sqrt(3) / 2), color="white", fontsize=8,
-                xytext=(6, 3), textcoords="offset points")
-    ax.set_xlim(-2, 2)
-    ax.set_ylim(0.05, 2)
-    ax.set_xlabel(r"$\mathrm{Re}\,\tau$")
-    ax.set_ylabel(r"$\mathrm{Im}\,\tau$")
-    ax.set_title(r"$j$ on $\mathcal{H}$ — hue = phase, bands = $\log|j|$; "
-                 r"the pattern repeats over each $\Gamma$-translate", fontsize=9)
-    fig.tight_layout()
-    return fig
-
-
 @st.cache_data(show_spinner=False)
 def _hilbert_applet_data(dmax: int = 100, coeff_digits: int = 15):
     """CM points + Hilbert class polynomials for the singular-moduli applet.
@@ -171,48 +110,6 @@ def _two_point_pick(prefix, clicked_pt):
 
 _OINF = "O"   # sentinel for the point at infinity 𝒪 in the click selections
 
-
-@st.cache_data(show_spinner=False)
-def _j_mult_coloring(mult: int, w: int = 300, h: int = 300):
-    """Domain-colouring of τ ↦ j(mult·τ) over a window of ℍ. mult = 1 is the
-    domain j-map j(τ); mult = ℓ is j∘Fricke = j(ℓτ), the codomain."""
-    xs = np.linspace(-1.5, 1.5, w)
-    ys = np.linspace(2.2, 0.06, h)
-    z = mult * (xs[None, :] + 1j * ys[:, None])
-    for _ in range(80):
-        z -= np.round(z.real)
-        m = np.abs(z) < 1 - 1e-9
-        if not m.any():
-            break
-        z[m] = -1.0 / z[m]
-    q = np.exp(2j * np.pi * z)
-    j = 1.0 / q + 744.0
-    qn = q.copy()
-    for c in _JC:
-        j += c * qn
-        qn *= q
-    mag = np.abs(j)
-    hue = (np.angle(j) / (2 * np.pi)) % 1.0
-    val = 0.34 + 0.46 * (0.5 + 0.5 * np.sin(np.log(mag + 1e-9) * 1.7))
-    return hsv_to_rgb(np.stack([hue, np.full_like(mag, 0.58), np.clip(val, 0, 1)], axis=-1))
-
-
-def _j_fricke_figure(ell: int):
-    """Side-by-side domain-colourings of j(τ) and j(ℓτ) over ℍ."""
-    panels = ((_j_mult_coloring(1), r"$j(\tau)$ — the domain $E$"),
-              (_j_mult_coloring(ell), r"$j(\ell\tau)$ — the codomain $E'$ (Fricke)"))
-    fig, axes = plt.subplots(1, 2, figsize=(7.4, 3.3))
-    for ax, (rgb, title) in zip(axes, panels):
-        ax.imshow(rgb, extent=[-1.5, 1.5, 0.06, 2.2], origin="upper",
-                  aspect="auto", interpolation="bilinear")
-        ax.set_xlim(-1.5, 1.5)
-        ax.set_ylim(0.06, 2.2)
-        ax.set_title(title, fontsize=9)
-        ax.set_xlabel(r"$\mathrm{Re}\,\tau$", fontsize=8)
-        ax.tick_params(labelsize=7)
-    axes[0].set_ylabel(r"$\mathrm{Im}\,\tau$", fontsize=8)
-    fig.tight_layout()
-    return fig
 
 
 st.header("Background")
@@ -396,9 +293,11 @@ with st.expander("§7 — The moduli space of elliptic curves", expanded=False):
             "domain**: you are looking at $\\Gamma\\backslash\\mathcal{H}$ tiled "
             "across the plane. The two corners are the special shapes — $\\tau = i$ "
             "(the square lattice, $j = 1728$) and $\\tau = \\rho = e^{i\\pi/3}$ (the "
-            "hexagonal lattice, $j = 0$)."
+            "hexagonal lattice, $j = 0$). **Drag $\\tau$** to read off $j(\\tau)$; "
+            "the gold ring is the canonical representative of $\\tau$ in the "
+            "fundamental domain — same colour, same $j$."
         )
-        st.pyplot(_j_coloring_figure())
+        components.html(modular_viz.j_coloring_html(), height=475, scrolling=False)
         st.divider()
         st.markdown("#### What $j$ does for us")
         st.markdown("For this project, $j$ earns its keep in three ways.")
@@ -583,9 +482,11 @@ with st.expander("§8 — The modular curve $X_0(\\ell)$", expanded=False):
             "left, $\\tau \\mapsto j_2(\\tau) = j(\\tau)$ colours each point of "
             "$X_0(2)$ by its **domain**; on the right, $\\tau \\mapsto "
             "j_2(\\mathfrak{F}_2\\tau) = j(2\\tau)$ colours it by its **codomain**. "
-            "The involution $\\mathfrak{F}_2$ interchanges the two pictures."
+            "The involution $\\mathfrak{F}_2$ interchanges the two pictures: drag "
+            "$\\tau$ and compare it with its gold partner $\\mathfrak{F}_2\\tau$ — "
+            "the left colour at one is the right colour at the other."
         )
-        st.pyplot(_j_fricke_figure(2))
+        components.html(modular_viz.j_fricke_pair_html(), height=445, scrolling=False)
 
         st.markdown(
             "**Where the two agree.** The isogeny is an endomorphism ($E \\cong "

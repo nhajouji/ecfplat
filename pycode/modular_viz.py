@@ -1057,3 +1057,202 @@ window.addEventListener("pointerup",()=>{dragging=false;});
 render();
 </script>
 """
+
+
+# Shared JS for applets that colour regions of the upper half-plane by j(tau):
+# fundamental-domain reduction + the q-expansion (a JS port of the numpy
+# helpers these applets replace). Bright colouring — in these pictures the
+# colouring IS the subject (contrast _G0_LIB's dimmed backdrop).
+_H_LIB = r"""
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f";
+const JC=[196884,21493760,864299970,20245856256,333202640600,
+          4252023300096,44656994071935,401490886656000];
+function fdRed(x,y){                     // reduce tau into the fundamental domain
+  for(let i=0;i<80;i++){
+    x-=Math.round(x);
+    const n=x*x+y*y;
+    if(n<1-1e-9){ x=-x/n; y=y/n; } else break;
+  }
+  return [x,y];
+}
+function jval(x,y,mult){                 // j(mult * (x+iy)) as [re, im]
+  const r=fdRed(x*mult, y*mult), e=Math.exp(-2*Math.PI*r[1]),
+        qr=e*Math.cos(2*Math.PI*r[0]), qi=e*Math.sin(2*Math.PI*r[0]);
+  const n=qr*qr+qi*qi;
+  let jr=qr/n+744, ji=-qi/n, pr=qr, pi=qi;
+  for(const c of JC){
+    jr+=c*pr; ji+=c*pi;
+    const t=pr*qr-pi*qi; pi=pr*qi+pi*qr; pr=t;
+  }
+  return [jr,ji];
+}
+function hsv2rgb(h,s,v){const i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);
+  let r,g,b; switch(((i%6)+6)%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;default:r=v;g=p;b=q;} return [r,g,b];}
+function jrgb(jr,ji){
+  const mag=Math.hypot(jr,ji);
+  let h=(Math.atan2(ji,jr)/(2*Math.PI)); h=((h%1)+1)%1;
+  const v=0.34+0.46*(0.5+0.5*Math.sin(Math.log(mag+1e-9)*1.7));
+  return hsv2rgb(h,0.58,Math.max(0,Math.min(1,v)));
+}
+function paintJ(cv,x0,x1,y0,y1,mult){    // fill canvas with the colouring
+  const ctx=cv.getContext("2d"), W=cv.width, H=cv.height,
+        img=ctx.createImageData(W,H);
+  for(let py=0;py<H;py++)for(let px=0;px<W;px++){
+    const x=x0+(x1-x0)*px/W, y=y1-(y1-y0)*py/H;
+    const j=jval(x,y,mult), c=jrgb(j[0],j[1]), i=(py*W+px)*4;
+    img.data[i]=c[0]*255; img.data[i+1]=c[1]*255; img.data[i+2]=c[2]*255; img.data[i+3]=255;
+  }
+  return img;
+}
+function fmtC(a,b){const mag=Math.hypot(a,b),s=b<0?"−":"+";
+  const f=v=>mag>=1e6?v.toExponential(2):v.toFixed(1);
+  return `${f(a)} ${s} ${f(Math.abs(b))}i`;}
+"""
+
+
+def j_coloring_html() -> str:
+    """S7.2 applet (replaces the static matplotlib figure): domain-colouring of
+    j over H, with a draggable tau.
+
+    Drag tau anywhere in the window; because j is Gamma-invariant the gold ring
+    shows the canonical representative in the fundamental domain (same colour,
+    same j — the tiling made tangible) and the panel reads off j(tau) from the
+    q-expansion. i and rho are marked."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">ℍ coloured by j — hue = phase, bands = log|j|; drag τ</div>
+      <canvas id="jc" width="640" height="312"></canvas>
+      <div id="jcout" style="margin-top:8px;font-size:.93rem;"></div>
+      <div class="hint" style="margin-top:4px;">the pattern repeats over every Γ-translate of the fundamental domain (outlined); the gold ring is the canonical representative of τ</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+""" + _H_LIB + r"""
+const X0=-2, X1=2, Y0=0.06, Y1=2.0;
+const cv=document.getElementById("jc"), ctx=cv.getContext("2d");
+const out=document.getElementById("jcout");
+const PX=x=>(x-X0)/(X1-X0)*cv.width, PY=y=>(Y1-y)/(Y1-Y0)*cv.height;
+let tx=0.35, ty=1.15, dragging=false;
+const bgimg=paintJ(cv,X0,X1,Y0,Y1,1);
+
+function draw(){
+  ctx.putImageData(bgimg,0,0);
+  // fundamental-domain outline
+  ctx.strokeStyle="rgba(255,255,255,0.6)"; ctx.lineWidth=1.2;
+  ctx.beginPath();
+  for(let i=0;i<=90;i++){const th=Math.PI/3+i*(Math.PI/3)/90;
+    const px=PX(Math.cos(th)), py=PY(Math.sin(th));
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(PX(-0.5),PY(Math.sqrt(3)/2)); ctx.lineTo(PX(-0.5),PY(Y1));
+  ctx.moveTo(PX(0.5),PY(Math.sqrt(3)/2)); ctx.lineTo(PX(0.5),PY(Y1)); ctx.stroke();
+  // i and rho
+  ctx.fillStyle="#fff"; ctx.font="11px system-ui";
+  ctx.beginPath(); ctx.arc(PX(0),PY(1),3,0,7); ctx.fill();
+  ctx.fillText("i  (j = 1728)", PX(0)+6, PY(1)+12);
+  ctx.beginPath(); ctx.arc(PX(0.5),PY(Math.sqrt(3)/2),3,0,7); ctx.fill();
+  ctx.fillText("ρ  (j = 0)", PX(0.5)+6, PY(Math.sqrt(3)/2)-6);
+  // canonical representative (gold ring), then tau (white marker)
+  const r=fdRed(tx,ty);
+  if(Math.abs(r[0]-tx)>1e-9||Math.abs(r[1]-ty)>1e-9){
+    ctx.strokeStyle=SUP; ctx.lineWidth=2.2;
+    ctx.beginPath(); ctx.arc(PX(r[0]),PY(Math.min(r[1],Y1)),7,0,7); ctx.stroke();
+  }
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(PX(tx),PY(ty),6,0,7); ctx.fill();
+  ctx.strokeStyle=DOM; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=INK; ctx.font="12px system-ui"; ctx.fillText("τ", PX(tx)+8, PY(ty)-6);
+}
+function render(){
+  draw();
+  const j=jval(tx,ty,1), r=fdRed(tx,ty);
+  out.innerHTML =
+    `τ = ${fmtC(tx,ty)} &nbsp;·&nbsp; canonical rep ${fmtC(r[0],r[1])}`
+    + ` &nbsp;·&nbsp; <b>j(τ) = ${fmtC(j[0],j[1])}</b>`;
+}
+function evt(e){const b=cv.getBoundingClientRect();
+  tx=X0+(e.clientX-b.left)/b.width*(X1-X0);
+  ty=Math.max(Y0+0.02, Math.min(Y1, Y1-(e.clientY-b.top)/b.height*(Y1-Y0)));}
+cv.addEventListener("pointerdown",e=>{dragging=true; cv.setPointerCapture(e.pointerId); evt(e); render(); e.preventDefault();});
+cv.addEventListener("pointermove",e=>{if(dragging){evt(e); render();}});
+window.addEventListener("pointerup",()=>{dragging=false;});
+render();
+</script>
+"""
+
+
+def j_fricke_pair_html() -> str:
+    """S8.2 applet (replaces the static matplotlib pair): j(tau) vs j(2 tau).
+
+    One tau, two colourings: the left panel colours X_0(2) by the domain
+    j-invariant j(tau), the right by the codomain j(2 tau). Drag in either
+    panel; the gold partner is the Fricke image F_2(tau) = -1/(2 tau), and the
+    dashed circle |tau| = 1/sqrt(2) is the F_2-fixed locus where the two
+    colourings agree (CM points)."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell">
+      <div class="cap">j(τ) — the domain E</div>
+      <canvas id="jfa" width="316" height="280"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">j(2τ) — the codomain E′ (Fricke)</div>
+      <canvas id="jfb" width="316" height="280"></canvas>
+    </div>
+  </div>
+  <div id="jfout" style="margin-top:8px;font-size:.93rem;"></div>
+  <div class="hint" style="margin-top:4px;">drag τ in either panel; gold = 𝔉₂τ = −1/(2τ). Dashed: the fixed circle |τ| = 1/√2, where the two colourings agree (CM).</div>
+</div>
+<script>
+"use strict";
+""" + _H_LIB + r"""
+const X0=-1.5, X1=1.5, Y0=0.06, Y1=2.2;
+const cva=document.getElementById("jfa"), cvb=document.getElementById("jfb");
+const out=document.getElementById("jfout");
+let tx=0.25, ty=0.9, dragging=false;
+const imga=paintJ(cva,X0,X1,Y0,Y1,1), imgb=paintJ(cvb,X0,X1,Y0,Y1,2);
+
+function overlay(cv,img){
+  const ctx=cv.getContext("2d");
+  ctx.putImageData(img,0,0);
+  const PX=x=>(x-X0)/(X1-X0)*cv.width, PY=y=>(Y1-y)/(Y1-Y0)*cv.height;
+  // Fricke-fixed circle |tau| = 1/sqrt(2)
+  ctx.strokeStyle="rgba(255,255,255,0.55)"; ctx.setLineDash([5,4]); ctx.lineWidth=1.2;
+  ctx.beginPath();
+  for(let i=0;i<=120;i++){const th=i*Math.PI/120;
+    const px=PX(Math.cos(th)/Math.SQRT2), py=PY(Math.sin(th)/Math.SQRT2);
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+  ctx.stroke(); ctx.setLineDash([]);
+  // Fricke partner (gold) then tau (white)
+  const fn=2*(tx*tx+ty*ty), fx=-tx/fn, fy=ty/fn;
+  ctx.fillStyle=SUP; ctx.beginPath(); ctx.arc(PX(fx),PY(fy),5,0,7); ctx.fill();
+  ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(PX(tx),PY(ty),6,0,7); ctx.fill();
+  ctx.strokeStyle=DOM; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=INK; ctx.font="12px system-ui"; ctx.fillText("τ", PX(tx)+8, PY(ty)-6);
+}
+function render(){
+  overlay(cva,imga); overlay(cvb,imgb);
+  const jd=jval(tx,ty,1), jc=jval(tx,ty,2);
+  const oncirc=Math.abs(Math.hypot(tx,ty)-1/Math.SQRT2)<0.02;
+  out.innerHTML =
+    `τ = ${fmtC(tx,ty)} &nbsp;·&nbsp; <b style="color:${DOM}">domain</b> j(τ) = ${fmtC(jd[0],jd[1])}`
+    + ` &nbsp;·&nbsp; <b style="color:${SUP}">codomain</b> j(2τ) = ${fmtC(jc[0],jc[1])}`
+    + (oncirc?` &nbsp;·&nbsp; <span style="color:#ef6f6f">on the fixed circle: E ≅ E′ (CM)</span>`:"");
+}
+function grab(cv){
+  const evt=e=>{const b=cv.getBoundingClientRect();
+    tx=X0+(e.clientX-b.left)/b.width*(X1-X0);
+    ty=Math.max(Y0+0.02, Math.min(Y1, Y1-(e.clientY-b.top)/b.height*(Y1-Y0)));};
+  cv.addEventListener("pointerdown",e=>{dragging=true; cv.setPointerCapture(e.pointerId); evt(e); render(); e.preventDefault();});
+  cv.addEventListener("pointermove",e=>{if(dragging){evt(e); render();}});
+}
+grab(cva); grab(cvb);
+window.addEventListener("pointerup",()=>{dragging=false;});
+render();
+</script>
+"""
