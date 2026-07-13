@@ -572,20 +572,15 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "polynomial $\\Phi_\\ell$ relates (§5). With *any* model of "
             "$X_0(\\ell)$ plus these two functions, a point tells you both."
         )
-        st.markdown("#### The two $j$-maps, side by side")
+        st.markdown("#### The two $j$-maps for a $2$-isogeny")
         st.markdown(
             "The same domain-colouring as in §8, now for both endpoints. On the "
-            "left, $\\tau \\mapsto j_\\ell(\\tau) = j(\\tau)$ colours each point of "
-            "$X_0(\\ell)$ by its **domain**; on the right, $\\tau \\mapsto "
-            "j_\\ell(\\mathfrak{F}_\\ell\\tau) = j(\\ell\\tau)$ colours it by its "
-            "**codomain**. The involution $\\mathfrak{F}_\\ell$ interchanges the "
-            "two."
+            "left, $\\tau \\mapsto j_2(\\tau) = j(\\tau)$ colours each point of "
+            "$X_0(2)$ by its **domain**; on the right, $\\tau \\mapsto "
+            "j_2(\\mathfrak{F}_2\\tau) = j(2\\tau)$ colours it by its **codomain**. "
+            "The involution $\\mathfrak{F}_2$ interchanges the two pictures."
         )
-        _fr_ell = st.radio(
-            "Level $\\ell$", [2, 3, 5, 7], index=2, horizontal=True,
-            key="x0j_fricke_ell",
-        )
-        st.pyplot(_j_fricke_figure(_fr_ell))
+        st.pyplot(_j_fricke_figure(2))
 
         st.markdown(
             "**Where the two agree.** The isogeny is an endomorphism ($E \\cong "
