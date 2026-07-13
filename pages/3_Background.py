@@ -675,6 +675,34 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "$\\mathbb{P}^1$."
         )
         st.markdown(
+            "**Endomorphism points.** The diagonal condition $j_\\ell(x) = "
+            "j_\\ell(m/x)$ — a curve $\\ell$-isogenous to itself, i.e. an "
+            "$\\ell$-endomorphism, i.e. CM — has $2\\ell$ solutions, and every "
+            "one of them lies on the circle $|x| = \\sqrt{m}$, the fixed locus "
+            "of $\\mathfrak{F}_\\ell$ (where $m/x = \\bar{x}$). This is the "
+            "algebraic mirror of the analytic fact from §9.2 that the self-dual "
+            "locus is $|\\tau| = 1/\\sqrt{\\ell}$."
+        )
+        st.markdown(
+            "Here is the algebraic model as a picture. Where the analytic $X_0("
+            "\\ell)$ was a fundamental domain with edges to glue, the genus-$0$ "
+            "model is just the **real $x$-line** $\\cong \\mathbb{P}^1("
+            "\\mathbb{R})$, sitting in its ambient plane — no gluing, cusps at "
+            "$0$ and $\\infty$. The plane (dimly coloured by $j_\\ell$, the §8 "
+            "scheme) is only the backdrop. Overlaid is the **real locus of "
+            "$j_\\ell$**, weighted Belyi-style: the preimage of the segment "
+            "$[0, 1728]$ between the two finite critical values — the *dessin* "
+            "— is bright, while the preimages of $j \\le 0$ and $j \\ge 1728$ "
+            "stay faint. Red dots are the $2\\ell$ endomorphism points on the "
+            "dashed self-dual circle."
+        )
+        components.html(modular_viz.genus0_plane_html(), height=625, scrolling=False)
+        st.caption(
+            "Levels $\\{3, 5, 7, 13\\}$ — the odd genus-$0$ primes tabulated in "
+            "`jcoefs.json`, with $j_\\ell(x) = a_1(x)\\,a_3(x)^3\\,a_{-1}(x)^{-1}$ "
+            "and $m = \\ell^{12/(\\ell-1)}$."
+        )
+        st.markdown(
             "**From the point back to the curves.** A point $x$ of $X_0(5)$ is "
             "supposed to *be* a pair $(E, C)$ — so we should be able to hand back "
             "actual equations. We can. The universal curve over $X_1(5)$ is the "
@@ -690,39 +718,15 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "at the Fricke partner $m/x$ recovers the **codomain** $E/C$. The "
             "radicand $x^2 + 22x + 125$ has negative discriminant, so it is "
             "positive on *all* of $\\mathbb{R}$: every real $x$ yields two "
-            "honest real elliptic curves and a real $5$-isogeny between them."
+            "honest real elliptic curves and a real $5$-isogeny between them. "
+            "Walk the real points of $X_0(5)$ and watch the pair move:"
         )
-        st.markdown(
-            "**Endomorphism points.** The diagonal condition $j_\\ell(x) = "
-            "j_\\ell(m/x)$ — a curve $\\ell$-isogenous to itself, i.e. an "
-            "$\\ell$-endomorphism, i.e. CM — has $2\\ell$ solutions, and every "
-            "one of them lies on the circle $|x| = \\sqrt{m}$, the fixed locus "
-            "of $\\mathfrak{F}_\\ell$ (where $m/x = \\bar{x}$). This is the "
-            "algebraic mirror of the analytic fact from §9.2 that the self-dual "
-            "locus is $|\\tau| = 1/\\sqrt{\\ell}$."
-        )
-        st.markdown(
-            "Here is the algebraic model as a picture. Where the analytic $X_0("
-            "\\ell)$ was a fundamental domain with edges to glue, the genus-$0$ "
-            "model is just the **real $x$-line** $\\cong \\mathbb{P}^1("
-            "\\mathbb{R})$, sitting in its ambient plane — no gluing, cusps at "
-            "$0$ and $\\infty$. The plane (dimly coloured by $j_\\ell$, the §8 "
-            "scheme) is only the backdrop; the interaction lives on $\\mathbb{R}$. "
-            "Overlaid is the **real locus of $j_\\ell$**, weighted Belyi-style: "
-            "the preimage of the segment $[0, 1728]$ between the two finite "
-            "critical values — the *dessin* — is bright, while the preimages of "
-            "$j \\le 0$ and $j \\ge 1728$ stay faint. Red dots are the $2\\ell$ "
-            "endomorphism points on the dashed self-dual circle. Drag $x$ along "
-            "the real line: at $\\ell = 5$ the panel draws the two real curves "
-            "$E$ and $E/C$ recovered above, kernel marked."
-        )
-        components.html(modular_viz.genus0_dial_html(), height=670, scrolling=False)
+        components.html(modular_viz.x05_isogeny_html(), height=490, scrolling=False)
         st.caption(
-            "Levels $\\{3, 5, 7, 13\\}$ — the odd genus-$0$ primes tabulated in "
-            "`jcoefs.json`, with $j_\\ell(x) = a_1(x)\\,a_3(x)^3\\,a_{-1}(x)^{-1}$ "
-            "and $m = \\ell^{12/(\\ell-1)}$. Equation recovery (the $t(x)$ "
-            "section) is the $\\ell = 5$ worked example, from the `x05pic.nb` "
-            "computation."
+            "Equation recovery (the $t(x)$ section into the Tate form) is the "
+            "$\\ell = 5$ worked example, from the `x05pic.nb` computation. At "
+            "$x = \\pm\\sqrt{125}$ the marker snaps to the self-dual point, "
+            "where domain and codomain coincide."
         )
         st.markdown(
             "The full computations — the universal isogeny, larger $\\ell$, and "
