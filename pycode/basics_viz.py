@@ -464,3 +464,267 @@ document.querySelectorAll(".kbtn").forEach(b=>b.addEventListener("click",()=>{
 render();
 </script>
 """
+
+
+def hasse_count_html() -> str:
+    """S2 applet: count points, read off the trace, live in the Hasse interval.
+
+    Replaces the p selectbox + f/g number inputs + static matplotlib Hasse
+    line. Pick p with buttons, step f and g; the point count runs in JS
+    (Euler-criterion character sum) and the trace lands on the interval.
+    UPGRADE over the original: the gray dots are clickable -- choosing an
+    admissible trace a searches for a curve realizing it (Deuring/Waterhouse:
+    every |a| <= 2 sqrt p occurs), so the applet runs in both directions."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">p =</span>
+    <button class="seg pbtn" data-p="5">5</button>
+    <button class="seg pbtn" data-p="11">11</button>
+    <button class="seg pbtn on" data-p="23">23</button>
+    <button class="seg pbtn" data-p="47">47</button>
+    <button class="seg pbtn" data-p="101">101</button>
+    <button class="seg pbtn" data-p="199">199</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 16px;">f =</span>
+    <button class="seg" id="fdn">−</button><span id="fval" style="align-self:center;min-width:26px;text-align:center;">1</span><button class="seg" id="fup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">g =</span>
+    <button class="seg" id="gdn">−</button><span id="gval" style="align-self:center;min-width:26px;text-align:center;">1</span><button class="seg" id="gup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">the Hasse interval |a| ≤ 2√p — every dot is an isogeny class</div>
+      <canvas id="hc" width="640" height="130"></canvas>
+      <div id="hcout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+      <div class="hint" style="margin-top:4px;">step f, g to change the curve — or <b>click a gray dot</b> and a curve with that trace is found for you (every admissible a occurs: Deuring)</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f";
+const cv=document.getElementById("hc"), ctx=cv.getContext("2d");
+const out=document.getElementById("hcout");
+let p=23, f=1, g=1;
+
+function powmod(b,e,m){let r=1n;b=BigInt(b)%BigInt(m);let E=BigInt(e);const M=BigInt(m);
+  while(E>0n){if(E&1n)r=r*b%M; b=b*b%M; E>>=1n;} return Number(r);}
+const chi=(v,pp)=>{v=((v%pp)+pp)%pp; if(v===0)return 0;
+  return powmod(v,(pp-1)/2,pp)===1?1:-1;};
+function trace(ff,gg,pp){                    // a = -sum chi(x^3+fx+g); #E = p+1-a
+  let s=0;
+  for(let x=0;x<pp;x++) s+=chi(x*x*x+ff*x+gg,pp);
+  return -s;
+}
+const disc=(ff,gg,pp)=>((-16*(4*ff*ff*ff+27*gg*gg))%pp+pp)%pp;
+function findCurve(a0){                      // search a curve with trace a0
+  for(let tries=0;tries<6000;tries++){
+    const ff=Math.floor(Math.random()*p), gg=Math.floor(Math.random()*p);
+    if(disc(ff,gg,p)===0) continue;
+    if(trace(ff,gg,p)===a0){f=ff; g=gg; return true;}
+  }
+  return false;
+}
+const amax=()=>Math.floor(2*Math.sqrt(p));
+const AX=a=>cv.width/2 + a/(2*Math.sqrt(p)+1.5)*(cv.width/2-14);
+const AY=cv.height/2+8;
+
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const bound=2*Math.sqrt(p), sing=disc(f,g,p)===0;
+  const a=sing?null:trace(f,g,p);
+  // Hasse bounds + axis
+  ctx.strokeStyle="rgba(255,255,255,0.2)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(AX(-bound-1),AY); ctx.lineTo(AX(bound+1),AY); ctx.stroke();
+  ctx.strokeStyle=DOM; ctx.setLineDash([5,4]); ctx.lineWidth=1.3;
+  for(const s of [-bound,bound]){ctx.beginPath();ctx.moveTo(AX(s),AY-34);ctx.lineTo(AX(s),AY+26);ctx.stroke();}
+  ctx.setLineDash([]);
+  ctx.fillStyle=DOM; ctx.font="11px system-ui"; ctx.textAlign="center";
+  ctx.fillText(`−2√p ≈ ${(-bound).toFixed(1)}`, AX(-bound), AY+42);
+  ctx.fillText(`+2√p ≈ ${bound.toFixed(1)}`, AX(bound), AY+42);
+  // admissible traces
+  for(let v=-amax();v<=amax();v++){
+    ctx.fillStyle=(a!==null&&v===a)?RED:"rgba(255,255,255,0.4)";
+    ctx.beginPath(); ctx.arc(AX(v),AY,(a!==null&&v===a)?7:4,0,7); ctx.fill();
+  }
+  if(a!==null){ctx.fillStyle=RED; ctx.font="bold 13px system-ui";
+    ctx.fillText(`a = ${a}`, AX(a), AY-18);}
+  ctx.textAlign="left";
+  // readout
+  if(sing){
+    out.innerHTML=`<span style="color:${SUP}">y² = x³ + ${f}x + ${g} is singular mod ${p}</span> — step f or g (or click a dot).`;
+  } else {
+    const n=p+1-a, d=a*a-4*p;
+    out.innerHTML=`E: y² = x³ + ${f}x + ${g} over 𝔽<sub>${p}</sub>`
+      +` &nbsp;·&nbsp; #E = ${n} &nbsp;·&nbsp; <b style="color:${RED}">a = p + 1 − #E = ${a}</b>`
+      +` &nbsp;·&nbsp; d = a² − 4p = ${d}`
+      +` &nbsp;·&nbsp; ${a%p===0?`<b style="color:${SUP}">supersingular</b> (a ≡ 0 mod p)`:"ordinary"}`;
+  }
+}
+cv.addEventListener("pointerdown",e=>{
+  const b=cv.getBoundingClientRect();
+  const mx=(e.clientX-b.left)*cv.width/b.width, my=(e.clientY-b.top)*cv.height/b.height;
+  if(Math.abs(my-AY)>22) return;
+  let best=null,bd=14*14;
+  for(let v=-amax();v<=amax();v++){
+    const dx=AX(v)-mx, dy=AY-my;
+    if(dx*dx+dy*dy<bd){bd=dx*dx+dy*dy; best=v;}
+  }
+  if(best!==null){ if(findCurve(best)) render(); }
+});
+const clamp=v=>((v%p)+p)%p;
+document.getElementById("fup").onclick=()=>{f=clamp(f+1);sync();};
+document.getElementById("fdn").onclick=()=>{f=clamp(f-1);sync();};
+document.getElementById("gup").onclick=()=>{g=clamp(g+1);sync();};
+document.getElementById("gdn").onclick=()=>{g=clamp(g-1);sync();};
+function sync(){document.getElementById("fval").textContent=f;
+  document.getElementById("gval").textContent=g; render();}
+document.querySelectorAll(".pbtn").forEach(b=>b.addEventListener("click",()=>{
+  p=+b.dataset.p; f=Math.min(f,p-1); g=Math.min(g,p-1);
+  document.querySelectorAll(".pbtn").forEach(z=>z.classList.toggle("on",z===b));
+  sync();
+}));
+sync();
+</script>
+"""
+
+
+def frobenius_lift_html() -> str:
+    """S2 applet: Frobenius lifted -- multiplication by alpha on Z + alpha Z.
+
+    Replaces the p selectbox + trace select_slider + static matplotlib lattice
+    figure. Left: the (a, p) picker -- for each small prime a row of admissible
+    traces under the Hasse parabola; click one. Right: the lattice
+    Lambda = Z + alpha Z with the fundamental cell (blue) and its image under
+    multiplication by alpha (gold, dashed) -- rotation by arg alpha, scaling by
+    |alpha| = sqrt p; both image generators land on lattice points."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 300px 1fr;">
+    <div class="cell">
+      <div class="cap">pick (a, p) with a² &lt; 4p — click a dot</div>
+      <canvas id="fla" width="300" height="330"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">Λ = ℤ + αℤ and multiplication by α</div>
+      <canvas id="flb" width="340" height="330"></canvas>
+    </div>
+  </div>
+  <div id="flout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+  <div class="hint" style="margin-top:4px;">blue cell: spanned by 1, α · gold dashed cell: its image under ×α — rotated by arg α, scaled by |α| = √p, with α·1 and α·α on lattice points: αΛ ⊆ Λ</div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f";
+const PRIMES=[5,7,11,13,17,19,23];
+const cva=document.getElementById("fla"), cvb=document.getElementById("flb");
+const out=document.getElementById("flout");
+let p=7, a=1;
+
+// ---- left: the (a, p) picker --------------------------------------------
+const AMAXALL=Math.floor(2*Math.sqrt(23));
+const LX=v=>56 + (v+AMAXALL)/(2*AMAXALL)*(cva.width-70);
+const LY=i=>36+i*(cva.height-64)/(PRIMES.length-1);
+function drawPicker(){
+  const ctx=cva.getContext("2d");
+  ctx.clearRect(0,0,cva.width,cva.height);
+  ctx.font="11px system-ui";
+  PRIMES.forEach((pp,i)=>{
+    const am=Math.floor(2*Math.sqrt(pp));
+    ctx.fillStyle=MUT; ctx.textAlign="left";
+    ctx.fillText("p = "+pp, 4, LY(i)+4);
+    for(let v=-am;v<=am;v++){
+      if(v===0) continue;
+      const on=(pp===p&&v===a);
+      ctx.fillStyle=on?RED:"rgba(255,255,255,0.4)";
+      ctx.beginPath(); ctx.arc(LX(v),LY(i),on?6:3.5,0,7); ctx.fill();
+    }
+  });
+  // Hasse parabola a^2 = 4p (through the row endpoints)
+  ctx.strokeStyle="rgba(77,163,216,0.5)"; ctx.setLineDash([4,4]); ctx.lineWidth=1.2;
+  for(const s of [-1,1]){
+    ctx.beginPath();
+    PRIMES.forEach((pp,i)=>{
+      const x=LX(s*2*Math.sqrt(pp)), y=LY(i);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+  }
+  ctx.setLineDash([]); ctx.textAlign="left";
+}
+cva.addEventListener("pointerdown",e=>{
+  const b=cva.getBoundingClientRect();
+  const mx=(e.clientX-b.left)*cva.width/b.width, my=(e.clientY-b.top)*cva.height/b.height;
+  let best=null,bd=13*13;
+  PRIMES.forEach((pp,i)=>{
+    const am=Math.floor(2*Math.sqrt(pp));
+    for(let v=-am;v<=am;v++){
+      if(v===0)continue;
+      const dx=LX(v)-mx, dy=LY(i)-my;
+      if(dx*dx+dy*dy<bd){bd=dx*dx+dy*dy; best=[pp,v];}
+    }
+  });
+  if(best){p=best[0]; a=best[1]; render();}
+});
+
+// ---- right: the lattice and the two cells --------------------------------
+function drawLattice(){
+  const ctx=cvb.getContext("2d");
+  ctx.clearRect(0,0,cvb.width,cvb.height);
+  const ax=a/2, ay=Math.sqrt(4*p-a*a)/2;              // alpha
+  const i1={x:ax,y:ay};                                // alpha*1
+  const i2={x:a*ax-p, y:a*ay};                         // alpha^2 = a*alpha - p
+  const keys=[{x:0,y:0},{x:1,y:0},i1,{x:1+ax,y:ay},i2,{x:i1.x+i2.x,y:i1.y+i2.y}];
+  const pad=1.0;
+  let x0=Math.min(...keys.map(k=>k.x))-pad, x1=Math.max(...keys.map(k=>k.x))+pad,
+      y0=Math.min(...keys.map(k=>k.y))-pad, y1=Math.max(...keys.map(k=>k.y))+pad;
+  const need=(x1-x0)/(y1-y0), have=cvb.width/cvb.height;
+  if(need<have){const c=(x0+x1)/2,w=(y1-y0)*have; x0=c-w/2; x1=c+w/2;}
+  else{const c=(y0+y1)/2,h=(x1-x0)/have; y0=c-h/2; y1=c+h/2;}
+  const PX=x=>(x-x0)/(x1-x0)*cvb.width, PY=y=>(y1-y)/(y1-y0)*cvb.height;
+  // lattice m + n*alpha
+  ctx.fillStyle="rgba(255,255,255,0.3)";
+  for(let n=Math.floor(y0/ay)-1;n<=Math.ceil(y1/ay)+1;n++)
+    for(let m=Math.floor(x0-n*ax)-1;m<=Math.ceil(x1-n*ax)+1;m++){
+      const x=m+n*ax, y=n*ay;
+      if(x>x0&&x<x1&&y>y0&&y<y1){ctx.beginPath();ctx.arc(PX(x),PY(y),2.2,0,7);ctx.fill();}
+    }
+  // axes
+  ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PX(x0),PY(0)); ctx.lineTo(PX(x1),PY(0));
+  ctx.moveTo(PX(0),PY(y0)); ctx.lineTo(PX(0),PY(y1)); ctx.stroke();
+  const poly=(vs,fill,stroke,dash)=>{
+    ctx.beginPath();
+    vs.forEach((v,i)=>{i?ctx.lineTo(PX(v.x),PY(v.y)):ctx.moveTo(PX(v.x),PY(v.y));});
+    ctx.closePath();
+    if(dash)ctx.setLineDash([5,4]);
+    ctx.fillStyle=fill; ctx.fill(); ctx.strokeStyle=stroke; ctx.lineWidth=1.6; ctx.stroke();
+    ctx.setLineDash([]);
+  };
+  poly([{x:0,y:0},{x:1,y:0},{x:1+ax,y:ay},i1],"rgba(77,163,216,0.16)",DOM,false);
+  poly([{x:0,y:0},i1,{x:i1.x+i2.x,y:i1.y+i2.y},i2],"rgba(224,182,79,0.12)",SUP,true);
+  const arrow=(v,col,dash)=>{
+    ctx.strokeStyle=col; ctx.fillStyle=col; ctx.lineWidth=1.8;
+    if(dash)ctx.setLineDash([5,4]);
+    ctx.beginPath(); ctx.moveTo(PX(0),PY(0)); ctx.lineTo(PX(v.x),PY(v.y)); ctx.stroke();
+    ctx.setLineDash([]);
+    const an=Math.atan2(PY(v.y)-PY(0),PX(v.x)-PX(0));
+    ctx.beginPath(); ctx.moveTo(PX(v.x),PY(v.y));
+    ctx.lineTo(PX(v.x)-9*Math.cos(an-0.42),PY(v.y)-9*Math.sin(an-0.42));
+    ctx.lineTo(PX(v.x)-9*Math.cos(an+0.42),PY(v.y)-9*Math.sin(an+0.42));
+    ctx.closePath(); ctx.fill();
+  };
+  ctx.font="12px system-ui";
+  arrow({x:1,y:0},"#fff",false); ctx.fillStyle="#fff"; ctx.fillText("1",PX(1)+5,PY(0)+14);
+  arrow(i1,RED,false); ctx.fillStyle=RED; ctx.fillText("α = α·1",PX(i1.x)+7,PY(i1.y)-6);
+  arrow(i2,SUP,true); ctx.fillStyle=SUP; ctx.fillText("α·α = aα − p",PX(i2.x)+7,PY(i2.y)-6);
+}
+function render(){
+  drawPicker(); drawLattice();
+  const ay=Math.sqrt(4*p-a*a)/2, d=a*a-4*p;
+  out.innerHTML=`p = ${p}, a = ${a} &nbsp;·&nbsp; d = a² − 4p = ${d}`
+    +` &nbsp;·&nbsp; α = ${(a/2).toFixed(2)} + ${ay.toFixed(2)}i, |α| = √${p} ≈ ${Math.sqrt(p).toFixed(2)}`
+    +` &nbsp;·&nbsp; on the basis (1, α): [α] = ( 0&nbsp;&nbsp;−${p}&nbsp;; 1&nbsp;&nbsp;${a} ) — integer entries ⇒ αΛ ⊆ Λ`;
+}
+render();
+</script>
+"""

@@ -1946,86 +1946,19 @@ with tab_frob:
     # ── Point-counting applet ─────────────────────────────────────────────────
     st.markdown("#### Count points, read off the trace")
     st.markdown(
-        "Pick a prime $p$ and a curve $y^2 = x^3 + fx + g$. We count "
-        "$\\#E(\\mathbb{F}_p)$ by brute force, read off $a = p + 1 - \\#E$, and "
-        "place it inside the Hasse interval."
+        "Pick a prime $p$ and a curve $y^2 = x^3 + fx + g$ (step $f$ and $g$ "
+        "with the buttons). The applet counts $\\#E(\\mathbb{F}_p)$ by a "
+        "character sum, reads off $a = p + 1 - \\#E$, and places it inside the "
+        "Hasse interval. It also runs **backwards**: click any gray dot and a "
+        "curve with that trace is hunted down for you — every admissible $a$ is "
+        "realized by some curve (Deuring)."
     )
-
-    _FPRIMES = [n for n in range(5, 200)
-                if all(n % dvr != 0 for dvr in range(2, int(n**0.5) + 1))]
-
-    frob_ctrl, frob_plot = st.columns([1, 2])
-
-    with frob_ctrl:
-        fp = st.selectbox("p", _FPRIMES, index=_FPRIMES.index(23), key="frob_p")
-        ff = int(st.number_input("f", value=1, step=1, key="frob_f"))
-        fg = int(st.number_input("g", value=1, step=1, key="frob_g"))
-
-        f_disc = (-16 * (4 * pow(ff, 3) + 27 * pow(fg, 2))) % fp
-        if f_disc == 0:
-            st.warning("Singular curve mod p — adjust f or g.")
-            frob_ok = False
-        else:
-            frob_ok = True
-            # Brute-force affine point count + point at infinity.
-            n_affine = 0
-            for x in range(fp):
-                rhs = (pow(x, 3, fp) + ff * x + fg) % fp
-                for y in range(fp):
-                    if pow(y, 2, fp) == rhs:
-                        n_affine += 1
-            n_pts = n_affine + 1          # + O
-            a_tr  = fp + 1 - n_pts
-            d_fr  = a_tr * a_tr - 4 * fp
-            st.success("Smooth curve ✓")
-            st.markdown(
-                f"$\\#E(\\mathbb{{F}}_{{{fp}}}) = {n_pts}$  \n"
-                f"$a = p + 1 - \\#E = {a_tr}$  \n"
-                f"$d = a^2 - 4p = {d_fr}$"
-            )
-            if a_tr % fp == 0:
-                st.info("Supersingular ($a \\equiv 0 \\bmod p$).")
-            else:
-                st.info("Ordinary ($a \\not\\equiv 0 \\bmod p$).")
-
-    with frob_plot:
-        if frob_ok:
-            bound = 2 * np.sqrt(fp)
-            a_lo, a_hi = int(np.ceil(-bound)), int(np.floor(bound))
-            fig_fr, ax_fr = plt.subplots(figsize=(7, 1.8))
-            # all admissible traces
-            ax_fr.scatter(range(a_lo, a_hi + 1), [0] * (a_hi - a_lo + 1),
-                          color="lightgray", s=40, zorder=2)
-            # Hasse bounds
-            for s in (-bound, bound):
-                ax_fr.axvline(s, color="steelblue", ls="--", lw=1.2, alpha=0.7)
-            ax_fr.axvline(0, color="k", lw=0.4)
-            # current trace
-            ax_fr.scatter([a_tr], [0], color="red", s=130, zorder=4)
-            ax_fr.annotate(f"$a = {a_tr}$", (a_tr, 0), xytext=(0, 12),
-                           textcoords="offset points", ha="center",
-                           color="red", fontsize=12, fontweight="bold")
-            ax_fr.annotate(f"$-2\\sqrt{{p}} \\approx {-bound:.1f}$", (-bound, 0),
-                           xytext=(0, -20), textcoords="offset points",
-                           ha="center", color="steelblue", fontsize=9)
-            ax_fr.annotate(f"$+2\\sqrt{{p}} \\approx {bound:.1f}$", (bound, 0),
-                           xytext=(0, -20), textcoords="offset points",
-                           ha="center", color="steelblue", fontsize=9)
-            ax_fr.set_xlim(-bound - 2, bound + 2)
-            ax_fr.set_ylim(-0.6, 0.6)
-            ax_fr.set_yticks([])
-            ax_fr.set_frame_on(False)
-            ax_fr.set_title("Admissible traces in the Hasse interval",
-                            fontsize=10)
-            st.pyplot(fig_fr)
-            plt.close(fig_fr)
-            st.caption(
-                "Every gray dot is an integer $a$ with $|a| \\le 2\\sqrt p$; each "
-                "corresponds to an isogeny class over $\\mathbb{F}_p$. The red dot "
-                "is the class of the curve above."
-            )
-        else:
-            st.info("Adjust f and g to get a smooth curve.")
+    components.html(basics_viz.hasse_count_html(), height=360, scrolling=False)
+    st.caption(
+        "Every dot is an integer $a$ with $|a| \\le 2\\sqrt p$; each "
+        "corresponds to an isogeny class over $\\mathbb{F}_p$. The red dot is "
+        "the class of the current curve."
+    )
 
 
 # ── Tab: Lifting Frobenius (Deuring) ──────────────────────────────────────────
@@ -2134,130 +2067,24 @@ with tab_lift:
     # ── Applet: Frobenius acting on the CM lattice ────────────────────────────
     st.markdown("#### Frobenius as multiplication by $\\alpha$")
     st.markdown(
-        "Choose $(a, p)$ with $a^2 < 4p$. We take the lattice "
-        "$\\Lambda = \\mathbb{Z} + \\alpha\\,\\mathbb{Z}$ (the order $\\mathcal{O} = "
-        "\\mathbb{Z}[\\alpha]$ itself) and watch multiplication by $\\alpha$ send its "
-        "generators to other lattice points — the analytic shadow of Frobenius."
+        "Choose $(a, p)$ with $a^2 < 4p$ by **clicking a dot in the picker** — "
+        "one row per small prime, the admissible traces fanned out under the "
+        "Hasse parabola. We take the lattice $\\Lambda = \\mathbb{Z} + "
+        "\\alpha\\,\\mathbb{Z}$ (the order $\\mathcal{O} = "
+        "\\mathbb{Z}[\\alpha]$ itself) and watch multiplication by $\\alpha$ "
+        "send its generators to other lattice points — the analytic shadow of "
+        "Frobenius. On the basis $(1, \\alpha)$, multiplication by $\\alpha$ "
+        "has the integer matrix (from $\\alpha\\cdot 1 = \\alpha$ and "
+        "$\\alpha^2 = a\\alpha - p$):"
     )
-
-    lift_ctrl, lift_plot = st.columns([1, 2])
-
-    # Small primes keep the picture compact: multiplication by π scales by √p,
-    # so π·π flies off-screen for large p.
-    _LIFTPRIMES = [5, 7, 11, 13, 17, 19, 23]
-
-    with lift_ctrl:
-        lp = st.selectbox("p", _LIFTPRIMES, index=_LIFTPRIMES.index(7), key="lift_p")
-        # admissible traces for this p (exclude a=0 so the lattice is non-real)
-        a_max = int(np.floor(2 * np.sqrt(lp)))
-        a_opts = [v for v in range(-a_max, a_max + 1) if v != 0]
-        la = st.select_slider("a (trace of Frobenius)", options=a_opts,
-                              value=1 if 1 in a_opts else a_opts[0], key="lift_a")
-        d_lift = la * la - 4 * lp
-        st.latex(rf"d = a^2 - 4p = {d_lift}")
-        # alpha = a/2 + i sqrt(4p - a^2)/2
-        pi_re = la / 2.0
-        pi_im = np.sqrt(4 * lp - la * la) / 2.0
-        st.latex(rf"\alpha = {pi_re:.2f} + {pi_im:.2f}\,i")
-        st.latex(rf"|\alpha| = \sqrt{{{lp}}} \approx {np.sqrt(lp):.2f}")
-        st.markdown(
-            "On the basis $(1, \\alpha)$, multiplication by $\\alpha$ has the integer "
-            "matrix (from $\\alpha\\cdot 1 = \\alpha$ and $\\alpha^2 = a\\alpha - p$):"
-        )
-        st.latex(
-            rf"[\alpha] = \begin{{pmatrix}} 0 & -{lp} \\ 1 & {la} \end{{pmatrix}}"
-        )
-        st.caption(
-            "Integer entries ⇒ $\\alpha\\Lambda \\subseteq \\Lambda$: Frobenius "
-            "really is an endomorphism of the lattice."
-        )
-
-    with lift_plot:
-        pi  = np.array([pi_re, pi_im])
-        one = np.array([1.0, 0.0])
-
-        # images of the two generators under mult-by-alpha:
-        #   alpha·1     = alpha          -> (0, 1)  in (1, alpha) coords
-        #   alpha·alpha = a·alpha - p    -> (-p, a) in (1, alpha) coords
-        img_1  = pi                       # = 0·one + 1·alpha
-        img_pi = la * pi - lp * one       # = -p·one + a·alpha
-
-        # Window must contain every vertex of both fundamental cells:
-        #   blue cell   : 0, 1, 1+alpha, alpha
-        #   orange cell : 0, alpha, alpha+(alpha·alpha), alpha·alpha
-        key_pts = np.array([
-            np.zeros(2), one, pi, one + pi,           # blue cell vertices
-            img_1, img_pi, img_1 + img_pi,            # orange cell vertices
-        ])
-        pad = 1.0
-        xlo, xhi = key_pts[:, 0].min() - pad, key_pts[:, 0].max() + pad
-        ylo, yhi = key_pts[:, 1].min() - pad, key_pts[:, 1].max() + pad
-
-        # Fill the window with the actual lattice m·1 + n·pi.
-        lat = []
-        n_lo = int(np.floor(ylo / pi_im)) - 1
-        n_hi = int(np.ceil(yhi / pi_im)) + 1
-        for n in range(n_lo, n_hi + 1):
-            base_x = n * pi_re
-            m_lo = int(np.floor(xlo - base_x)) - 1
-            m_hi = int(np.ceil(xhi - base_x)) + 1
-            for m in range(m_lo, m_hi + 1):
-                lat.append((m + base_x, n * pi_im))
-
-        fig_lf, ax_lf = plt.subplots(figsize=(6, 6))
-        ax_lf.scatter([q[0] for q in lat], [q[1] for q in lat],
-                      color="gray", alpha=0.35, s=14, zorder=1)
-
-        # original fundamental cell (spanned by 1 and alpha) ...
-        ax_lf.add_patch(MplPolygon(
-            [np.zeros(2), one, one + pi, pi],
-            facecolor=[0.85, 0.85, 0.95, 0.5],
-            edgecolor="steelblue", lw=1.8, zorder=2))
-        # ... and its image under mult-by-alpha (spanned by alpha and alpha^2)
-        ax_lf.add_patch(MplPolygon(
-            [np.zeros(2), img_1, img_1 + img_pi, img_pi],
-            facecolor=[0.95, 0.85, 0.70, 0.30],
-            edgecolor="darkorange", lw=1.5, ls="--", zorder=2))
-
-        # generator arrows
-        for vec, lbl, col in [(one, "$1$", "black"), (pi, "$\\alpha$", "red")]:
-            ax_lf.annotate("", xy=vec, xytext=(0, 0),
-                           arrowprops=dict(arrowstyle="->", color=col, lw=2),
-                           zorder=4)
-            ax_lf.annotate(lbl, vec, xytext=(6, 6),
-                           textcoords="offset points",
-                           color=col, fontsize=13, fontweight="bold")
-
-        # image of alpha^2 (far generator image); alpha·1 = alpha is the red arrow
-        ax_lf.annotate("", xy=img_pi, xytext=(0, 0),
-                       arrowprops=dict(arrowstyle="->", color="darkorange",
-                                       lw=1.6, linestyle="dashed", alpha=0.9),
-                       zorder=3)
-        ax_lf.scatter(*img_pi, color="darkorange", s=80, zorder=5)
-        ax_lf.annotate("$\\alpha\\cdot\\alpha = a\\alpha - p$", img_pi,
-                       xytext=(6, 6), textcoords="offset points",
-                       color="darkorange", fontsize=10)
-        ax_lf.scatter(*img_1, color="red", s=60, zorder=5)
-        ax_lf.annotate("$\\alpha\\cdot 1 = \\alpha$", img_1, xytext=(6, -14),
-                       textcoords="offset points", color="red", fontsize=9)
-
-        ax_lf.set_xlim(xlo, xhi)
-        ax_lf.set_ylim(ylo, yhi)
-        ax_lf.set_aspect("equal")
-        ax_lf.axhline(0, color="k", lw=0.4)
-        ax_lf.axvline(0, color="k", lw=0.4)
-        ax_lf.set_frame_on(False)
-        ax_lf.set_title("$\\Lambda = \\mathbb{Z} + \\alpha\\mathbb{Z}$ "
-                        "and multiplication by $\\alpha$", fontsize=11)
-        st.pyplot(fig_lf)
-        plt.close(fig_lf)
-        st.caption(
-            "Blue cell: the fundamental domain spanned by $1, \\alpha$. Orange "
-            "cell: its image under multiplication by $\\alpha$ — a rotation by "
-            "$\\arg\\alpha$ and scaling by $|\\alpha| = \\sqrt p$. Both image "
-            "generators $\\alpha\\cdot 1$ and $\\alpha\\cdot\\alpha$ land on lattice "
-            "points, so $\\alpha\\Lambda \\subseteq \\Lambda$."
-        )
+    st.latex(r"[\alpha] = \begin{pmatrix} 0 & -p \\ 1 & a \end{pmatrix},")
+    st.markdown(
+        "and integer entries mean exactly that $\\alpha\\Lambda \\subseteq "
+        "\\Lambda$: Frobenius really is an endomorphism of the lattice. (Small "
+        "primes keep the picture compact — multiplication by $\\alpha$ scales "
+        "by $\\sqrt p$, so the image cell flies off-screen for large $p$.)"
+    )
+    components.html(basics_viz.frobenius_lift_html(), height=530, scrolling=False)
 
 
 # ── Tab: Pictures from lifts of Frobenius — the multiplicative group ───────────
