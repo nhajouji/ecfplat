@@ -5,10 +5,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 
 import streamlit as st
 import streamlit.components.v1 as components
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Polygon as MplPolygon
-from matplotlib.patches import Arc as MplArc
 
 import slide_viz
 import modular_viz
@@ -818,35 +814,7 @@ with tab0:
         "yet they're still zero sets of polynomials."
     )
 
-    # ── Small example plots ───────────────────────────────────────────────────
-    N = 300
-    u = np.linspace(-2.2, 2.2, N)
-    X0, Y0 = np.meshgrid(u, u)
-
-    examples = [
-        ("Line",      r"$y = x$",          Y0 - X0),
-        ("Parabola",  r"$y = x^2$",        Y0 - X0**2),
-        ("Hyperbola", r"$xy = 1$",         X0 * Y0 - 1),
-        ("Circle",    r"$x^2+y^2=1$",      X0**2 + Y0**2 - 1),
-        ("Ellipse",   r"$x^2/4+y^2=1$",   X0**2 / 4 + Y0**2 - 1),
-    ]
-
-    fig_ex, axes = plt.subplots(1, 5, figsize=(11, 2.2))
-    for ax_ex, (name, eq, Z_ex) in zip(axes, examples):
-        ax_ex.contour(X0, Y0, Z_ex, levels=[0], colors=["steelblue"], linewidths=2)
-        ax_ex.axhline(0, color="k", lw=0.4)
-        ax_ex.axvline(0, color="k", lw=0.4)
-        ax_ex.set_xlim(-2.2, 2.2)
-        ax_ex.set_ylim(-2.2, 2.2)
-        ax_ex.set_aspect("equal")
-        ax_ex.set_frame_on(False)
-        ax_ex.set_xticks([])
-        ax_ex.set_yticks([])
-        ax_ex.set_title(f"{name}\n{eq}", fontsize=9, linespacing=1.6)
-
-    fig_ex.tight_layout(pad=0.5)
-    st.pyplot(fig_ex)
-    plt.close(fig_ex)
+    components.html(basics_viz.real_examples_html(), height=210, scrolling=False)
 
     st.markdown(
         "| Curve | Familiar form | As $f(x,y) = 0$ |\n"
@@ -875,59 +843,7 @@ with tab0:
 
     st.divider()
 
-    ctrl0, plot0 = st.columns([1, 2])
-    with ctrl0:
-        st.markdown("**Quadratic form coefficients**")
-        a_qf = st.number_input("a", value=2.0, step=0.1, key="bg0_a")
-        b_qf = st.number_input("b", value=1.0, step=0.1, key="bg0_b")
-        c_qf = st.number_input("c", value=2.0, step=0.1, key="bg0_c")
-
-        disc = 4 * a_qf * c_qf - b_qf ** 2
-        if a_qf <= 0 or disc <= 0:
-            st.error(
-                "The form is not positive definite. "
-                "You need $a > 0$ and $4ac - b^2 > 0$."
-            )
-            qf_ok = False
-        else:
-            st.success(f"Positive definite  ✓  ($4ac - b^2 = {disc:.2f}$)")
-            qf_ok = True
-
-    with plot0:
-        R = 2.5
-        grid_n = 400
-        xs = np.linspace(-R, R, grid_n)
-        ys = np.linspace(-R, R, grid_n)
-        X, Y = np.meshgrid(xs, ys)
-        Z = a_qf * X**2 + b_qf * X * Y + c_qf * Y**2
-
-        fig0, ax0 = plt.subplots(figsize=(5, 5))
-
-        if qf_ok:
-            # Background family of level sets for context
-            for level, alpha in [(0.25, 0.15), (0.5, 0.2), (2.0, 0.2), (4.0, 0.15)]:
-                ax0.contour(X, Y, Z, levels=[level],
-                            colors=["steelblue"], alpha=alpha, linewidths=1)
-            # Main level set q = 1
-            ax0.contour(X, Y, Z, levels=[1.0],
-                        colors=["steelblue"], linewidths=2.5)
-            ax0.set_title(
-                f"$q(x,y) = {a_qf}x^2 + {b_qf}xy + {c_qf}y^2 = 1$",
-                fontsize=10,
-            )
-        else:
-            ax0.text(0, 0, "Not positive definite",
-                     ha="center", va="center", fontsize=12, color="gray")
-            ax0.set_title("q(x, y) = 1")
-
-        ax0.axhline(0, color="k", lw=0.5)
-        ax0.axvline(0, color="k", lw=0.5)
-        ax0.set_xlim(-R, R)
-        ax0.set_ylim(-R, R)
-        ax0.set_aspect("equal")
-        ax0.set_frame_on(False)
-        st.pyplot(fig0)
-        plt.close(fig0)
+    components.html(basics_viz.quadratic_form_html(), height=560, scrolling=False)
 
 
 # ── Tab 1: Real Elliptic Curves ───────────────────────────────────────────────
@@ -962,33 +878,12 @@ with tab1:
         "and the curve has a sharp pinch point at the origin."
     )
 
-    def _plot_ec(ax, f, g, xlim, ylim, title, singular_pt=None):
-        """Plot y^2 = x^3 + fx + g on ax."""
-        xs = np.linspace(xlim[0], xlim[1], 2000)
-        y2 = xs**3 + f*xs + g
-        yp = np.where(y2 >= 0, np.sqrt(np.clip(y2, 0, None)), np.nan)
-        ax.plot(xs,  yp, color="steelblue", lw=2)
-        ax.plot(xs, -yp, color="steelblue", lw=2)
-        ax.axhline(0, color="k", lw=0.4)
-        ax.axvline(0, color="k", lw=0.4)
-        ax.set_xlim(*xlim)
-        ax.set_ylim(*ylim)
-        ax.set_aspect("equal")
-        ax.set_frame_on(False)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(title, fontsize=10)
-        if singular_pt is not None:
-            ax.scatter(*singular_pt, color="red", s=60, zorder=5)
-
-    fig_sing, (ax_nd, ax_cu) = plt.subplots(1, 2, figsize=(8, 3.5))
-    _plot_ec(ax_nd, -3, 2, (-2.3, 2.8), (-2.5, 2.5),
-             "Node:  $y^2 = x^3 - 3x + 2$", singular_pt=(1, 0))
-    _plot_ec(ax_cu,  0, 0, (-0.5, 2.5), (-2.5, 2.5),
-             "Cusp:  $y^2 = x^3$",          singular_pt=(0, 0))
-    fig_sing.tight_layout()
-    st.pyplot(fig_sing)
-    plt.close(fig_sing)
+    components.html(basics_viz.cubic_pair_html([
+        {"f": -3, "g": 2, "title": "Node:  y\u00b2 = x\u00b3 \u2212 3x + 2",
+         "win": [-2.3, 2.8, -2.5, 2.5], "sing": [1, 0]},
+        {"f": 0, "g": 0, "title": "Cusp:  y\u00b2 = x\u00b3",
+         "win": [-0.5, 2.5, -2.5, 2.5], "sing": [0, 0]},
+    ]), height=320, scrolling=False)
 
     # ── Two smooth flavors ────────────────────────────────────────────────────
     st.markdown("#### Two visual flavors")
@@ -1002,14 +897,12 @@ with tab1:
         "Here $\\Delta = -16(4f^3 + 27g^2)$ is the discriminant."
     )
 
-    fig_smth, (ax_one, ax_two) = plt.subplots(1, 2, figsize=(8, 3.5))
-    _plot_ec(ax_one, 0,  1, (-1.3, 2.5), (-2.5, 2.5),
-             "One component:  $y^2 = x^3 + 1$")
-    _plot_ec(ax_two, -1, 0, (-1.3, 2.5), (-2.5, 2.5),
-             "Two components:  $y^2 = x^3 - x$")
-    fig_smth.tight_layout()
-    st.pyplot(fig_smth)
-    plt.close(fig_smth)
+    components.html(basics_viz.cubic_pair_html([
+        {"f": 0, "g": 1, "title": "One component:  y\u00b2 = x\u00b3 + 1",
+         "win": [-1.3, 2.5, -2.5, 2.5]},
+        {"f": -1, "g": 0, "title": "Two components:  y\u00b2 = x\u00b3 \u2212 x",
+         "win": [-1.3, 2.5, -2.5, 2.5]},
+    ]), height=320, scrolling=False)
 
     # ── Curve explorer ────────────────────────────────────────────────────────
     st.markdown("#### Explore")
@@ -1093,44 +986,7 @@ with tab2:
         "The full $17 \\times 17$ ambient grid is shown in gray."
     )
 
-    def _fp_sym(x, p):
-        xr = x % p
-        return xr if 2 * xr < p else xr - p
-
-    def _fp_curve_pts(poly_fn, p):
-        h = p // 2
-        return [(x, y)
-                for x in range(-h, h + 1)
-                for y in range(-h, h + 1)
-                if poly_fn(x, y) % p == 0]
-
-    _P17   = 17
-    _AMB17 = [(_fp_sym(x, _P17), _fp_sym(y, _P17))
-              for x in range(_P17) for y in range(_P17)]
-
-    _EX17 = [
-        ("Line",      r"$y = x$",          _fp_curve_pts(lambda x, y: y - x,           _P17)),
-        ("Parabola",  r"$y = x^2$",        _fp_curve_pts(lambda x, y: y - x*x,         _P17)),
-        ("Hyperbola", r"$xy = 1$",         _fp_curve_pts(lambda x, y: x*y - 1,         _P17)),
-        ("Circle",    r"$x^2+y^2=1$",      _fp_curve_pts(lambda x, y: x*x + y*y - 1,  _P17)),
-        ("Ellipse",   r"$x^2+4y^2=4$",     _fp_curve_pts(lambda x, y: x*x+4*y*y-4,    _P17)),
-    ]
-
-    fig17, axes17 = plt.subplots(1, 5, figsize=(11, 2.5))
-    _ax17 = [a for a in axes17]
-    _ax17 = list(axes17)
-    for ax_i, (name, eq, pts) in zip(_ax17, _EX17):
-        ax_i.scatter([p[0] for p in _AMB17], [p[1] for p in _AMB17],
-                     color="gray", alpha=0.25, s=5, zorder=1)
-        ax_i.scatter([p[0] for p in pts], [p[1] for p in pts],
-                     color="steelblue", s=12, zorder=3)
-        ax_i.set_xlim(-9, 9); ax_i.set_ylim(-9, 9)
-        ax_i.set_aspect("equal"); ax_i.set_frame_on(False)
-        ax_i.set_xticks([]); ax_i.set_yticks([])
-        ax_i.set_title(f"{name}\n{eq}", fontsize=9, linespacing=1.6)
-    fig17.tight_layout(pad=0.5)
-    st.pyplot(fig17)
-    plt.close(fig17)
+    components.html(basics_viz.fp_examples_html(), height=230, scrolling=False)
 
     # ── Group law ─────────────────────────────────────────────────────────────
     st.markdown("#### Elliptic curves and the group law")
@@ -1357,80 +1213,7 @@ with tab4:
         "when $b$ is odd some images fall outside the lattice (red)."
     )
 
-    endo_col, _ = st.columns([1, 3])
-    with endo_col:
-        a_end = int(st.number_input("a", value=1, step=1, key="endo_a"))
-        b_end = int(st.number_input("b", value=1, step=1, key="endo_b"))
-
-    # ── Compute images ────────────────────────────────────────────────────────
-    # Source: a patch of each lattice; images may land anywhere
-    SRC = 3   # source range: |m|,|n| ≤ SRC
-
-    # Z[i]: z = m + ni;  α·z = (am-bn) + (an+bm)i
-    zi_src = [(m, n) for m in range(-SRC, SRC+1) for n in range(-SRC, SRC+1)]
-    zi_img = list({(a_end*m - b_end*n, a_end*n + b_end*m) for m, n in zi_src})
-
-    # Z[2i]: z = m + 2ni;  α·z = (am-2bn) + (bm+2an)i
-    z2i_src = [(m, n) for m in range(-SRC, SRC+1) for n in range(-SRC//2, SRC//2+1)]
-    z2i_good, z2i_bad = [], []
-    for m, n in z2i_src:
-        rx = a_end*m - b_end*(2*n)
-        ry = b_end*m + a_end*(2*n)
-        (z2i_good if ry % 2 == 0 else z2i_bad).append((rx, ry))
-    z2i_good = list(set(z2i_good))
-    z2i_bad  = list(set(z2i_bad))
-
-    # Dynamic display range
-    all_coords = [c for pt in zi_img + z2i_good + z2i_bad for c in pt]
-    disp_R = max(5, min(14, max((abs(c) for c in all_coords), default=5) + 1))
-
-    # Background lattice points within display window
-    BG = int(disp_R) + 1
-    zi_bg  = [(m, n)   for m in range(-BG, BG+1) for n in range(-BG, BG+1)
-              if abs(m) <= disp_R and abs(n) <= disp_R]
-    z2i_bg = [(m, 2*n) for m in range(-BG, BG+1) for n in range(-BG, BG+1)
-              if abs(m) <= disp_R and abs(2*n) <= disp_R]
-
-    # ── Plot ──────────────────────────────────────────────────────────────────
-    sign_str = f"{b_end:+d}".replace("+", "+").replace("-", "-")
-    alpha_str = f"{a_end}{sign_str}i"
-
-    fig_endo, (ax_l, ax_r) = plt.subplots(1, 2, figsize=(10, 5))
-
-    for ax, bg, imgs_blue, imgs_red, title in [
-        (ax_l, zi_bg,   zi_img,    [],        f"$\\mathbb{{Z}}[i]$"),
-        (ax_r, z2i_bg,  z2i_good,  z2i_bad,   f"$\\mathbb{{Z}}[2i]$"),
-    ]:
-        ax.scatter([p[0] for p in bg], [p[1] for p in bg],
-                   color="gray", alpha=0.25, s=8, zorder=1)
-        if imgs_blue:
-            ax.scatter([p[0] for p in imgs_blue], [p[1] for p in imgs_blue],
-                       color="steelblue", s=30, zorder=3)
-        if imgs_red:
-            ax.scatter([p[0] for p in imgs_red], [p[1] for p in imgs_red],
-                       color="red", s=30, zorder=3)
-        ax.axhline(0, color="k", lw=0.4)
-        ax.axvline(0, color="k", lw=0.4)
-        ax.set_xlim(-disp_R, disp_R)
-        ax.set_ylim(-disp_R, disp_R)
-        ax.set_aspect("equal")
-        ax.set_frame_on(False)
-        ax.set_title(f"{title},  $\\alpha = {alpha_str}$", fontsize=11)
-
-    fig_endo.tight_layout()
-    st.pyplot(fig_endo)
-    plt.close(fig_endo)
-
-    if z2i_bad:
-        st.caption(
-            f"$\\alpha = {alpha_str}$ is **not** an endomorphism of $\\mathbb{{Z}}[2i]$: "
-            f"{len(set(z2i_bad))} image(s) fall outside the lattice (shown in red)."
-        )
-    else:
-        st.caption(
-            f"$\\alpha = {alpha_str}$ **is** an endomorphism of both lattices: "
-            "all images land back in the lattice."
-        )
+    components.html(basics_viz.endo_lattice_html(), height=530, scrolling=False)
 
 
 # ── Tab: The Frobenius endomorphism over 𝔽ₚ ───────────────────────────────────
@@ -1715,124 +1498,12 @@ with tab_mult:
         "the number of hops back to the start is the degree of its field."
     )
 
-    mult_ctrl, mult_plot = st.columns([1, 2])
-
-    with mult_ctrl:
-        mp = st.selectbox("p", [2, 3, 5, 7], index=1, key="mult_p")
-        # Cap the number of points so the circle stays readable; n's range
-        # depends on p.  (p-keyed slider so switching p never leaves a stale n.)
-        n_max = 1
-        while mp ** (n_max + 1) - 1 <= 160:
-            n_max += 1
-        mn = st.slider("top degree n  (show $\\mathbb{F}_{p^n}$)",
-                       1, n_max, min(2, n_max), key=f"mult_n_{mp}")
-        M = mp ** mn - 1
-        st.caption(
-            f"$\\#\\mathbb{{F}}_{{{mp}^{{{mn}}}}}^* = {mp}^{{{mn}}} - 1 = {M}$ "
-            f"points; $\\#\\mathbb{{F}}_{{{mp}}}^* = {mp - 1}$ are fixed by $F$."
-        )
-        if M > 1:
-            k_hi = st.slider(
-                "highlight orbit of point $k$ (exponent of a generator)",
-                0, M - 1, min(1, M - 1), key=f"mult_k_{mp}_{mn}")
-        else:
-            k_hi = 0
-            st.caption("Only one point: $\\mathbb{F}_2^* = \\{1\\}$.")
-
-    with mult_plot:
-        # Each F_{p^n}^* element is g^k for a fixed generator g; we draw it at the
-        # (p^n-1)-th root of unity ζ^k.  Frobenius x↦x^p acts as k ↦ p·k mod M.
-        def _orbit(k0):
-            seen = [k0]
-            k = (mp * k0) % M
-            while k != k0:
-                seen.append(k)
-                k = (mp * k) % M
-            return seen
-
-        deg = {}                       # k -> field-of-definition degree
-        for k in range(M):
-            deg[k] = len(_orbit(k))
-
-        divisors = [d for d in range(1, mn + 1) if mn % d == 0]
-        pal = {1: "crimson"}
-        others = [d for d in divisors if d != 1]
-        ocols = plt.cm.viridis(np.linspace(0.25, 0.85, max(1, len(others))))
-        for i, d in enumerate(others):
-            pal[d] = ocols[i]
-
-        def _xy(k):
-            t = 2 * np.pi * k / M
-            return np.cos(t), np.sin(t)
-
-        fig_m, ax_m = plt.subplots(figsize=(5.5, 5.5))
-        circ = np.linspace(0, 2 * np.pi, 400)
-        ax_m.plot(np.cos(circ), np.sin(circ), color="lightgray", lw=1, zorder=1)
-
-        orb = _orbit(k_hi)
-        orb_set = set(orb)
-
-        # The full Frobenius action x ↦ x^p: an arrow from every point to its
-        # image; fixed points (x^p = x) carry a loop.  The selected orbit is
-        # emphasised in black, the rest drawn faint.
-        for k in range(M):
-            kk = (mp * k) % M
-            hot = k in orb_set
-            acol = "black" if hot else "0.6"
-            alw = 1.5 if hot else 0.8
-            az = 4 if hot else 2
-            if kk == k:                                   # fixed point → loop
-                t = 2 * np.pi * k / M
-                rad = 0.09
-                cx, cy = (1 + rad) * np.cos(t), (1 + rad) * np.sin(t)
-                ax_m.add_patch(MplArc((cx, cy), 2 * rad, 2 * rad, angle=0,
-                                      theta1=0, theta2=360,
-                                      color=acol, lw=alw, zorder=az))
-            else:
-                xa, ya = _xy(k)
-                xb, yb = _xy(kk)
-                ax_m.annotate("", xy=(xb, yb), xytext=(xa, ya),
-                              arrowprops=dict(arrowstyle="->", color=acol,
-                                              lw=alw, alpha=0.85,
-                                              connectionstyle="arc3,rad=0.18"),
-                              zorder=az)
-
-        # points coloured by degree (selected orbit ringed in black)
-        for k in range(M):
-            x, y = _xy(k)
-            d = deg[k]
-            ax_m.scatter(x, y, color=pal[d], s=(95 if d == 1 else 55),
-                         edgecolor=("black" if k in orb_set else "white"),
-                         linewidth=(1.5 if k in orb_set else 0.6), zorder=5)
-
-        ax_m.set_xlim(-1.25, 1.25)
-        ax_m.set_ylim(-1.25, 1.25)
-        ax_m.set_aspect("equal")
-        ax_m.set_frame_on(False)
-        ax_m.set_xticks([]); ax_m.set_yticks([])
-        # degree legend
-        handles = [plt.Line2D([0], [0], marker="o", linestyle="",
-                              markerfacecolor=pal[d], markeredgecolor="white",
-                              markersize=9,
-                              label=(f"$\\mathbb{{F}}_{{{mp}}}^*$ (deg 1, fixed)"
-                                     if d == 1 else
-                                     f"deg {d}  ($\\mathbb{{F}}_{{{mp}^{{{d}}}}}$)"))
-                   for d in divisors]
-        ax_m.legend(handles=handles, loc="upper left", fontsize=8,
-                    frameon=False, bbox_to_anchor=(-0.02, 1.02))
-        ax_m.set_title("$\\mathbb{F}_{%d^%d}^*$ on the unit circle" % (mp, mn),
-                       fontsize=11)
-        st.pyplot(fig_m)
-        plt.close(fig_m)
-
-        d_sel = deg[k_hi]
-        st.caption(
-            f"Highlighted orbit has length {d_sel}, so $\\zeta^{{{k_hi}}}$ is "
-            f"defined over $\\mathbb{{F}}_{{{mp}^{{{d_sel}}}}}$ "
-            + ("(a fixed point — it lies in $\\mathbb{F}_p^*$)." if d_sel == 1
-               else f"and nowhere smaller. Applying $F$ {d_sel} times returns it "
-                    "to the start.")
-        )
+    components.html(basics_viz.mult_frobenius_html(), height=640, scrolling=False)
+    st.caption(
+        "Points coloured by the field they generate; the crimson points are "
+        "$\\mathbb{F}_p^*$, fixed by Frobenius (loops). Click around: orbit "
+        "length = field degree, always a divisor of $n$."
+    )
 
 
 # ── Tab: Pictures from lifts of Frobenius — elliptic curves ───────────────────
@@ -1871,113 +1542,7 @@ with tab_ell:
     def _gmul(z, w):
         return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])
 
-    def _gpow(z, n):
-        r = (1, 0)
-        for _ in range(n):
-            r = _gmul(r, z)
-        return r
-
-    def _fixed_pts(beta):
-        """Points z in [0,1)^2 of C/Z[i] with beta*z in Z[i]; returns N of them."""
-        br, bi = beta
-        N = br * br + bi * bi
-        seen = set()
-        for a in range(N):
-            for b in range(N):
-                seen.add(((a * br + b * bi) % N, (b * br - a * bi) % N))
-        return [(rx / N, ry / N) for rx, ry in seen], N
-
-    def _fmt_gauss(z):
-        r, i = z
-        if i == 0:
-            return str(r)
-        sign = "+" if i > 0 else "-"
-        mag = abs(i)
-        coef = "" if mag == 1 else str(mag)
-        return f"{r} {sign} {coef}i"
-
-    _ALPHAS = {1: (1, 2), 2: (2, -1), 3: (-2, 1), 4: (-1, -2)}
-
-    ec_ctrl, ec_plot = st.columns([1, 2])
-
-    with ec_ctrl:
-        a_ec = st.select_slider("curve  $y^2 = x^3 + a\\,x$  (mod 5)",
-                                options=[1, 2, 3, 4], value=3, key="ec_a")
-        alpha = _ALPHAS[a_ec]
-        beta1 = (alpha[0] - 1, alpha[1])
-        _, N1 = _fixed_pts(beta1)
-        st.latex(rf"\alpha = {_fmt_gauss(alpha)}")
-        st.latex(rf"\#E(\mathbb{{F}}_5) = |\alpha-1|^2 = {N1}")
-        show25 = st.checkbox("also show $\\mathbb{F}_{25}$ points on the lattice",
-                             value=False, key="ec_25")
-        st.caption(
-            "The classical model can't show the $\\mathbb{F}_{25}$-points at all — "
-            "they don't live in the $\\mathbb{F}_5$ grid."
-        )
-
-    with ec_plot:
-        p = 5
-
-        def _sym(v):                          # symmetric representative in F_5
-            return v if 2 * v < p else v - p
-
-        # classical affine points (symmetric coords -2..2)
-        aff = [(_sym(x), _sym(y)) for x in range(p) for y in range(p)
-               if (y * y) % p == (x * x * x + a_ec * x) % p]
-        amb = [(_sym(x), _sym(y)) for x in range(p) for y in range(p)]
-        # lattice points
-        f5_pts, _ = _fixed_pts(beta1)
-        if show25:
-            beta2 = (_gpow(alpha, 2)[0] - 1, _gpow(alpha, 2)[1])
-            f25_pts, N2 = _fixed_pts(beta2)
-            f5_set = set(f5_pts)
-            f25_extra = [q for q in f25_pts if q not in f5_set]
-
-        fig_ec, (axC, axL) = plt.subplots(1, 2, figsize=(9, 4.6))
-
-        # ── classical ─────────────────────────────────────────────────────────
-        h = p // 2
-        axC.scatter([q[0] for q in amb], [q[1] for q in amb],
-                    color="gray", alpha=0.2, s=18, zorder=1)
-        axC.scatter([q[0] for q in aff], [q[1] for q in aff],
-                    color="steelblue", s=55, zorder=3)
-        axC.set_xlim(-h - 0.6, h + 0.6); axC.set_ylim(-h - 0.6, h + 0.6)
-        axC.set_aspect("equal"); axC.set_frame_on(False)
-        axC.set_xticks(range(-h, h + 1)); axC.set_yticks(range(-h, h + 1))
-        axC.tick_params(labelsize=7)
-        axC.set_title(f"Classical: $y^2=x^3+{a_ec}x$ over $\\mathbb{{F}}_5$\n"
-                      f"({len(aff)} affine points $+\\,\\mathcal{{O}}$ at $\\infty$)",
-                      fontsize=9)
-
-        # ── lattice ───────────────────────────────────────────────────────────
-        axL.add_patch(MplPolygon([(0, 0), (1, 0), (1, 1), (0, 1)], closed=True,
-                                 facecolor="gray", alpha=0.12, edgecolor="none",
-                                 zorder=0))
-        if show25:
-            axL.scatter([q[0] for q in f25_extra], [q[1] for q in f25_extra],
-                        color="goldenrod", s=40, zorder=2,
-                        label=f"$\\mathbb{{F}}_{{25}}$ ({N2} pts)")
-        axL.scatter([q[0] for q in f5_pts], [q[1] for q in f5_pts],
-                    color="steelblue", s=55, zorder=3,
-                    label=f"$\\mathbb{{F}}_5$ ({N1} pts)")
-        # the zero point at the origin
-        axL.scatter([0], [0], color="crimson", s=90, zorder=5)
-        axL.annotate("$0$", (0, 0), xytext=(6, 6), textcoords="offset points",
-                     color="crimson", fontsize=12, fontweight="bold")
-        axL.set_xlim(-0.12, 1.12); axL.set_ylim(-0.12, 1.12)
-        axL.set_aspect("equal"); axL.set_frame_on(False)
-        axL.set_xticks([0, 1]); axL.set_yticks([0, 1])
-        axL.tick_params(labelsize=7)
-        ttl = ("Lattice: fixed points of $\\times\\alpha$ on $\\mathbb{C}/\\mathbb{Z}[i]$"
-               + ("\n($\\mathbb{F}_5$ and $\\mathbb{F}_{25}$ together)" if show25
-                  else "\n($0$ is visible, at the corner)"))
-        axL.set_title(ttl, fontsize=9)
-        if show25:
-            axL.legend(loc="upper right", fontsize=7, frameon=False)
-
-        fig_ec.tight_layout()
-        st.pyplot(fig_ec)
-        plt.close(fig_ec)
+    components.html(basics_viz.f5_lattice_html(), height=520, scrolling=False)
 
     st.markdown(
         "Superficially the two pictures are alike — each is a discrete set of "

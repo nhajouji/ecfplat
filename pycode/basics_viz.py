@@ -1412,3 +1412,478 @@ document.querySelectorAll(".gpbtn").forEach(b=>b.addEventListener("click",()=>{
 render();
 </script>
 """
+
+
+# Shared JS: tiny marching-squares contour tracer for the static implicit
+# pictures (real curve galleries, quadratic-form level sets, cubic pairs).
+_MS_JS = r"""
+function contour(ctx,cv,x0,x1,y0,y1,fn,col,lw){
+  const N=110, vals=new Float64Array((N+1)*(N+1));
+  for(let iy=0;iy<=N;iy++)for(let ix=0;ix<=N;ix++)
+    vals[iy*(N+1)+ix]=fn(x0+(x1-x0)*ix/N, y1-(y1-y0)*iy/N);
+  const PX=x=>(x-x0)/(x1-x0)*cv.width, PY=y=>(y1-y)/(y1-y0)*cv.height;
+  const gx=ix=>x0+(x1-x0)*ix/N, gy=iy=>y1-(y1-y0)*iy/N;
+  ctx.strokeStyle=col; ctx.lineWidth=lw; ctx.beginPath();
+  for(let iy=0;iy<N;iy++)for(let ix=0;ix<N;ix++){
+    const a=vals[iy*(N+1)+ix], b=vals[iy*(N+1)+ix+1],
+          c=vals[(iy+1)*(N+1)+ix+1], d=vals[(iy+1)*(N+1)+ix];
+    const pts=[];
+    if(a*b<0) pts.push([gx(ix)+(gx(ix+1)-gx(ix))*a/(a-b), gy(iy)]);
+    if(b*c<0) pts.push([gx(ix+1), gy(iy)+(gy(iy+1)-gy(iy))*b/(b-c)]);
+    if(d*c<0) pts.push([gx(ix)+(gx(ix+1)-gx(ix))*d/(d-c), gy(iy+1)]);
+    if(a*d<0) pts.push([gx(ix), gy(iy)+(gy(iy+1)-gy(iy))*a/(a-d)]);
+    for(let k=0;k+1<pts.length;k+=2){
+      ctx.moveTo(PX(pts[k][0]),PY(pts[k][1]));
+      ctx.lineTo(PX(pts[k+1][0]),PY(pts[k+1][1]));
+    }
+  }
+  ctx.stroke();
+}
+function axes(ctx,cv,x0,x1,y0,y1){
+  const PX=x=>(x-x0)/(x1-x0)*cv.width, PY=y=>(y1-y)/(y1-y0)*cv.height;
+  ctx.strokeStyle="rgba(255,255,255,0.14)"; ctx.lineWidth=1; ctx.beginPath();
+  ctx.moveTo(PX(x0),PY(0)); ctx.lineTo(PX(x1),PY(0));
+  ctx.moveTo(PX(0),PY(y0)); ctx.lineTo(PX(0),PY(y1)); ctx.stroke();
+}
+"""
+
+
+def real_examples_html() -> str:
+    """S1 static gallery (replaces fig_ex): five familiar algebraic curves."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: repeat(5, 1fr); gap:8px;">
+    <div class="cell"><div class="cap">Line<br>y = x</div><canvas class="exc" data-i="0" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Parabola<br>y = x²</div><canvas class="exc" data-i="1" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Hyperbola<br>xy = 1</div><canvas class="exc" data-i="2" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Circle<br>x²+y² = 1</div><canvas class="exc" data-i="3" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Ellipse<br>x²/4+y² = 1</div><canvas class="exc" data-i="4" width="120" height="120"></canvas></div>
+  </div>
+</div>
+<script>
+"use strict";
+""" + _MS_JS + r"""
+const FNS=[(x,y)=>y-x,(x,y)=>y-x*x,(x,y)=>x*y-1,(x,y)=>x*x+y*y-1,(x,y)=>x*x/4+y*y-1];
+document.querySelectorAll(".exc").forEach(cv=>{
+  const ctx=cv.getContext("2d");
+  axes(ctx,cv,-2.2,2.2,-2.2,2.2);
+  contour(ctx,cv,-2.2,2.2,-2.2,2.2,FNS[+cv.dataset.i],"#4da3d8",2);
+});
+</script>
+"""
+
+
+def fp_examples_html() -> str:
+    """S1 static gallery (replaces fig17): the same five curves over F_17."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: repeat(5, 1fr); gap:8px;">
+    <div class="cell"><div class="cap">Line<br>y = x</div><canvas class="fpc" data-i="0" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Parabola<br>y = x²</div><canvas class="fpc" data-i="1" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Hyperbola<br>xy = 1</div><canvas class="fpc" data-i="2" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Circle<br>x²+y² = 1</div><canvas class="fpc" data-i="3" width="120" height="120"></canvas></div>
+    <div class="cell"><div class="cap">Ellipse<br>x²+4y² = 4</div><canvas class="fpc" data-i="4" width="120" height="120"></canvas></div>
+  </div>
+</div>
+<script>
+"use strict";
+const p=17, h=8;
+const FNS=[(x,y)=>y-x,(x,y)=>y-x*x,(x,y)=>x*y-1,(x,y)=>x*x+y*y-1,(x,y)=>x*x+4*y*y-4];
+const mod=(a)=>((a%p)+p)%p;
+document.querySelectorAll(".fpc").forEach(cv=>{
+  const ctx=cv.getContext("2d"), fn=FNS[+cv.dataset.i];
+  const G=v=>(v+h+0.5)/p*cv.width;
+  ctx.fillStyle="rgba(255,255,255,0.14)";
+  for(let x=-h;x<=h;x++)for(let y=-h;y<=h;y++){
+    ctx.beginPath(); ctx.arc(G(x),cv.height-G(y),1,0,7); ctx.fill();}
+  ctx.fillStyle="#4da3d8";
+  for(let x=-h;x<=h;x++)for(let y=-h;y<=h;y++)
+    if(mod(fn(x,y))===0){
+      ctx.beginPath(); ctx.arc(G(x),cv.height-G(y),2.4,0,7); ctx.fill();}
+});
+</script>
+"""
+
+
+def quadratic_form_html() -> str:
+    """S1 applet (replaces fig0 + a/b/c number inputs): the ellipse q = 1."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px;">a =</span>
+    <button class="seg" id="qadn">−</button><span id="qaval" style="align-self:center;min-width:32px;text-align:center;">2.0</span><button class="seg" id="qaup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">b =</span>
+    <button class="seg" id="qbdn">−</button><span id="qbval" style="align-self:center;min-width:32px;text-align:center;">1.0</span><button class="seg" id="qbup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">c =</span>
+    <button class="seg" id="qcdn">−</button><span id="qcval" style="align-self:center;min-width:32px;text-align:center;">2.0</span><button class="seg" id="qcup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">level sets of q(x, y) = ax² + bxy + cy²; the ellipse q = 1 in bold</div>
+      <canvas id="qfc" width="420" height="420"></canvas>
+      <div id="qfout" style="margin-top:8px;font-size:.93rem;"></div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+""" + _MS_JS + r"""
+const cv=document.getElementById("qfc"), ctx=cv.getContext("2d");
+const out=document.getElementById("qfout");
+let a=2.0, b=1.0, c=2.0;
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  axes(ctx,cv,-2.5,2.5,-2.5,2.5);
+  const disc=4*a*c-b*b, ok=a>0&&disc>0;
+  const q=(x,y)=>a*x*x+b*x*y+c*y*y;
+  if(ok){
+    for(const [lv,al] of [[0.25,0.25],[0.5,0.32],[2,0.32],[4,0.25]])
+      contour(ctx,cv,-2.5,2.5,-2.5,2.5,(x,y)=>q(x,y)-lv,`rgba(77,163,216,${al})`,1);
+    contour(ctx,cv,-2.5,2.5,-2.5,2.5,(x,y)=>q(x,y)-1,"#4da3d8",2.5);
+  }
+  out.innerHTML=`q(x,y) = ${a.toFixed(1)}x² ${b<0?"−":"+"} ${Math.abs(b).toFixed(1)}xy ${c<0?"−":"+"} ${Math.abs(c).toFixed(1)}y²`
+    +` &nbsp;·&nbsp; 4ac − b² = ${disc.toFixed(2)} &nbsp;·&nbsp; `
+    +(ok?`<span style="color:#69b382">positive definite ✓ — q = 1 is an ellipse</span>`
+        :`<span style="color:#e0b64f">not positive definite (need a &gt; 0 and 4ac − b² &gt; 0)</span>`);
+}
+const mk=(id,fn)=>document.getElementById(id).onclick=fn;
+const sync=()=>{for(const [i,v] of [["qaval",a],["qbval",b],["qcval",c]])
+  document.getElementById(i).textContent=v.toFixed(1); render();};
+mk("qaup",()=>{a+=0.5;sync();}); mk("qadn",()=>{a-=0.5;sync();});
+mk("qbup",()=>{b+=0.5;sync();}); mk("qbdn",()=>{b-=0.5;sync();});
+mk("qcup",()=>{c+=0.5;sync();}); mk("qcdn",()=>{c-=0.5;sync();});
+render();
+</script>
+"""
+
+
+def cubic_pair_html(panels) -> str:
+    """S1 static pair (replaces fig_sing / fig_smth): two cubics side by side.
+
+    panels: list of two dicts {f, g, title, sing (optional [x,y])}."""
+    import json as _j
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell"><div class="cap" id="cpt0"></div><canvas class="cpc" data-i="0" width="280" height="230"></canvas></div>
+    <div class="cell"><div class="cap" id="cpt1"></div><canvas class="cpc" data-i="1" width="280" height="230"></canvas></div>
+  </div>
+</div>
+<script>
+"use strict";
+""" + _MS_JS + r"""
+const PANELS=""" + _j.dumps(panels) + r""";
+PANELS.forEach((P,i)=>{document.getElementById("cpt"+i).textContent=P.title;});
+document.querySelectorAll(".cpc").forEach(cv=>{
+  const P=PANELS[+cv.dataset.i], ctx=cv.getContext("2d");
+  const x0=P.win[0],x1=P.win[1],y0=P.win[2],y1=P.win[3];
+  axes(ctx,cv,x0,x1,y0,y1);
+  contour(ctx,cv,x0,x1,y0,y1,(x,y)=>y*y-(x*x*x+P.f*x+P.g),"#4da3d8",2);
+  if(P.sing){
+    const PX=x=>(x-x0)/(x1-x0)*cv.width, PY=y=>(y1-y)/(y1-y0)*cv.height;
+    ctx.fillStyle="#ef6f6f"; ctx.beginPath();
+    ctx.arc(PX(P.sing[0]),PY(P.sing[1]),4.5,0,7); ctx.fill();
+  }
+});
+</script>
+"""
+
+
+def endo_lattice_html() -> str:
+    """S2 applet (replaces fig_endo + a/b inputs): endomorphism or not.
+
+    Step alpha = a + bi; left panel Z[i] (every alpha works), right panel
+    Z[2i] (images with odd imaginary part fall OUTSIDE the lattice, red)."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px;">α = a + bi, &nbsp; a =</span>
+    <button class="seg" id="eadn">−</button><span id="eaval" style="align-self:center;min-width:24px;text-align:center;">1</span><button class="seg" id="eaup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">b =</span>
+    <button class="seg" id="ebdn">−</button><span id="ebval" style="align-self:center;min-width:24px;text-align:center;">1</span><button class="seg" id="ebup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell"><div class="cap">ℤ[i] — images of ×α (all land in the lattice)</div>
+      <canvas id="eza" width="320" height="320"></canvas></div>
+    <div class="cell"><div class="cap">ℤ[2i] — images of ×α</div>
+      <canvas id="ezb" width="320" height="320"></canvas></div>
+  </div>
+  <div id="ezout" style="margin-top:8px;font-size:.93rem;"></div>
+  <div class="hint" style="margin-top:4px;">gray: the lattice · blue: images α·z that land IN the lattice · red: images that fall OUTSIDE — α is an endomorphism exactly when there is no red (for ℤ[2i]: when b is even)</div>
+</div>
+<script>
+"use strict";
+const cva=document.getElementById("eza"), cvb=document.getElementById("ezb");
+const out=document.getElementById("ezout");
+let a=1, b=1;
+const SRC=3;
+function render(){
+  // images
+  const ziImg=[], zgood=[], zbad=[];
+  for(let m=-SRC;m<=SRC;m++)for(let n=-SRC;n<=SRC;n++){
+    ziImg.push([a*m-b*n, a*n+b*m]);
+    if(Math.abs(n)<=1){                    // Z[2i] source patch: m + 2ni
+      const rx=a*m-b*2*n, ry=b*m+a*2*n;
+      (ry%2===0?zgood:zbad).push([rx,ry]);
+    }
+  }
+  const R=Math.max(5,Math.min(14,Math.max(...[...ziImg,...zgood,...zbad].flat().map(Math.abs))+1));
+  const draw=(cv,isZ2,good,bad)=>{
+    const ctx=cv.getContext("2d");
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const PX=x=>(x+R)/(2*R)*cv.width, PY=y=>(R-y)/(2*R)*cv.height;
+    ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1; ctx.beginPath();
+    ctx.moveTo(PX(-R),PY(0)); ctx.lineTo(PX(R),PY(0));
+    ctx.moveTo(PX(0),PY(-R)); ctx.lineTo(PX(0),PY(R)); ctx.stroke();
+    ctx.fillStyle="rgba(255,255,255,0.28)";
+    for(let m=-R;m<=R;m++)for(let n=-R;n<=R;n++){
+      if(isZ2&&n%2!==0) continue;
+      ctx.beginPath(); ctx.arc(PX(m),PY(n),1.8,0,7); ctx.fill();
+    }
+    ctx.fillStyle="#4da3d8";
+    for(const [x,y] of good){if(Math.abs(x)<=R&&Math.abs(y)<=R){
+      ctx.beginPath(); ctx.arc(PX(x),PY(y),3.6,0,7); ctx.fill();}}
+    ctx.fillStyle="#ef6f6f";
+    for(const [x,y] of bad){if(Math.abs(x)<=R&&Math.abs(y)<=R){
+      ctx.beginPath(); ctx.arc(PX(x),PY(y),3.6,0,7); ctx.fill();}}
+  };
+  draw(cva,false,ziImg,[]);
+  draw(cvb,true,zgood,zbad);
+  const ast=`${a} ${b<0?"−":"+"} ${Math.abs(b)}i`;
+  out.innerHTML=`α = ${ast} &nbsp;·&nbsp; ℤ[i]: always an endomorphism &nbsp;·&nbsp; `
+    +(zbad.length? `<b style="color:#ef6f6f">ℤ[2i]: NOT an endomorphism</b> (b = ${b} odd — red images escape the lattice)`
+                 : `<b style="color:#69b382">ℤ[2i]: an endomorphism ✓</b> (b = ${b} even)`);
+}
+const mk=(id,fn)=>document.getElementById(id).onclick=fn;
+const sync=()=>{document.getElementById("eaval").textContent=a;
+  document.getElementById("ebval").textContent=b; render();};
+mk("eaup",()=>{a++;sync();}); mk("eadn",()=>{a--;sync();});
+mk("ebup",()=>{b++;sync();}); mk("ebdn",()=>{b--;sync();});
+render();
+</script>
+"""
+
+
+def mult_frobenius_html() -> str:
+    """S3 applet (replaces fig_m + p selectbox + n/k sliders): F_{p^n}^* on
+    the unit circle with the full Frobenius action.
+
+    p and n are buttons (n rebuilt per p so the point count stays <= 160);
+    the orbit is chosen by CLICKING a point (was: the k slider). Points are
+    coloured by their field of definition; fixed points carry loops."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">p =</span>
+    <button class="seg mpbtn" data-p="2">2</button>
+    <button class="seg mpbtn on" data-p="3">3</button>
+    <button class="seg mpbtn" data-p="5">5</button>
+    <button class="seg mpbtn" data-p="7">7</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 4px 0 14px;">n =</span>
+    <span id="nbtns" style="display:flex;gap:6px;"></span>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">𝔽<sub>pⁿ</sub>* on the unit circle — <b>click a point</b> to follow its Frobenius orbit</div>
+      <canvas id="mfc" width="460" height="460"></canvas>
+      <div id="mfout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+      <div class="hint" style="margin-top:4px;">every point gets an arrow x ↦ xᵖ; loops mark the fixed points 𝔽ₚ* · orbit length = degree of the field the point generates</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const cv=document.getElementById("mfc"), ctx=cv.getContext("2d");
+const out=document.getElementById("mfout");
+let p=3, n=2, khi=1;
+const nmax=pp=>{let m=1; while(Math.pow(pp,m+1)-1<=160)m++; return m;};
+const M=()=>Math.pow(p,n)-1;
+const CX=cv.width/2, CY=cv.height/2, RAD=cv.width/2-46;
+const XY=k=>{const t=2*Math.PI*k/M(); return [CX+RAD*Math.cos(t), CY-RAD*Math.sin(t)];};
+function orbit(k0){const seen=[k0]; let k=(p*k0)%M();
+  while(k!==k0){seen.push(k); k=(p*k)%M();} return seen;}
+const PAL={1:"#ef6f6f",2:"#4da3d8",3:"#69b382",4:"#e0b64f",5:"#b58fd8",6:"#5fc4c4",7:"#c9a35f"};
+function render(){
+  const m=M();
+  if(khi>=m) khi=Math.min(1,m-1);
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle="rgba(255,255,255,0.18)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(CX,CY,RAD,0,7); ctx.stroke();
+  const deg={}; for(let k=0;k<m;k++) deg[k]=orbit(k).length;
+  const hot=new Set(orbit(khi));
+  // arrows
+  for(let k=0;k<m;k++){
+    const kk=(p*k)%m, isHot=hot.has(k);
+    ctx.strokeStyle=isHot?"#fff":"rgba(255,255,255,0.22)";
+    ctx.fillStyle=ctx.strokeStyle;
+    ctx.lineWidth=isHot?1.8:0.9;
+    if(kk===k){
+      const t=2*Math.PI*k/m, r=13;
+      ctx.beginPath();
+      ctx.arc(CX+(RAD+r+3)*Math.cos(t), CY-(RAD+r+3)*Math.sin(t), r, 0, 7);
+      ctx.stroke();
+    } else {
+      const A=XY(k), B=XY(kk);
+      const mx=(A[0]+B[0])/2, my=(A[1]+B[1])/2;
+      const dx=B[0]-A[0], dy=B[1]-A[1], L=Math.hypot(dx,dy);
+      const cx2=mx-0.18*dy, cy2=my+0.18*dx;              // arc3 rad=0.18-ish
+      ctx.beginPath(); ctx.moveTo(A[0],A[1]);
+      ctx.quadraticCurveTo(cx2,cy2,B[0],B[1]); ctx.stroke();
+      const an=Math.atan2(B[1]-cy2,B[0]-cx2);
+      ctx.beginPath(); ctx.moveTo(B[0],B[1]);
+      ctx.lineTo(B[0]-8*Math.cos(an-0.42),B[1]-8*Math.sin(an-0.42));
+      ctx.lineTo(B[0]-8*Math.cos(an+0.42),B[1]-8*Math.sin(an+0.42));
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // points
+  for(let k=0;k<m;k++){
+    const [x,y]=XY(k), d=deg[k];
+    ctx.fillStyle=PAL[d]||"#9aa4ad";
+    ctx.beginPath(); ctx.arc(x,y,d===1?7:5.5,0,7); ctx.fill();
+    ctx.strokeStyle=hot.has(k)?"#fff":"rgba(0,0,0,0.5)";
+    ctx.lineWidth=hot.has(k)?2:1; ctx.stroke();
+  }
+  // legend
+  const divs=[]; for(let d=1;d<=n;d++) if(n%d===0) divs.push(d);
+  ctx.font="12px system-ui"; ctx.textAlign="left";
+  divs.forEach((d,i)=>{
+    ctx.fillStyle=PAL[d]||"#9aa4ad";
+    ctx.beginPath(); ctx.arc(14,18+i*20,5,0,7); ctx.fill();
+    ctx.fillStyle="#9aa4ad";
+    ctx.fillText(d===1?`𝔽${p}* (deg 1, fixed)`:`deg ${d} (𝔽${p}^${d})`, 26, 22+i*20);
+  });
+  const dsel=deg[khi];
+  out.innerHTML=`#𝔽<sub>${p}<sup>${n}</sup></sub>* = ${p}<sup>${n}</sup> − 1 = ${m}`
+    +` &nbsp;·&nbsp; highlighted orbit: k = ${khi}, length ${dsel} — ζ<sup>${khi}</sup> generates 𝔽<sub>${p}<sup>${dsel}</sup></sub>`
+    +(dsel===1?" (a fixed point: it lies in 𝔽<sub>p</sub>*)":`; applying F ${dsel} times returns it to the start`);
+}
+cv.addEventListener("pointerdown",e=>{
+  const b=cv.getBoundingClientRect();
+  const mx=(e.clientX-b.left)*cv.width/b.width, my=(e.clientY-b.top)*cv.height/b.height;
+  let best=null,bd=16*16;
+  for(let k=0;k<M();k++){
+    const [x,y]=XY(k), dx=x-mx, dy=y-my;
+    if(dx*dx+dy*dy<bd){bd=dx*dx+dy*dy; best=k;}
+  }
+  if(best!==null){khi=best; render();}
+});
+function buildN(){
+  const span=document.getElementById("nbtns");
+  span.innerHTML="";
+  for(let v=1;v<=nmax(p);v++){
+    const btn=document.createElement("button");
+    btn.className="seg"+(v===n?" on":"");
+    btn.textContent=v;
+    btn.onclick=()=>{n=v; khi=Math.min(1,M()-1); buildN(); render();};
+    span.appendChild(btn);
+  }
+}
+document.querySelectorAll(".mpbtn").forEach(b=>b.addEventListener("click",()=>{
+  p=+b.dataset.p; n=Math.min(2,nmax(p)); khi=1;
+  document.querySelectorAll(".mpbtn").forEach(z=>z.classList.toggle("on",z===b));
+  buildN(); render();
+}));
+buildN(); render();
+</script>
+"""
+
+
+def f5_lattice_html() -> str:
+    """S3 applet (replaces fig_ec + a select_slider + F_25 checkbox): the
+    curves y^2 = x^3 + ax over F_5 next to their lattice models.
+
+    a buttons pick the curve; the right panel shows the fixed points of
+    multiplication by alpha on C/Z[i] (the lattice model), with an F_25
+    toggle. The identity 0 is visible at the corner -- the point the
+    classical picture cannot show."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">y² = x³ + a·x (mod 5), &nbsp; a =</span>
+    <button class="seg abtn" data-a="1">1</button>
+    <button class="seg abtn" data-a="2">2</button>
+    <button class="seg abtn on" data-a="3">3</button>
+    <button class="seg abtn" data-a="4">4</button>
+    <button class="seg" id="t25" style="margin-left:14px;">show 𝔽₂₅ points</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell"><div class="cap">classical: the 𝔽₅ grid</div>
+      <canvas id="fla5" width="300" height="300"></canvas></div>
+    <div class="cell"><div class="cap">lattice: fixed points of ×α on ℂ/ℤ[i]</div>
+      <canvas id="flb5" width="300" height="300"></canvas></div>
+  </div>
+  <div id="fl5out" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+  <div class="hint" style="margin-top:4px;">the red 0 at the corner is the identity — visible in the lattice model, at infinity in the classical one · gold: the extra 𝔽₂₅ points, which the classical 𝔽₅ grid cannot show at all</div>
+</div>
+<script>
+"use strict";
+const ALPHAS={1:[1,2],2:[2,-1],3:[-2,1],4:[-1,-2]};
+const cva=document.getElementById("fla5"), cvb=document.getElementById("flb5");
+const out=document.getElementById("fl5out");
+let a=3, show25=false;
+const p=5, h=2;
+function fixedPts(br,bi){
+  const N=br*br+bi*bi, seen=new Set();
+  for(let u=0;u<N;u++)for(let v=0;v<N;v++)
+    seen.add((((u*br+v*bi)%N+N)%N)+","+(((v*br-u*bi)%N+N)%N));
+  return {pts:[...seen].map(s=>s.split(",").map(Number).map(t=>t/N)), N};
+}
+function render(){
+  const al=ALPHAS[a], b1=[al[0]-1,al[1]];
+  const f5=fixedPts(b1[0],b1[1]);
+  const al2=[al[0]*al[0]-al[1]*al[1], 2*al[0]*al[1]];
+  const b2=[al2[0]-1,al2[1]], f25=fixedPts(b2[0],b2[1]);
+  // classical panel
+  {
+    const ctx=cva.getContext("2d");
+    ctx.clearRect(0,0,cva.width,cva.height);
+    const G=v=>(v+h+0.5)/p*cva.width;
+    ctx.fillStyle="rgba(255,255,255,0.15)";
+    for(let x=-h;x<=h;x++)for(let y=-h;y<=h;y++){
+      ctx.beginPath(); ctx.arc(G(x),cva.height-G(y),3,0,7); ctx.fill();}
+    ctx.fillStyle="#4da3d8";
+    let naff=0;
+    for(let x=0;x<p;x++)for(let y=0;y<p;y++)
+      if((y*y)%p===(((x*x*x+a*x)%p)+p)%p){
+        naff++;
+        const sx=2*x<p?x:x-p, sy=2*y<p?y:y-p;
+        ctx.beginPath(); ctx.arc(G(sx),cva.height-G(sy),6,0,7); ctx.fill();}
+  }
+  // lattice panel
+  {
+    const ctx=cvb.getContext("2d");
+    ctx.clearRect(0,0,cvb.width,cvb.height);
+    const M=26, PX=v=>M+v*(cvb.width-2*M), PY=v=>cvb.height-M-v*(cvb.height-2*M);
+    ctx.fillStyle="rgba(255,255,255,0.05)";
+    ctx.fillRect(PX(0),PY(1),PX(1)-PX(0),PY(0)-PY(1));
+    ctx.strokeStyle="rgba(255,255,255,0.25)"; ctx.lineWidth=1;
+    ctx.strokeRect(PX(0),PY(1),PX(1)-PX(0),PY(0)-PY(1));
+    if(show25){
+      const f5set=new Set(f5.pts.map(q=>q.join(",")));
+      ctx.fillStyle="#e0b64f";
+      for(const q of f25.pts) if(!f5set.has(q.join(","))){
+        ctx.beginPath(); ctx.arc(PX(q[0]),PY(q[1]),4,0,7); ctx.fill();}
+    }
+    ctx.fillStyle="#4da3d8";
+    for(const q of f5.pts){
+      ctx.beginPath(); ctx.arc(PX(q[0]),PY(q[1]),5.5,0,7); ctx.fill();}
+    ctx.fillStyle="#ef6f6f";
+    ctx.beginPath(); ctx.arc(PX(0),PY(0),7,0,7); ctx.fill();
+    ctx.font="13px system-ui"; ctx.fillText("0", PX(0)+9, PY(0)-6);
+  }
+  const fmt=z=>`${z[0]} ${z[1]<0?"−":"+"} ${Math.abs(z[1])===1?"":Math.abs(z[1])}i`;
+  out.innerHTML=`α = ${fmt(ALPHAS[a])} &nbsp;·&nbsp; #E(𝔽₅) = |α − 1|² = ${f5.N}`
+    +(show25?` &nbsp;·&nbsp; <span style="color:#e0b64f">#E(𝔽₂₅) = |α² − 1|² = ${f25.N}</span>`:"");
+}
+document.querySelectorAll(".abtn").forEach(b=>b.addEventListener("click",()=>{
+  a=+b.dataset.a;
+  document.querySelectorAll(".abtn").forEach(z=>z.classList.toggle("on",z===b));
+  render();
+}));
+document.getElementById("t25").addEventListener("click",e=>{
+  show25=!show25; e.target.classList.toggle("on",show25); render();
+});
+render();
+</script>
+"""
