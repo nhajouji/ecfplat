@@ -216,7 +216,9 @@ def class_view(a: int, p: int):
     has_curves = cls.js_to_qf is not None
     N = p + 1 - a
     st.header(f"Isogeny class (a, p) = ({a}, {p})")
-    chi = f"x^2 + {p}" if a == 0 else f"x^2 - {a}x + {p}"
+    chi = (f"x^2 + {p}" if a == 0
+           else f"x^2 + {-a}x + {p}" if a < 0
+           else f"x^2 - {a}x + {p}")
     facts = (f"$\\chi(x) = {chi}$ &nbsp;·&nbsp; "
              f"$\\#E(\\mathbb{{F}}_p) = {N}$ &nbsp;·&nbsp; disc ${d}$ "
              f"(field disc ${cls.field_disc}$, cond ${cls.cond}$) &nbsp;·&nbsp; "

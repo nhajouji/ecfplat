@@ -716,8 +716,11 @@ const tx=-B/(2*A), ty=Math.sqrt(-D)/(2*A);
   ctx.fillText("ατ",PX(at.x)+5,PY(at.y)-5);
 })();
 
+const chi = a===0 ? "x² + "+p
+          : a<0   ? "x² + "+(-a)+"x + "+p
+          :         "x² − "+a+"x + "+p;
 document.getElementById("ctInfo").innerHTML=
-  "χ(x) = x² − "+a+"x + "+p+" · #E(𝔽_p) = χ(1) = "+N
+  "χ(x) = "+chi+" · #E(𝔽_p) = χ(1) = "+N
   +" · τ ≈ "+tx.toFixed(3)+" + "+ty.toFixed(3)+"i · |α| = √"+p;
 })();
 </script>
