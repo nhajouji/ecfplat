@@ -172,6 +172,49 @@ def _two_point_pick(prefix, clicked_pt):
 _OINF = "O"   # sentinel for the point at infinity 𝒪 in the click selections
 
 
+@st.cache_data(show_spinner=False)
+def _j_mult_coloring(mult: int, w: int = 300, h: int = 300):
+    """Domain-colouring of τ ↦ j(mult·τ) over a window of ℍ. mult = 1 is the
+    domain j-map j(τ); mult = ℓ is j∘Fricke = j(ℓτ), the codomain."""
+    xs = np.linspace(-1.5, 1.5, w)
+    ys = np.linspace(2.2, 0.06, h)
+    z = mult * (xs[None, :] + 1j * ys[:, None])
+    for _ in range(80):
+        z -= np.round(z.real)
+        m = np.abs(z) < 1 - 1e-9
+        if not m.any():
+            break
+        z[m] = -1.0 / z[m]
+    q = np.exp(2j * np.pi * z)
+    j = 1.0 / q + 744.0
+    qn = q.copy()
+    for c in _JC:
+        j += c * qn
+        qn *= q
+    mag = np.abs(j)
+    hue = (np.angle(j) / (2 * np.pi)) % 1.0
+    val = 0.34 + 0.46 * (0.5 + 0.5 * np.sin(np.log(mag + 1e-9) * 1.7))
+    return hsv_to_rgb(np.stack([hue, np.full_like(mag, 0.58), np.clip(val, 0, 1)], axis=-1))
+
+
+def _j_fricke_figure(ell: int):
+    """Side-by-side domain-colourings of j(τ) and j(ℓτ) over ℍ."""
+    panels = ((_j_mult_coloring(1), r"$j(\tau)$ — the domain $E$"),
+              (_j_mult_coloring(ell), r"$j(\ell\tau)$ — the codomain $E'$ (Fricke)"))
+    fig, axes = plt.subplots(1, 2, figsize=(7.4, 3.3))
+    for ax, (rgb, title) in zip(axes, panels):
+        ax.imshow(rgb, extent=[-1.5, 1.5, 0.06, 2.2], origin="upper",
+                  aspect="auto", interpolation="bilinear")
+        ax.set_xlim(-1.5, 1.5)
+        ax.set_ylim(0.06, 2.2)
+        ax.set_title(title, fontsize=9)
+        ax.set_xlabel(r"$\mathrm{Re}\,\tau$", fontsize=8)
+        ax.tick_params(labelsize=7)
+    axes[0].set_ylabel(r"$\mathrm{Im}\,\tau$", fontsize=8)
+    fig.tight_layout()
+    return fig
+
+
 st.header("Background")
 st.markdown(
     "A crash course on the mathematics underlying this project. "
@@ -549,6 +592,22 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "(the arcs where $j \\in [0, 1728]$ and the walls where $j \\le 0$)."
         )
         components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
+
+        st.markdown("#### The two $j$-maps, side by side")
+        st.markdown(
+            "The same domain-colouring as in §8, now for both endpoints of the "
+            "isogeny. On the left, $\\tau \\mapsto j(\\tau)$ colours each point of "
+            "$X_0(\\ell)$ by its **domain**; on the right, $\\tau \\mapsto "
+            "j(\\ell\\tau) = j(w_\\ell\\tau)$ colours it by its **codomain**. Fricke "
+            "interchanges the two pictures. Where the colours **agree** we have "
+            "$j(\\tau) = j(\\ell\\tau)$ — the endomorphisms, the CM points lying on "
+            "the circle $|\\tau| = 1/\\sqrt{\\ell}$."
+        )
+        _fr_ell = st.radio(
+            "Level $\\ell$", [2, 3, 5, 7], index=2, horizontal=True,
+            key="x0j_fricke_ell",
+        )
+        st.pyplot(_j_fricke_figure(_fr_ell))
 
     # ── §9.3 — algebraic models ───────────────────────────────────────────────
     with tab_x0alg:
