@@ -670,10 +670,22 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "that keeps $t \\mapsto m/t$ clean is what makes the curve a "
             "$\\mathbb{P}^1$."
         )
+        st.markdown(
+            "Here is the algebraic model as a picture. Where the analytic $X_0("
+            "\\ell)$ was a fundamental domain with edges to glue, the genus-$0$ "
+            "model is just the **$x$-line** $\\cong \\mathbb{P}^1$ — no gluing, "
+            "cusps at $0$ and $\\infty$. Colouring it by $j_\\ell(x)$ (the §8 "
+            "scheme) makes the **real locus of $j_\\ell$** — its Belyi graph, the "
+            "algebraic shadow of that gluing — appear as the seams. Drag $x$ to "
+            "read the domain $j_\\ell(x)$; its Fricke partner $m/x$ gives the "
+            "codomain $j_\\ell(m/x)$. The dashed circle $|x| = \\sqrt{m}$ is the "
+            "fixed locus of $\\mathfrak{F}_\\ell$ (there $m/x = \\bar{x}$)."
+        )
+        components.html(modular_viz.genus0_dial_html(), height=470, scrolling=False)
         st.caption(
-            "_Picture to come: a genus-$0$ dial — pick $\\ell \\in \\{2,3,5,7,13\\}$, "
-            "move $t$, and read the domain $j_\\ell(t)$ and the codomain "
-            "$j_\\ell(m/t)$ straight off the model._"
+            "Levels $\\{3, 5, 7, 13\\}$ — the odd genus-$0$ primes tabulated in "
+            "`jcoefs.json`, with $j_\\ell(x) = a_1(x)\\,a_3(x)^3\\,a_{-1}(x)^{-1}$ "
+            "and $m = \\ell^{12/(\\ell-1)}$."
         )
         st.markdown(
             "The full computations — the universal isogeny, larger $\\ell$, and "

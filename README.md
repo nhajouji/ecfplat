@@ -218,8 +218,8 @@ ecqf_full_bijection_ss(307)                # picks its own rigid l-set
 | per-discriminant lattice data | **20 514 discriminants** down to −41 028 (`rigid_lset_cache.json`): 20 467 with a rigid spanning set, 47 open — 44 spanning failures awaiting new `Φ_ℓ` (see the vote) and 3 rigidity failures |
 | Hilbert class polynomials | **748 certified** `H_d`, deepest `d = −86 227` (`hilbpolys.json` + `hilbpolys_crt.json`, grown by the Hilbert factory) |
 | classical modular polynomials | `Φ_ℓ` for **all ℓ ≤ 67** (`classical_modpolys.json`; ℓ ≥ 29 produced by the phi factory — `Φ₇₁` in progress) |
-| Atkin polynomials | the 15 genus-0 primes `ℓ ∈ {2, …, 71}` (`atkinpolys.json`) |
-| supporting tables | j-function q-expansion (`jq_coeffs.json`, OEIS A000521), Heegner data (`jcoefs.json`), phi-factory CRT checkpoints (`phi_factory_state.json`) |
+| Atkin polynomials | the 15 Atkin primes `ℓ ∈ {2, …, 71}` — those dividing `|Monster|`, equivalently the primes with `X₀(ℓ)⁺` (the Atkin–Lehner quotient) of genus 0 (`atkinpolys.json`) |
+| supporting tables | j-function q-expansion (`jq_coeffs.json`, OEIS A000521), genus-0 `X₀(ℓ)` `j`-maps in factored form (`jcoefs.json`, `ℓ ∈ {3, 5, 7, 13}`), phi-factory CRT checkpoints (`phi_factory_state.json`) |
 
 List available keys with `get_aps_pc()` / `get_ssps_pc()` and test membership with `ap_in_pc_data((a, p))` (in `ecqf_tools.py`); the factory store loads via `bij_factory.load_ext_bijections()`.
 

@@ -723,3 +723,139 @@ document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
 render();
 </script>
 """
+
+
+# Genus-0 j-maps for X_0(l) from data/jcoefs.json: j_l(x) = a1(x)^1 * a3(x)^3 *
+# a_{-1}(x)^{-1} (keys = exponents, lists = coeffs low->high). Fricke x -> m/x,
+# m = l^{12/(l-1)}.  Only the odd genus-0 primes are tabulated.
+_JCOEFS = {
+  "3":  {"1": [27, -1], "3": [-3, 1],  "-1": [0, 1]},
+  "5":  {"1": [1],      "3": [5, 10, 1], "-1": [0, 1]},
+  "7":  {"1": [-49, 13, -1], "3": [1, -5, 1], "-1": [0, 1]},
+  "13": {"1": [-13, 5, -1], "3": [1, -19, 20, -7, 1], "-1": [0, 1]},
+}
+_MVAL = {"3": 729, "5": 125, "7": 49, "13": 13}
+
+
+def genus0_dial_html() -> str:
+    """§9.3 applet: the algebraic model X_0(l) = P^1 (the x-line, no gluing).
+
+    Domain-colours the x-plane by the j-map j_l(x) (so the real locus of j -- the
+    Belyi graph -- shows up as the seams); a draggable x reads off the domain
+    j_l(x) and its Fricke partner m/x reads off the codomain j_l(m/x). The dashed
+    circle |x| = sqrt(m) is the Fricke fixed locus (there m/x = conj(x))."""
+    import json as _j
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">algebraic X₀(ℓ) = ℙ¹, &nbsp; ℓ =</span>
+    <button class="seg ellbtn" data-l="3">3</button>
+    <button class="seg ellbtn on" data-l="5">5</button>
+    <button class="seg ellbtn" data-l="7">7</button>
+    <button class="seg ellbtn" data-l="13">13</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 360px 1fr;">
+    <div class="cell">
+      <div class="cap">the x-line, coloured by j<sub>ℓ</sub>(x)</div>
+      <canvas id="gd" width="360" height="360"></canvas>
+    </div>
+    <div class="cell" style="justify-content:flex-start;">
+      <div class="cap" style="text-align:left;">the isogeny at x</div>
+      <div id="gdpanel" style="border:1px solid #23272c;border-radius:8px;padding:14px;min-height:150px;font-size:.95rem;line-height:1.7;"></div>
+      <div class="hint" style="text-align:left;margin-top:8px;">drag x; the gold point is its Fricke partner m/x. Dashed circle: |x| = √m (self-dual).</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const JCO=""" + _j.dumps(_JCOEFS) + r""", MVAL=""" + _j.dumps(_MVAL) + r""";
+const DOM="#4da3d8", SUP="#e0b64f", INK="#d7d9dc", MUT="#9aa4ad";
+
+const C=(re,im)=>({re,im});
+const cadd=(a,b)=>C(a.re+b.re,a.im+b.im);
+const cmulr=(z,r)=>C(z.re*r,z.im*r);
+const cmulc=(a,b)=>C(a.re*b.re-a.im*b.im, a.re*b.im+a.im*b.re);
+const cabs2=z=>z.re*z.re+z.im*z.im;
+const cinv=z=>{const d=cabs2(z);return C(z.re/d,-z.im/d);};
+function peval(coeffs,x){let r=C(0,0),xp=C(1,0);for(const c of coeffs){r=cadd(r,cmulr(xp,c));xp=cmulc(xp,x);}return r;}
+function cpow(z,n){if(n===0)return C(1,0); if(n<0)return cinv(cpow(z,-n)); let r=C(1,0);for(let i=0;i<n;i++)r=cmulc(r,z);return r;}
+function jmap(x){const e=JCO[ell]; let r=C(1,0); for(const k in e){ r=cmulc(r,cpow(peval(e[k],x),+k)); } return r;}
+function hsv2rgb(h,s,v){const i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=v*(1-(1-f)*s);
+  let r,g,b; switch(((i%6)+6)%6){case 0:r=v;g=t;b=p;break;case 1:r=q;g=v;b=p;break;case 2:r=p;g=v;b=t;break;case 3:r=p;g=q;b=v;break;case 4:r=t;g=p;b=v;break;default:r=v;g=p;b=q;} return [r,g,b];}
+
+let ell="5";
+const rad=()=>2.2*Math.sqrt(MVAL[ell]);
+let x=C(Math.sqrt(125)*0.6, Math.sqrt(125)*0.8), dragging=false;
+
+const cv=document.getElementById("gd"), ctx=cv.getContext("2d");
+const panel=document.getElementById("gdpanel");
+const X=re=>(re+rad())/(2*rad())*cv.width;
+const Y=im=>(rad()-im)/(2*rad())*cv.height;
+const inv=(px,py)=>C(-rad()+px/cv.width*2*rad(), rad()-py/cv.height*2*rad());
+
+let bgCache={};
+function bg(){
+  if(bgCache[ell])return bgCache[ell];
+  const W=cv.width,H=cv.height,img=ctx.createImageData(W,H),R=rad();
+  for(let py=0;py<H;py++)for(let px=0;px<W;px++){
+    const j=jmap(C(-R+px/W*2*R, R-py/H*2*R));
+    const mag=Math.hypot(j.re,j.im);
+    let hue=(Math.atan2(j.im,j.re)/(2*Math.PI)); hue=((hue%1)+1)%1;
+    const val=0.34+0.46*(0.5+0.5*Math.sin(Math.log(mag+1e-12)*1.7));
+    const rgb=hsv2rgb(hue,0.58,Math.max(0,Math.min(1,val))), i=(py*W+px)*4;
+    img.data[i]=rgb[0]*255; img.data[i+1]=rgb[1]*255; img.data[i+2]=rgb[2]*255; img.data[i+3]=255;
+  }
+  bgCache[ell]=img; return img;
+}
+function fmtC(z){const a=z.re,b=z.im,mag=Math.hypot(a,b),s=b<0?"−":"+";
+  const f=v=>mag>1e5?v.toExponential(2):v.toFixed(2);
+  return `${f(a)} ${s} ${f(Math.abs(b))}i`;}
+
+function draw(){
+  ctx.putImageData(bg(),0,0);
+  const R=rad(), m=MVAL[ell];
+  // axes
+  ctx.strokeStyle="rgba(255,255,255,0.18)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(cv.width,Y(0)); ctx.moveTo(X(0),0); ctx.lineTo(X(0),cv.height); ctx.stroke();
+  // self-dual circle |x| = sqrt(m)
+  ctx.strokeStyle="rgba(255,255,255,0.55)"; ctx.setLineDash([5,4]); ctx.lineWidth=1.3;
+  ctx.beginPath(); ctx.arc(X(0),Y(0), Math.sqrt(m)/(2*R)*cv.width, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+  // cusp 0
+  ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(X(0),Y(0),3,0,7); ctx.fill();
+  ctx.font="12px system-ui"; ctx.fillText("0", X(0)+6, Y(0)+14);
+  // Fricke partner m/x (gold), then x (white)
+  const fr=cmulr(cinv(x), m);
+  ctx.fillStyle=SUP; ctx.beginPath(); ctx.arc(X(fr.re),Y(fr.im),6,0,7); ctx.fill();
+  ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
+  ctx.fillStyle=INK; ctx.fillText("m/x", X(fr.re)+8, Y(fr.im)-6);
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(X(x.re),Y(x.im),6,0,7); ctx.fill();
+  ctx.strokeStyle=DOM; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle=INK; ctx.fillText("x", X(x.re)+8, Y(x.im)-6);
+}
+function swatch(j){const mag=Math.hypot(j.re,j.im);let h=(Math.atan2(j.im,j.re)/(2*Math.PI));h=((h%1)+1)%1;
+  const v=0.34+0.46*(0.5+0.5*Math.sin(Math.log(mag+1e-12)*1.7)); const rgb=hsv2rgb(h,0.58,Math.max(0,Math.min(1,v)));
+  return `rgb(${rgb[0]*255|0},${rgb[1]*255|0},${rgb[2]*255|0})`;}
+function render(){
+  draw();
+  const m=MVAL[ell], fr=cmulr(cinv(x),m), jx=jmap(x), jfr=jmap(fr);
+  const sw=j=>`<span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;background:${swatch(j)};margin-right:6px;"></span>`;
+  panel.innerHTML =
+    `<div style="color:${MUT};font-size:.85rem;">x = ${fmtC(x)} &nbsp;·&nbsp; m = ${m}</div>`
+    + `<div style="margin-top:10px;">${sw(jx)}<b style="color:${DOM}">domain</b> &nbsp;j<sub>ℓ</sub>(x) = ${fmtC(jx)}</div>`
+    + `<div style="margin-top:6px;">${sw(jfr)}<b style="color:${SUP}">codomain</b> &nbsp;j<sub>ℓ</sub>(m/x) = ${fmtC(jfr)}</div>`
+    + `<div style="color:${MUT};font-size:.82rem;margin-top:12px;">The seams in the colouring are the real locus of j<sub>ℓ</sub> (its Belyi graph) — the algebraic shadow of the analytic gluing.</div>`;
+}
+
+function evt(e){const r=cv.getBoundingClientRect();return C(-rad()+(e.clientX-r.left)/r.width*2*rad(), rad()-(e.clientY-r.top)/r.height*2*rad());}
+cv.addEventListener("pointerdown",e=>{dragging=true; cv.setPointerCapture(e.pointerId); x=evt(e); render(); e.preventDefault();});
+cv.addEventListener("pointermove",e=>{if(dragging){x=evt(e); render();}});
+window.addEventListener("pointerup",()=>{dragging=false;});
+document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
+  ell=b.dataset.l; const sm=Math.sqrt(MVAL[ell]); x=C(sm*0.6, sm*0.8);
+  document.querySelectorAll(".ellbtn").forEach(z=>z.classList.toggle("on",z===b));
+  render();
+}));
+
+render();
+</script>
+"""

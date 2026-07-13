@@ -106,7 +106,8 @@ def atk_at_j_fpfac(j:int,l:int,p:int):
 
 
 ## Classical modular polynomials Phi_l(X, Y), computed from the j-function q-expansion
-# The Atkin polynomials above only cover the 15 genus-0 primes.  For an arbitrary prime l
+# The Atkin polynomials above only cover the 15 Atkin primes (those dividing |Monster|,
+# i.e. with X_0(l)^+ of genus 0).  For an arbitrary prime l
 # we compute the classical modular polynomial Phi_l(X, Y) directly from the q-expansion of
 # the j-function (data/jq_coeffs.json, the coefficients c(n) of j = q^-1 + 744 + ...).
 # Phi_l(j, Y) mod p factors over F_p into the l+1 j-invariants l-isogenous to j -- the
