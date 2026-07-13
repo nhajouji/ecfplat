@@ -338,7 +338,7 @@ draw(); showPanel();
 
 
 def x0_subgroup_html() -> str:
-    """§9.1 applet: a point of X_0(l) = a curve + an order-l subgroup.
+    """§8.1 applet: a point of X_0(l) = a curve + an order-l subgroup.
 
     Left panel: the Gamma_0(l) fundamental domain -- l+1 tiles, one per subgroup;
     drag the marker to choose a point of X_0(l), which sets tau AND the subgroup
@@ -548,7 +548,7 @@ _X0_ENDOS = {
 
 
 def x0_fricke_html() -> str:
-    """§9.2 applet: the j-maps and the Fricke involution.
+    """§8.2 applet: the j-maps and the Fricke involution.
 
     Left: the Gamma_0(l) tiling (coloured by subgroup, as on the previous tab),
     with a draggable point tau, its Fricke image w(tau) = -1/(l tau) reduced back
@@ -885,7 +885,7 @@ function makeDial(cvId, JCO, MVAL, ENDO){
 
 
 def genus0_plane_html() -> str:
-    """S9.3 applet A: the algebraic model X_0(l) = P^1 as a gallery of pictures.
+    """S8.3 applet A: the algebraic model X_0(l) = P^1 as a gallery of pictures.
 
     One canvas per selected l in {3,5,7,13}: the x-plane dimly domain-coloured
     by j_l (ambient space only), the real locus of j_l weighted Belyi-style
@@ -927,7 +927,7 @@ dial.drawBase();
 
 
 def x05_isogeny_html() -> str:
-    """S9.3 applet B: walk the real points of X_0(5) and watch the 5-isogeny.
+    """S8.3 applet B: walk the real points of X_0(5) and watch the 5-isogeny.
 
     l = 5 only. Drag x along the real line; the universal-curve section
     t(x) = (11+x-sqrt(x^2+22x+125))/2 (radicand positive on all of R) into the

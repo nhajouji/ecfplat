@@ -276,183 +276,188 @@ st.markdown(
     "*are* the objects we have been labelling."
 )
 
-with st.expander("§7 — The moduli space of lattices", expanded=False):
-    st.markdown(
-        "A **lattice** in $\\mathbb{C}$ is the set of all integer combinations "
-        "$\\Lambda = \\mathbb{Z}\\,\\omega_1 + \\mathbb{Z}\\,\\omega_2$ of two "
-        "$\\mathbb{R}$-independent complex numbers — an infinite, evenly spaced "
-        "grid. What we care about is a lattice's **shape**: not its size, not its "
-        "orientation, and not where we happen to put the origin."
-    )
-    st.markdown(
-        "Two operations leave the shape untouched. We may slide the grid so that "
-        "one point sits at $0$, and we may **rotate and rescale** the whole plane "
-        "— that is, multiply every point by a single nonzero complex number "
-        "$\\zeta \\in \\mathbb{C}^{\\times}$. Using that freedom, divide the basis "
-        "through by $\\omega_1$:"
-    )
-    st.latex(r"\Lambda \;\sim\; \tfrac{1}{\omega_1}\Lambda \;=\; \mathbb{Z} + \mathbb{Z}\,\tau,"
-             r"\qquad \tau = \omega_2/\omega_1.")
-    st.markdown(
-        "Swapping $\\omega_1$ and $\\omega_2$ if necessary so the basis is "
-        "positively oriented, $\\tau$ lands in the **upper half-plane** "
-        "$\\mathcal{H} = \\{\\tau : \\operatorname{Im}\\tau > 0\\}$. So every "
-        "lattice, up to rotation and scaling, is $\\mathbb{Z} + \\mathbb{Z}\\tau$ "
-        "for a single $\\tau \\in \\mathcal{H}$ — that one complex number records "
-        "the shape."
-    )
-    st.markdown(
-        "But $\\tau$ is not quite unique, because the basis wasn't. Any other "
-        "positively-oriented basis of the *same* lattice comes from an integer "
-        "change of basis of determinant $1$ — an element "
-        "$\\gamma = \\left(\\begin{smallmatrix} a & b \\\\ c & d \\end{smallmatrix}\\right)$ "
-        "of $\\mathrm{SL}(2,\\mathbb{Z})$ — and it moves $\\tau$ to"
-    )
-    st.latex(r"\gamma \cdot \tau \;=\; \frac{a\tau + b}{c\tau + d}.")
-    st.markdown(
-        "Composing two changes of basis matches multiplying the matrices, so this "
-        "is a genuine **left action** of $\\mathrm{SL}(2,\\mathbb{Z})$ on "
-        "$\\mathcal{H}$; since $-I$ acts trivially, the group that really acts is "
-        "$\\Gamma = \\mathrm{PSL}(2,\\mathbb{Z})$."
-    )
-    st.info(
-        "**A word on sides.** The action on the *points* of $\\mathcal{H}$ is on "
-        "the **left**, which is exactly why the quotient below is written "
-        "$\\Gamma \\backslash \\mathcal{H}$ (group on the left). The **right** "
-        "action — the one on spaces of modular forms, via the slash operator "
-        "$f \\mapsto f|_k\\gamma$ — is a different action we will meet later. You "
-        "will often see $\\mathcal{H}/\\Gamma$ written loosely for the same space; "
-        "we keep the careful convention."
-    )
-    st.markdown("Putting it together, the set of lattice shapes is the orbit space")
-    st.latex(r"\{\text{lattices}\}\,/\,\mathbb{C}^{\times} \;\cong\; \Gamma \backslash \mathcal{H}.")
-    st.markdown(
-        "Every shape has exactly one representative in the standard **fundamental "
-        "domain** $\\{\\tau \\in \\mathcal{H} : |\\operatorname{Re}\\tau| \\le "
-        "\\tfrac12,\\ |\\tau| \\ge 1\\}$ (shaded in the applet below). This "
-        "quotient is our first modular curve. Giving it an honest *coordinate* — "
-        "the $j$-invariant, next — will turn it into a concrete object we can "
-        "compute with."
-    )
-    st.markdown("#### Explore")
-    st.markdown(
-        "Two views of one fact. In **drive the shape τ**, drag $\\tau$ around "
-        "$\\Gamma\\backslash\\mathcal{H}$ and watch the lattice $\\mathbb{Z} + "
-        "\\mathbb{Z}\\tau$ redraw; the gold ring shows the canonical "
-        "representative in the fundamental domain. In **drag a basis**, move "
-        "$\\omega_1, \\omega_2$ around $\\mathbb{C}$ and watch their ratio "
-        "$\\tau = \\omega_2/\\omega_1$ appear — and reduce — in the domain. "
-        "Different bases, and shapes outside the domain, all collapse to the same "
-        "canonical point of $\\Gamma\\backslash\\mathcal{H}$."
-    )
-    components.html(modular_viz.moduli_applet_html(), height=540, scrolling=False)
+with st.expander("§7 — The moduli space of elliptic curves", expanded=False):
+    tab_lat, tab_jinv = st.tabs(["The moduli space of lattices", "The $j$-invariant"])
 
-with st.expander("§8 — The $j$-invariant", expanded=False):
-    st.markdown(
-        "The space $\\Gamma\\backslash\\mathcal{H}$ is still an abstract quotient. "
-        "To compute with it we need a **coordinate** — a function that hands each "
-        "shape a number. That function is the **$j$-invariant**, one of the most "
-        "storied objects in mathematics: it runs like a thread from Gauss, Hermite "
-        "and Klein's study of elliptic and modular functions, through the theory "
-        "of complex multiplication, all the way to Monstrous Moonshine."
-    )
-    st.markdown(
-        "By construction $j$ is a function on $\\mathcal{H}$ that is **invariant "
-        "under $\\Gamma$**: $j(\\gamma\\tau) = j(\\tau)$ for every $\\gamma \\in "
-        "\\mathrm{PSL}(2,\\mathbb{Z})$ (weight $0$, so the slash action is just "
-        "precomposition). It is the **Hauptmodul** — the *principal modulus* — for "
-        "$\\mathrm{SL}(2,\\mathbb{Z})$: every $\\Gamma$-invariant function is a "
-        "rational function of $j$."
-    )
-    st.caption(
-        "A modular *function*, not a modular *form*. Forms like $E_4, E_6, "
-        "\\Delta$ are holomorphic everywhere, including at the cusp $i\\infty$; "
-        "$j$ has a **pole** there — that is the $1/q$ below. So it is fair to call "
-        "$j$ the most famous modular *function*."
-    )
-    st.markdown(
-        "Being $\\Gamma$-invariant, $j$ is in particular invariant under $\\tau "
-        "\\mapsto \\tau + 1$, so it has a Fourier expansion in "
-        "$q = e^{2\\pi i \\tau}$:"
-    )
-    st.latex(r"j(\tau) \;=\; \frac{1}{q} + 744 + 196884\,q + 21493760\,q^2 + 864299970\,q^3 + \cdots")
-    st.markdown(
-        "Those coefficients are one of the most famous sequences in mathematics. "
-        "The first, $196884$, is $1 + 196883$ — and $196883$ is the dimension of "
-        "the smallest nontrivial irreducible representation of the **Monster**, "
-        "the largest sporadic finite simple group. McKay's observation of that "
-        "coincidence launched **Monstrous Moonshine**."
-    )
-    st.markdown("#### Coloring $\\mathcal{H}$ by $j$")
-    st.markdown(
-        "The picture colors each $\\tau$ by the value $j(\\tau)$ — hue from its "
-        "phase, brightness banded by $\\log|j|$. Because $j$ is $\\Gamma$-"
-        "invariant, the pattern **repeats over every copy of the fundamental "
-        "domain**: you are looking at $\\Gamma\\backslash\\mathcal{H}$ tiled "
-        "across the plane. The two corners are the special shapes — $\\tau = i$ "
-        "(the square lattice, $j = 1728$) and $\\tau = \\rho = e^{i\\pi/3}$ (the "
-        "hexagonal lattice, $j = 0$)."
-    )
-    st.pyplot(_j_coloring_figure())
-    st.divider()
-    st.markdown("#### What $j$ does for us")
-    st.markdown("For this project, $j$ earns its keep in three ways.")
-    st.markdown(
-        "1. **It separates shapes.** Two lattices are homothetic **iff** they "
-        "have the same $j$ — equivalently, $j : \\mathcal{H} \\to \\mathbb{C}$ "
-        "*is* the quotient map $\\mathcal{H} \\to \\Gamma\\backslash\\mathcal{H}$, "
-        "now realized as an honest coordinate. Knowing $j$ is knowing the shape.\n"
-        "2. **It pins down the algebraic curve.** Over any field, the "
-        "$j$-invariant determines an elliptic curve up to isomorphism (over the "
-        "algebraic closure), and conversely. So $j$ is the dictionary word "
-        "translating between the analytic shape and the isomorphism class of the "
-        "algebraic model.\n"
-        "3. **CM shapes have algebraic $j$.** In general $j(\\tau)$ is "
-        "**transcendental**, so we cannot write it down exactly. The exception is "
-        "decisive: when $\\Lambda$ has **complex multiplication**, $j(\\tau)$ is "
-        "an *algebraic integer*."
-    )
-    st.markdown(
-        "Those exceptional values are the **singular moduli**, and the monic "
-        "integer polynomial they satisfy is the **Hilbert class polynomial** "
-        "$H_D(x)$: its roots are exactly the $j$-invariants of the CM lattices of "
-        "discriminant $D$. This is the doorway from the analytic picture to "
-        "*exact* computation — and it is where the whole project's CM machinery "
-        "begins."
-    )
-    st.caption(
-        "Historically these are called *singular moduli*; the terminology "
-        "descends from the 19th-century theory of elliptic integrals, where the "
-        "CM values are the “singular” ones carrying extra symmetry (Kronecker, "
-        "Weber)."
-    )
-    st.markdown("#### Singular moduli and Hilbert class polynomials")
-    st.markdown(
-        "The applet plots the **CM points** — the shapes $\\tau$ with complex "
-        "multiplication — inside the fundamental domain, each colour a single "
-        "discriminant $D$. The lattices of one discriminant share an endomorphism "
-        "ring, hence a single **Hilbert class polynomial** $H_D$; the number of "
-        "them is the class number $h(D)$. Click a point to light up its siblings "
-        "and load $H_D(x)$. For $h(D) = 1$ there is a lone point and its $j$ is an "
-        "honest integer — the singular modulus."
-    )
-    components.html(
-        modular_viz.hilbert_applet_html(_hilbert_applet_data()),
-        height=530, scrolling=False,
-    )
-    st.caption(
-        "Shown: discriminants down to $|D| \\le 100$ whose class polynomials stay "
-        "legible. The library in the repository goes much further — 772 "
-        "polynomials, down to $D = -86227$ — but the coefficients grow enormous, "
-        "so this view is deliberately pruned by discriminant and coefficient size."
-    )
+    # ── §7.1 — the moduli space of lattices ──────────────────────────────────
+    with tab_lat:
+        st.markdown(
+            "A **lattice** in $\\mathbb{C}$ is the set of all integer combinations "
+            "$\\Lambda = \\mathbb{Z}\\,\\omega_1 + \\mathbb{Z}\\,\\omega_2$ of two "
+            "$\\mathbb{R}$-independent complex numbers — an infinite, evenly spaced "
+            "grid. What we care about is a lattice's **shape**: not its size, not its "
+            "orientation, and not where we happen to put the origin."
+        )
+        st.markdown(
+            "Two operations leave the shape untouched. We may slide the grid so that "
+            "one point sits at $0$, and we may **rotate and rescale** the whole plane "
+            "— that is, multiply every point by a single nonzero complex number "
+            "$\\zeta \\in \\mathbb{C}^{\\times}$. Using that freedom, divide the basis "
+            "through by $\\omega_1$:"
+        )
+        st.latex(r"\Lambda \;\sim\; \tfrac{1}{\omega_1}\Lambda \;=\; \mathbb{Z} + \mathbb{Z}\,\tau,"
+                 r"\qquad \tau = \omega_2/\omega_1.")
+        st.markdown(
+            "Swapping $\\omega_1$ and $\\omega_2$ if necessary so the basis is "
+            "positively oriented, $\\tau$ lands in the **upper half-plane** "
+            "$\\mathcal{H} = \\{\\tau : \\operatorname{Im}\\tau > 0\\}$. So every "
+            "lattice, up to rotation and scaling, is $\\mathbb{Z} + \\mathbb{Z}\\tau$ "
+            "for a single $\\tau \\in \\mathcal{H}$ — that one complex number records "
+            "the shape."
+        )
+        st.markdown(
+            "But $\\tau$ is not quite unique, because the basis wasn't. Any other "
+            "positively-oriented basis of the *same* lattice comes from an integer "
+            "change of basis of determinant $1$ — an element "
+            "$\\gamma = \\left(\\begin{smallmatrix} a & b \\\\ c & d \\end{smallmatrix}\\right)$ "
+            "of $\\mathrm{SL}(2,\\mathbb{Z})$ — and it moves $\\tau$ to"
+        )
+        st.latex(r"\gamma \cdot \tau \;=\; \frac{a\tau + b}{c\tau + d}.")
+        st.markdown(
+            "Composing two changes of basis matches multiplying the matrices, so this "
+            "is a genuine **left action** of $\\mathrm{SL}(2,\\mathbb{Z})$ on "
+            "$\\mathcal{H}$; since $-I$ acts trivially, the group that really acts is "
+            "$\\Gamma = \\mathrm{PSL}(2,\\mathbb{Z})$."
+        )
+        st.info(
+            "**A word on sides.** The action on the *points* of $\\mathcal{H}$ is on "
+            "the **left**, which is exactly why the quotient below is written "
+            "$\\Gamma \\backslash \\mathcal{H}$ (group on the left). The **right** "
+            "action — the one on spaces of modular forms, via the slash operator "
+            "$f \\mapsto f|_k\\gamma$ — is a different action we will meet later. You "
+            "will often see $\\mathcal{H}/\\Gamma$ written loosely for the same space; "
+            "we keep the careful convention."
+        )
+        st.markdown("Putting it together, the set of lattice shapes is the orbit space")
+        st.latex(r"\{\text{lattices}\}\,/\,\mathbb{C}^{\times} \;\cong\; \Gamma \backslash \mathcal{H}.")
+        st.markdown(
+            "Every shape has exactly one representative in the standard **fundamental "
+            "domain** $\\{\\tau \\in \\mathcal{H} : |\\operatorname{Re}\\tau| \\le "
+            "\\tfrac12,\\ |\\tau| \\ge 1\\}$ (shaded in the applet below). This "
+            "quotient is our first modular curve. Giving it an honest *coordinate* — "
+            "the $j$-invariant, next — will turn it into a concrete object we can "
+            "compute with."
+        )
+        st.markdown("#### Explore")
+        st.markdown(
+            "Two views of one fact. In **drive the shape τ**, drag $\\tau$ around "
+            "$\\Gamma\\backslash\\mathcal{H}$ and watch the lattice $\\mathbb{Z} + "
+            "\\mathbb{Z}\\tau$ redraw; the gold ring shows the canonical "
+            "representative in the fundamental domain. In **drag a basis**, move "
+            "$\\omega_1, \\omega_2$ around $\\mathbb{C}$ and watch their ratio "
+            "$\\tau = \\omega_2/\\omega_1$ appear — and reduce — in the domain. "
+            "Different bases, and shapes outside the domain, all collapse to the same "
+            "canonical point of $\\Gamma\\backslash\\mathcal{H}$."
+        )
+        components.html(modular_viz.moduli_applet_html(), height=540, scrolling=False)
 
-with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
+    # ── §7.2 — the j-invariant ───────────────────────────────────────────────
+    with tab_jinv:
+        st.markdown(
+            "The space $\\Gamma\\backslash\\mathcal{H}$ is still an abstract quotient. "
+            "To compute with it we need a **coordinate** — a function that hands each "
+            "shape a number. That function is the **$j$-invariant**, one of the most "
+            "storied objects in mathematics: it runs like a thread from Gauss, Hermite "
+            "and Klein's study of elliptic and modular functions, through the theory "
+            "of complex multiplication, all the way to Monstrous Moonshine."
+        )
+        st.markdown(
+            "By construction $j$ is a function on $\\mathcal{H}$ that is **invariant "
+            "under $\\Gamma$**: $j(\\gamma\\tau) = j(\\tau)$ for every $\\gamma \\in "
+            "\\mathrm{PSL}(2,\\mathbb{Z})$ (weight $0$, so the slash action is just "
+            "precomposition). It is the **Hauptmodul** — the *principal modulus* — for "
+            "$\\mathrm{SL}(2,\\mathbb{Z})$: every $\\Gamma$-invariant function is a "
+            "rational function of $j$."
+        )
+        st.caption(
+            "A modular *function*, not a modular *form*. Forms like $E_4, E_6, "
+            "\\Delta$ are holomorphic everywhere, including at the cusp $i\\infty$; "
+            "$j$ has a **pole** there — that is the $1/q$ below. So it is fair to call "
+            "$j$ the most famous modular *function*."
+        )
+        st.markdown(
+            "Being $\\Gamma$-invariant, $j$ is in particular invariant under $\\tau "
+            "\\mapsto \\tau + 1$, so it has a Fourier expansion in "
+            "$q = e^{2\\pi i \\tau}$:"
+        )
+        st.latex(r"j(\tau) \;=\; \frac{1}{q} + 744 + 196884\,q + 21493760\,q^2 + 864299970\,q^3 + \cdots")
+        st.markdown(
+            "Those coefficients are one of the most famous sequences in mathematics. "
+            "The first, $196884$, is $1 + 196883$ — and $196883$ is the dimension of "
+            "the smallest nontrivial irreducible representation of the **Monster**, "
+            "the largest sporadic finite simple group. McKay's observation of that "
+            "coincidence launched **Monstrous Moonshine**."
+        )
+        st.markdown("#### Coloring $\\mathcal{H}$ by $j$")
+        st.markdown(
+            "The picture colors each $\\tau$ by the value $j(\\tau)$ — hue from its "
+            "phase, brightness banded by $\\log|j|$. Because $j$ is $\\Gamma$-"
+            "invariant, the pattern **repeats over every copy of the fundamental "
+            "domain**: you are looking at $\\Gamma\\backslash\\mathcal{H}$ tiled "
+            "across the plane. The two corners are the special shapes — $\\tau = i$ "
+            "(the square lattice, $j = 1728$) and $\\tau = \\rho = e^{i\\pi/3}$ (the "
+            "hexagonal lattice, $j = 0$)."
+        )
+        st.pyplot(_j_coloring_figure())
+        st.divider()
+        st.markdown("#### What $j$ does for us")
+        st.markdown("For this project, $j$ earns its keep in three ways.")
+        st.markdown(
+            "1. **It separates shapes.** Two lattices are homothetic **iff** they "
+            "have the same $j$ — equivalently, $j : \\mathcal{H} \\to \\mathbb{C}$ "
+            "*is* the quotient map $\\mathcal{H} \\to \\Gamma\\backslash\\mathcal{H}$, "
+            "now realized as an honest coordinate. Knowing $j$ is knowing the shape.\n"
+            "2. **It pins down the algebraic curve.** Over any field, the "
+            "$j$-invariant determines an elliptic curve up to isomorphism (over the "
+            "algebraic closure), and conversely. So $j$ is the dictionary word "
+            "translating between the analytic shape and the isomorphism class of the "
+            "algebraic model.\n"
+            "3. **CM shapes have algebraic $j$.** In general $j(\\tau)$ is "
+            "**transcendental**, so we cannot write it down exactly. The exception is "
+            "decisive: when $\\Lambda$ has **complex multiplication**, $j(\\tau)$ is "
+            "an *algebraic integer*."
+        )
+        st.markdown(
+            "Those exceptional values are the **singular moduli**, and the monic "
+            "integer polynomial they satisfy is the **Hilbert class polynomial** "
+            "$H_D(x)$: its roots are exactly the $j$-invariants of the CM lattices of "
+            "discriminant $D$. This is the doorway from the analytic picture to "
+            "*exact* computation — and it is where the whole project's CM machinery "
+            "begins."
+        )
+        st.caption(
+            "Historically these are called *singular moduli*; the terminology "
+            "descends from the 19th-century theory of elliptic integrals, where the "
+            "CM values are the “singular” ones carrying extra symmetry (Kronecker, "
+            "Weber)."
+        )
+        st.markdown("#### Singular moduli and Hilbert class polynomials")
+        st.markdown(
+            "The applet plots the **CM points** — the shapes $\\tau$ with complex "
+            "multiplication — inside the fundamental domain, each colour a single "
+            "discriminant $D$. The lattices of one discriminant share an endomorphism "
+            "ring, hence a single **Hilbert class polynomial** $H_D$; the number of "
+            "them is the class number $h(D)$. Click a point to light up its siblings "
+            "and load $H_D(x)$. For $h(D) = 1$ there is a lone point and its $j$ is an "
+            "honest integer — the singular modulus."
+        )
+        components.html(
+            modular_viz.hilbert_applet_html(_hilbert_applet_data()),
+            height=530, scrolling=False,
+        )
+        st.caption(
+            "Shown: discriminants down to $|D| \\le 100$ whose class polynomials stay "
+            "legible. The library in the repository goes much further — 772 "
+            "polynomials, down to $D = -86227$ — but the coefficients grow enormous, "
+            "so this view is deliberately pruned by discriminant and coefficient size."
+        )
+
+with st.expander("§8 — The modular curve $X_0(\\ell)$", expanded=False):
     st.markdown(
         "In §4 an isogeny was determined, up to isomorphism, by its **kernel**. "
         "Here we turn that fact into geometry: a modular curve whose points *are* "
         "the cyclic $\\ell$-isogenies. We keep writing $X(1) = \\Gamma\\backslash"
-        "\\mathcal{H}$ for the modular curve of §7–§8 (level $1$; its coordinate "
+        "\\mathcal{H}$ for the modular curve of §7 (level $1$; its coordinate "
         "$j$ makes it the $j$-line). Throughout, $\\ell$ is prime and we work "
         "analytically first."
     )
@@ -462,7 +467,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         "Algebraic models",
     ])
 
-    # ── §9.1 — the analytic model ─────────────────────────────────────────────
+    # ── §8.1 — the analytic model ─────────────────────────────────────────────
     with tab_x0a:
         st.subheader("The Analytic Model of $X_0(\\ell)$")
         st.markdown(
@@ -526,7 +531,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         components.html(modular_viz.x0_subgroup_html(), height=470, scrolling=False)
 
-    # ── §9.2 — the j-map and Fricke involution ────────────────────────────────
+    # ── §8.2 — the j-map and Fricke involution ────────────────────────────────
     with tab_x0j:
         st.subheader("The $j$-map $j_\\ell$ and the Fricke Involution $\\mathfrak{F}_\\ell$")
         st.markdown(
@@ -538,7 +543,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         st.latex(r"j_\ell : X_0(\ell) \to X(1), \qquad j_\ell\big([E \to E']\big) = [E].")
         st.markdown(
-            "Since $X(1)$ is the $j$-line (§8), $j_\\ell$ records the **domain**'s "
+            "Since $X(1)$ is the $j$-line (§7), $j_\\ell$ records the **domain**'s "
             "$j$-invariant; in the $\\tau$-model it is simply $\\tau \\mapsto "
             "j(\\tau)$. (We keep the subscript because on the algebraic models "
             "there are several maps down to $X(1)$ and we must say which one.)"
@@ -574,7 +579,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         st.markdown("#### The two $j$-maps for a $2$-isogeny")
         st.markdown(
-            "The same domain-colouring as in §8, now for both endpoints. On the "
+            "The same domain-colouring as in §7, now for both endpoints. On the "
             "left, $\\tau \\mapsto j_2(\\tau) = j(\\tau)$ colours each point of "
             "$X_0(2)$ by its **domain**; on the right, $\\tau \\mapsto "
             "j_2(\\mathfrak{F}_2\\tau) = j(2\\tau)$ colours it by its **codomain**. "
@@ -587,7 +592,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "E'$) exactly where $j_\\ell(\\tau) = j_\\ell(\\mathfrak{F}_\\ell"
             "\\tau)$ — the $\\mathfrak{F}_\\ell$-fixed points, and the swapped "
             "pairs collapsing to a single $j$-value. These are the **CM points**: "
-            "the singular moduli of §8, precisely the diagonal $\\Phi_\\ell(X, X) "
+            "the singular moduli of §7, precisely the diagonal $\\Phi_\\ell(X, X) "
             "= 0$, and they lie on the circle $|\\tau| = 1/\\sqrt{\\ell}$ (the "
             "fixed locus of $\\mathfrak{F}_\\ell$). So $X_0(\\ell)$ sees the CM "
             "world again — the thread we pull to build the bijection of §6."
@@ -606,7 +611,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
 
-    # ── §9.3 — algebraic models ───────────────────────────────────────────────
+    # ── §8.3 — algebraic models ───────────────────────────────────────────────
     with tab_x0alg:
         st.subheader("Algebraic Models")
         st.markdown(
@@ -680,7 +685,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "$\\ell$-endomorphism, i.e. CM — has $2\\ell$ solutions, and every "
             "one of them lies on the circle $|x| = \\sqrt{m}$, the fixed locus "
             "of $\\mathfrak{F}_\\ell$ (where $m/x = \\bar{x}$). This is the "
-            "algebraic mirror of the analytic fact from §9.2 that the self-dual "
+            "algebraic mirror of the analytic fact from §8.2 that the self-dual "
             "locus is $|\\tau| = 1/\\sqrt{\\ell}$."
         )
         st.markdown(
@@ -688,7 +693,7 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "\\ell)$ was a fundamental domain with edges to glue, the genus-$0$ "
             "model is just the **real $x$-line** $\\cong \\mathbb{P}^1("
             "\\mathbb{R})$, sitting in its ambient plane — no gluing, cusps at "
-            "$0$ and $\\infty$. The plane (dimly coloured by $j_\\ell$, the §8 "
+            "$0$ and $\\infty$. The plane (dimly coloured by $j_\\ell$, the §7 "
             "scheme) is only the backdrop. Overlaid is the **real locus of "
             "$j_\\ell$**, weighted Belyi-style: the preimage of the segment "
             "$[0, 1728]$ between the two finite critical values — the *dessin* "
@@ -735,6 +740,197 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "F-theory ([arXiv:1910.04095](https://arxiv.org/abs/1910.04095), "
             "2019) and on computing supersingular isogeny graphs via modular "
             "curves ([arXiv:2303.09096](https://arxiv.org/abs/2303.09096), 2023)."
+        )
+
+with st.expander("§9 — Modular polynomials: the Atkin and classical models", expanded=False):
+    st.markdown(
+        "§8 closed with the prettiest model of $X_0(\\ell)$: a Hauptmodul $t$ "
+        "with both $j$-maps as explicit rational functions. But that model only "
+        "exists at the five genus-$0$ levels. This section describes the two "
+        "algebraic models that carry the actual computations everywhere else — "
+        "the **Atkin polynomial**, built from the quotient of $X_0(\\ell)$ by "
+        "the Fricke involution, and the **classical modular polynomial**, which "
+        "presents $X_0(\\ell)$ through its two maps to the $j$-line. All three "
+        "models answer the same question — *which $j$-invariants are "
+        "$\\ell$-isogenous?* — from different coordinates."
+    )
+    tab_atk, tab_phi, tab_cmp = st.tabs([
+        "The Atkin polynomial",
+        "Classical modular polynomials",
+        "Comparing the three models",
+    ])
+
+    # ── §9.1 — the Atkin polynomial ───────────────────────────────────────────
+    with tab_atk:
+        st.subheader("The Atkin Polynomial")
+        st.markdown(
+            "The Fricke involution $\\mathfrak{F}_\\ell$ (§8.2) swaps an isogeny "
+            "with its dual. Taking the quotient by it — the **Atkin–Lehner "
+            "quotient** — gives a new modular curve,"
+        )
+        st.latex(r"X_0(\ell)^{+} \;=\; X_0(\ell)\,/\,\langle \mathfrak{F}_\ell\rangle,")
+        st.markdown(
+            "whose points are cyclic $\\ell$-isogenies *with the direction "
+            "forgotten*: the unordered pair $\\{E \\to E',\\ E' \\to E\\}$."
+        )
+        st.markdown(
+            "**Functions on the quotient.** A function on $X_0(\\ell)$ descends "
+            "to $X_0(\\ell)^{+}$ exactly when it is $\\mathfrak{F}_\\ell$-"
+            "invariant, and the two $j$-maps symmetrize into a natural pair:"
+        )
+        st.latex(r"a_\ell = j_\ell + j_\ell\!\circ\!\mathfrak{F}_\ell, \qquad "
+                 r"b_\ell = j_\ell \cdot \big(j_\ell\!\circ\!\mathfrak{F}_\ell\big).")
+        st.markdown(
+            "Nothing is lost: the two endpoints of the isogeny are recovered "
+            "from $(a_\\ell, b_\\ell)$ as the roots of the **Atkin quadratic**"
+        )
+        st.latex(r"X^2 - a_\ell\,X + b_\ell \;=\; (X - j_\ell)\,"
+                 r"\big(X - j_\ell\!\circ\!\mathfrak{F}_\ell\big).")
+        st.markdown(
+            "**Genus 0 upstairs vs. downstairs.** $X_0(\\ell)$ itself has genus "
+            "$0$ for only five primes, but the *quotient* $X_0(\\ell)^{+}$ has "
+            "genus $0$ for **fifteen**: $\\ell \\in \\{2, 3, 5, 7, 11, 13, 17, "
+            "19, 23, 29, 31, 41, 47, 59, 71\\}$ — by Ogg's celebrated "
+            "observation, precisely the primes dividing the order of the "
+            "Monster. For these, pick a Hauptmodul $u$ on $X_0(\\ell)^{+}$; "
+            "since $a_\\ell$ and $b_\\ell$ have poles only at the single cusp, "
+            "they become **polynomials** in $u$, of degrees"
+        )
+        st.latex(r"\deg a_\ell = \ell, \qquad \deg b_\ell = \ell + 1, \qquad "
+                 r"b_\ell = b_1 \cdot b_3^{\,3} \ \text{(a perfect-cube factor)}.")
+        st.markdown(
+            "The resulting **Atkin model** of $X_0(\\ell)$ is the curve"
+        )
+        st.latex(r"A_\ell(u, X) \;:\; X^2 - a_\ell(u)\,X + b_\ell(u) \;=\; 0")
+        st.markdown(
+            "in the $(u, X)$-plane: quadratic over the $u$-line (the double "
+            "cover $X_0(\\ell) \\to X_0(\\ell)^{+}$, the sheet choosing which "
+            "endpoint is the domain) and of degree $\\ell + 1$ over the "
+            "$X = j$ line (the cover $X_0(\\ell) \\to X(1)$)."
+        )
+        st.markdown(
+            "**Worked example: $\\ell = 5$.** The Fricke involution acts on the "
+            "§8.3 Hauptmodul by $t \\mapsto 125/t$, so the invariant coordinate "
+            "(in the normalisation of the repository's tables) is"
+        )
+        st.latex(r"u \;=\; t + \frac{125}{t} + 6,")
+        st.markdown("and pushing the two $j$-maps through this substitution gives")
+        st.latex(r"a_5(u) = u^5 - 670\,u^3 - 3800\,u^2 + 73056\,u + 449408,")
+        st.latex(r"b_5(u) = \big(u^2 + 248\,u + 3856\big)^{3}.")
+        st.markdown(
+            "Six-digit integers — compare the $48$-digit coefficients of the "
+            "classical $\\Phi_5$ in the next tab. This economy is the whole "
+            "point of the Atkin model."
+        )
+        st.markdown(
+            "**How it is used.** Over $\\mathbb{F}_p$, to find the $\\ell$-"
+            "isogeny neighbours of a given $j$: the expression $j^2 - "
+            "a_\\ell(u)\\,j + b_\\ell(u)$ is a degree-$(\\ell+1)$ polynomial in "
+            "$u$, and its roots in $\\mathbb{F}_p$ are the points of "
+            "$X_0(\\ell)^{+}$ whose pair contains $j$. For each root $u_0$, the "
+            "partner is read off the quadratic: $j' = a_\\ell(u_0) - j$. The "
+            "repository tabulates $(a_\\ell, b_1, b_3)$ for all fifteen Atkin "
+            "primes in `atkinpolys.json`."
+        )
+
+    # ── §9.2 — classical modular polynomials ──────────────────────────────────
+    with tab_phi:
+        st.subheader("Classical Modular Polynomials")
+        st.markdown(
+            "The Atkin model borrowed a coordinate from the quotient curve. The "
+            "classical model borrows *both* coordinates from $X(1)$: it "
+            "describes the degree-$(\\ell+1)$ cover $X_0(\\ell) \\to X(1)$ "
+            "purely in terms of $j$. On function fields, that cover is a field "
+            "extension of $\\mathbb{C}(j)$ of degree $\\ell + 1$, generated by "
+            "the second $j$-map, and the **classical modular polynomial** "
+            "$\\Phi_\\ell$ is its minimal polynomial:"
+        )
+        st.latex(r"\mathbb{C}\big(X_0(\ell)\big) \;\cong\; "
+                 r"\mathbb{C}(j)[X]\,/\,\big(\Phi_\ell(X, j)\big),")
+        st.markdown(
+            "monic of degree $\\ell + 1$ in $X$, with **integer** coefficients. "
+            "Equivalently and more geometrically: the pair of $j$-maps embeds "
+            "$X_0(\\ell)$ into $X(1) \\times X(1)$, and $\\Phi_\\ell(X, Y) = 0$ "
+            "is the (highly singular) plane model cut out by that image. It "
+            "plays the role of a *division polynomial for the $j$-line*: the "
+            "roots of $\\Phi_\\ell(X, j_0)$ are precisely the $\\ell + 1$ "
+            "$j$-invariants $\\ell$-isogenous to $j_0$."
+        )
+        st.markdown("Three classical properties, each one line:")
+        st.markdown(
+            "1. **Symmetry**: $\\Phi_\\ell(X, Y) = \\Phi_\\ell(Y, X)$ — the "
+            "dual isogeny, again.\n"
+            "2. **Analytic incarnation**: $\\Phi_\\ell\\big(j(\\ell\\tau), "
+            "j(\\tau)\\big) = 0$ identically on $\\mathcal{H}$.\n"
+            "3. **Kronecker congruence**: $\\Phi_\\ell(X, Y) \\equiv "
+            "(X^{\\ell} - Y)(X - Y^{\\ell}) \\bmod \\ell$ — the shadow of "
+            "Frobenius, and the reason these polynomials know about "
+            "characteristic $p$.\n"
+        )
+        st.markdown(
+            "The **diagonal** $\\Phi_\\ell(X, X) = 0$ picks out the $j$-"
+            "invariants $\\ell$-isogenous to themselves — the endomorphism "
+            "points drawn as red dots in §8.3, now as roots of an integer "
+            "polynomial (it factors into Hilbert class polynomials, §7)."
+        )
+        st.markdown("**The example everyone shows** (because it is the only small one):")
+        st.latex(r"""\Phi_2(X,Y) = X^3 + Y^3 - X^2Y^2 + 1488\,(X^2Y + XY^2)
+                 - 162000\,(X^2 + Y^2)""")
+        st.latex(r"""\qquad\qquad +\; 40773375\,XY + 8748000000\,(X + Y)
+                 - 157464000000000.""")
+        st.markdown(
+            "Coefficient growth is ferocious — from the repository's own tables "
+            "(`classical_modpolys.json`, $\\ell \\le 29$), the largest "
+            "coefficient has:"
+        )
+        st.markdown(
+            "| $\\ell$ | 2 | 3 | 5 | 11 |\n"
+            "|---|---|---|---|---|\n"
+            "| digits | 15 | 22 | 48 | 127 |\n"
+        )
+        st.markdown(
+            "This is why nobody evaluates $\\Phi_\\ell$ over $\\mathbb{Q}$ if "
+            "they can help it: the polynomials are reduced mod $p$ once and "
+            "used over $\\mathbb{F}_p$, where the size disappears. Computing "
+            "the tables in the first place is its own art (and an active side "
+            "project of this repository)."
+        )
+
+    # ── §9.3 — comparing the three models ─────────────────────────────────────
+    with tab_cmp:
+        st.subheader("Three Models, One Curve")
+        st.markdown(
+            "All three constructions describe the *same* curve $X_0(\\ell)$; "
+            "they differ in **which curve lends its coordinates**: $X_0(\\ell)$ "
+            "itself (Hauptmodul), the Atkin–Lehner quotient plus one $j$-line "
+            "(Atkin), or two $j$-lines (classical)."
+        )
+        st.markdown(
+            "| | Hauptmodul model (§8.3) | Atkin model (§9.1) | classical $\\Phi_\\ell$ (§9.2) |\n"
+            "|---|---|---|---|\n"
+            "| lives in | $X_0(\\ell) \\cong \\mathbb{P}^1$ | $X_0(\\ell)^{+} \\times X(1)$ | $X(1) \\times X(1)$ |\n"
+            "| available for | $\\ell \\in \\{2,3,5,7,13\\}$ | the 15 Monster primes | **every** $\\ell$ |\n"
+            "| coefficient size | single digits | small (6 digits at $\\ell{=}5$) | enormous (127 digits at $\\ell{=}11$) |\n"
+            "| a point gives | the **ordered** pair $(j, j')$ — and via $X_1(\\ell)$, the curves and kernel themselves | the **unordered** pair $\\{j, j'\\}$ | the neighbours of $j$, as roots |\n"
+        )
+        st.markdown(
+            "Reading the columns left to right: each step **widens the range of "
+            "$\\ell$ and pays for it in explicitness**. The Hauptmodul model "
+            "hands you the isogeny itself (down to equations, §8.3); the Atkin "
+            "model hands you the pair of endpoints but forgets the direction; "
+            "the classical polynomial only answers *\"who are the "
+            "neighbours?\"* — but answers it for every prime."
+        )
+        st.markdown(
+            "The three lists are nested — $\\{2,3,5,7,13\\} \\subset "
+            "\\{\\text{15 Atkin primes}\\} \\subset \\{\\text{all primes}\\}$ — "
+            "and so is their use here. For isogeny *graphs* the forgotten "
+            "direction costs nothing (the dual isogeny makes every edge "
+            "two-way), so the Atkin model, with its tiny coefficients, is the "
+            "workhorse at the fifteen primes where it exists; the classical "
+            "$\\Phi_\\ell$ is the general-purpose fallback beyond them; and the "
+            "genus-$0$ Hauptmodul models are reserved for when we need the "
+            "isogeny itself, not just its endpoints."
         )
 
 
