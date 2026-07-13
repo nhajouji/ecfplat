@@ -1064,3 +1064,351 @@ document.querySelectorAll(".vlbtn").forEach(b=>b.addEventListener("click",()=>{
 rebuild(true); render();
 </script>
 """
+
+
+def group_law_real_html() -> str:
+    """S1 applet: the chord-tangent group law on a real curve, live.
+
+    Replaces the f/g sliders + plotly click-samples + Clear/Show line/Compute
+    sum buttons. Click near the curve to place P, then Q (both snap onto the
+    curve and stay draggable); the whole construction -- chord or tangent,
+    third point R, reflection to P+Q -- updates LIVE as you drag. Drag Q onto
+    P to see doubling; click the O marker to use the identity; drag Q to P's
+    mirror image to see inverses (sum = O, vertical line)."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px;">f =</span>
+    <button class="seg" id="rfdn">−</button><span id="rfval" style="align-self:center;min-width:34px;text-align:center;">−1.0</span><button class="seg" id="rfup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">g =</span>
+    <button class="seg" id="rgdn">−</button><span id="rgval" style="align-self:center;min-width:34px;text-align:center;">1.0</span><button class="seg" id="rgup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">y² = x³ + fx + g — click to place P, Q; drag them along the curve</div>
+      <canvas id="gr" width="640" height="430"></canvas>
+      <div id="grout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+      <div class="hint" style="margin-top:4px;">the line through P and Q meets the curve in R; reflecting R gives P + Q · drag Q onto P for the tangent (2P) · drag Q to P's mirror for inverses (sum = 𝒪) · click 𝒪 to use the identity · click empty space to clear</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f", GRN="#69b382", PUR="#b58fd8", OLI="#a9b665";
+const XR=3.3, YR=4.5, OXY=[0,4.1];
+const cv=document.getElementById("gr"), ctx=cv.getContext("2d");
+const out=document.getElementById("grout");
+let f=-1.0, g=1.0;
+let pts=[];                 // 0..2 entries: "O" or [x,y] on the curve
+let drag=null;
+const PX=x=>(x+XR)/(2*XR)*cv.width, PY=y=>(YR-y)/(2*YR)*cv.height;
+const y2of=x=>x*x*x+f*x+g;
+
+function snap(mx,my){                      // nearest curve point to pixel (mx,my)
+  let best=null,bd=1e18;
+  for(let i=0;i<=800;i++){
+    const x=-XR+2*XR*i/800, v=y2of(x);
+    if(v<0) continue;
+    const y=Math.sqrt(v);
+    for(const s of [1,-1]){
+      const dx=PX(x)-mx, dy=PY(s*y)-my, d=dx*dx+dy*dy;
+      if(d<bd){bd=d; best=[x,s*y];}
+    }
+  }
+  return {pt:best, d2:bd};
+}
+function sum2(P,Q){                        // -> {S, R, msg}; S = "O" | [x,y]
+  if(P==="O"&&Q==="O") return {S:"O",R:null,msg:"𝒪 + 𝒪 = 𝒪."};
+  if(P==="O") return {S:Q,R:null,msg:"𝒪 + Q = Q (𝒪 is the identity)."};
+  if(Q==="O") return {S:P,R:null,msg:"P + 𝒪 = P (𝒪 is the identity)."};
+  const dbl=Math.abs(P[0]-Q[0])<1e-9&&Math.abs(P[1]-Q[1])<1e-9;
+  if(dbl&&Math.abs(P[1])<1e-6) return {S:"O",R:null,msg:"P is 2-torsion, so 2P = 𝒪."};
+  if(!dbl&&Math.abs(P[0]-Q[0])<1e-9) return {S:"O",R:null,msg:"P and Q are inverses, so P + Q = 𝒪."};
+  const m=dbl?(3*P[0]*P[0]+f)/(2*P[1]):(Q[1]-P[1])/(Q[0]-P[0]);
+  const x3=m*m-P[0]-Q[0], yR=m*(x3-P[0])+P[1];
+  return {S:[x3,-yR], R:[x3,yR], msg:null, m};
+}
+const fmt=P=>P==="O"?"𝒪":`(${P[0].toFixed(2)}, ${P[1].toFixed(2)})`;
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PX(-XR),PY(0)); ctx.lineTo(PX(XR),PY(0));
+  ctx.moveTo(PX(0),PY(-YR)); ctx.lineTo(PX(0),PY(YR)); ctx.stroke();
+  // the curve
+  ctx.strokeStyle=DOM; ctx.lineWidth=2;
+  for(const s of [1,-1]){
+    ctx.beginPath(); let pen=false;
+    for(let i=0;i<=900;i++){
+      const x=-XR+2*XR*i/900, v=y2of(x);
+      if(v>=0){const py=PY(s*Math.sqrt(v));
+        pen?ctx.lineTo(PX(x),py):ctx.moveTo(PX(x),py); pen=true;}
+      else pen=false;
+    }
+    ctx.stroke();
+  }
+  ctx.font="12px system-ui";
+  const both=pts.length===2, res=both?sum2(pts[0],pts[1]):null;
+  const sumIsO=res&&res.S==="O";
+  // O marker
+  ctx.fillStyle=(pts.includes("O"))?(pts[0]==="O"?RED:GRN):(sumIsO?SUP:OLI);
+  ctx.beginPath(); ctx.arc(PX(OXY[0]),PY(OXY[1]),sumIsO?8:6,0,7); ctx.fill();
+  ctx.fillStyle=OLI; ctx.fillText("𝒪", PX(OXY[0])+9, PY(OXY[1])+4);
+  if(both){
+    const P=pts[0], Q=pts[1];
+    if(P!=="O"&&Q!=="O"){
+      const dbl=Math.abs(P[0]-Q[0])<1e-9&&Math.abs(P[1]-Q[1])<1e-9;
+      ctx.setLineDash([6,4]); ctx.strokeStyle=SUP; ctx.lineWidth=1.4;
+      if(res.msg&&res.S==="O"){         // vertical line to O
+        ctx.beginPath(); ctx.moveTo(PX(P[0]),PY(-YR)); ctx.lineTo(PX(P[0]),PY(YR)); ctx.stroke();
+      } else if(!res.msg){
+        const m=res.m, y0=m*(-XR-P[0])+P[1], y1=m*(XR-P[0])+P[1];
+        ctx.beginPath(); ctx.moveTo(PX(-XR),PY(y0)); ctx.lineTo(PX(XR),PY(y1)); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    if(res&&!res.msg&&res.R){
+      // reflection R -> sum
+      ctx.setLineDash([2,4]); ctx.strokeStyle="rgba(255,255,255,0.5)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(PX(res.R[0]),PY(res.R[1]));
+      ctx.lineTo(PX(res.S[0]),PY(res.S[1])); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=PUR; ctx.beginPath(); ctx.arc(PX(res.R[0]),PY(res.R[1]),5.5,0,7); ctx.fill();
+      ctx.fillText("R", PX(res.R[0])+8, PY(res.R[1])-6);
+      const dbl=Math.abs(pts[0][0]-pts[1][0])<1e-9&&Math.abs(pts[0][1]-pts[1][1])<1e-9;
+      ctx.fillStyle=SUP; ctx.beginPath(); ctx.arc(PX(res.S[0]),PY(res.S[1]),7,0,7); ctx.fill();
+      ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
+      ctx.fillText(dbl?"2P":"P + Q", PX(res.S[0])+9, PY(res.S[1])-7);
+    }
+  }
+  pts.forEach((P,i)=>{
+    if(P==="O") return;
+    ctx.fillStyle=i?GRN:RED; ctx.beginPath(); ctx.arc(PX(P[0]),PY(P[1]),6.5,0,7); ctx.fill();
+    ctx.strokeStyle="#fff"; ctx.lineWidth=1.4; ctx.stroke();
+    ctx.fillStyle=i?GRN:RED; ctx.fillText(i?"Q":"P", PX(P[0])+9, PY(P[1])-7);
+  });
+}
+function render(){
+  draw();
+  const disc=-16*(4*f*f*f+27*g*g);
+  let s=`y² = x³ ${f<0?"−":"+"} ${Math.abs(f).toFixed(1)}x ${g<0?"−":"+"} ${Math.abs(g).toFixed(1)} &nbsp;·&nbsp; Δ = ${disc.toFixed(1)}`;
+  if(Math.abs(disc)<1e-6) s+=` &nbsp;<span style="color:${SUP}">singular — step f or g</span>`;
+  pts.forEach((P,i)=>{s+=` &nbsp;·&nbsp; <b style="color:${i?GRN:RED}">${i?"Q":"P"}</b> = ${fmt(P)}`;});
+  if(pts.length===2){
+    const r=sum2(pts[0],pts[1]);
+    const dbl=pts[0]!=="O"&&pts[1]!=="O"&&Math.abs(pts[0][0]-pts[1][0])<1e-9&&Math.abs(pts[0][1]-pts[1][1])<1e-9;
+    s+=` &nbsp;·&nbsp; <b style="color:${SUP}">${dbl?"2P":"P + Q"} = ${fmt(r.S)}</b>`;
+    if(r.msg) s+=` <span style="color:${MUT}">— ${r.msg}</span>`;
+  }
+  out.innerHTML=s;
+}
+cv.addEventListener("pointerdown",e=>{
+  const b=cv.getBoundingClientRect(), mx=(e.clientX-b.left)*cv.width/b.width,
+        my=(e.clientY-b.top)*cv.height/b.height;
+  cv.setPointerCapture(e.pointerId);
+  // existing point hit?
+  for(let i=0;i<pts.length;i++){
+    const P=pts[i]; if(P==="O") continue;
+    const dx=PX(P[0])-mx, dy=PY(P[1])-my;
+    if(dx*dx+dy*dy<15*15){drag=i; render(); e.preventDefault(); return;}
+  }
+  // O marker?
+  {const dx=PX(OXY[0])-mx, dy=PY(OXY[1])-my;
+   if(dx*dx+dy*dy<14*14){ if(pts.length>=2)pts=[]; pts.push("O"); render(); e.preventDefault(); return;}}
+  const sn=snap(mx,my);
+  if(sn.pt&&sn.d2<28*28){
+    if(pts.length>=2) pts=[];
+    pts.push(sn.pt); drag=pts.length-1;
+  } else if(pts.length) pts=[];
+  render(); e.preventDefault();
+});
+cv.addEventListener("pointermove",e=>{
+  if(drag===null||pts[drag]==="O")return;
+  const b=cv.getBoundingClientRect(), mx=(e.clientX-b.left)*cv.width/b.width,
+        my=(e.clientY-b.top)*cv.height/b.height;
+  const sn=snap(mx,my);
+  if(sn.pt){
+    // snap onto the OTHER point when close (doubling / clean coincidence)
+    const o=pts[1-drag];
+    if(o&&o!=="O"&&Math.abs(PX(sn.pt[0])-PX(o[0]))<6&&Math.abs(PY(sn.pt[1])-PY(o[1]))<6)
+      pts[drag]=[o[0],o[1]];
+    else pts[drag]=sn.pt;
+    render();
+  }
+});
+window.addEventListener("pointerup",()=>{drag=null;});
+const clampfg=v=>Math.max(-5,Math.min(5,Math.round(v*10)/10));
+function syncFG(){document.getElementById("rfval").textContent=f.toFixed(1);
+  document.getElementById("rgval").textContent=g.toFixed(1); pts=pts.filter(P=>P==="O"); render();}
+document.getElementById("rfup").onclick=()=>{f=clampfg(f+0.5);syncFG();};
+document.getElementById("rfdn").onclick=()=>{f=clampfg(f-0.5);syncFG();};
+document.getElementById("rgup").onclick=()=>{g=clampfg(g+0.5);syncFG();};
+document.getElementById("rgdn").onclick=()=>{g=clampfg(g-0.5);syncFG();};
+render();
+</script>
+"""
+
+
+def group_law_fp_html() -> str:
+    """S1 applet: the same chord-tangent law over F_p, live.
+
+    Replaces the p selectbox + f/g number inputs + plotly click-grid +
+    Clear/Show line/Compute sum buttons. Click two curve points (same point
+    twice = doubling); the 'line' through them -- all its F_p points -- plus
+    R and the reflected sum appear instantly. O sits beyond the top-right
+    corner and is clickable; vertical lines (inverses, 2-torsion tangents)
+    pass through it."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">p =</span>
+    <button class="seg gpbtn" data-p="7">7</button>
+    <button class="seg gpbtn" data-p="11">11</button>
+    <button class="seg gpbtn on" data-p="17">17</button>
+    <button class="seg gpbtn" data-p="23">23</button>
+    <button class="seg gpbtn" data-p="31">31</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 14px;">f =</span>
+    <button class="seg" id="qfdn">−</button><span id="qfval" style="align-self:center;min-width:26px;text-align:center;">0</span><button class="seg" id="qfup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">g =</span>
+    <button class="seg" id="qgdn">−</button><span id="qgval" style="align-self:center;min-width:26px;text-align:center;">1</span><button class="seg" id="qgup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr;">
+    <div class="cell">
+      <div class="cap">E(𝔽ₚ) — click P, then Q (same point twice = 2P)</div>
+      <canvas id="gq" width="480" height="480"></canvas>
+      <div id="gqout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+      <div class="hint" style="margin-top:4px;">gold dots: the 𝔽ₚ-points of the line through P and Q (mod p it wraps!) · purple: the third intersection R · gold ring: P + Q = R reflected · vertical lines run to 𝒪 · a third click clears</div>
+    </div>
+  </div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f", GRN="#69b382", PUR="#b58fd8", OLI="#a9b665";
+const cv=document.getElementById("gq"), ctx=cv.getContext("2d");
+const out=document.getElementById("gqout");
+let p=17, f=0, g=1;
+let sel=[];                              // 0..2 entries: "O" or [x,y] (raw 0..p-1)
+const mod=(a,m)=>((a%m)+m)%m;
+function powmod(b,e,m){let r=1n;b=BigInt(mod(b,m));let E=BigInt(e);const M=BigInt(m);
+  while(E>0n){if(E&1n)r=r*b%M; b=b*b%M; E>>=1n;} return Number(r);}
+const inv=(a,m)=>powmod(a,m-2,m);
+const sym=x=>{const r=mod(x,p); return 2*r<p?r:r-p;};
+const rhs=x=>mod(x*x*x+f*x+g,p);
+function curvePts(){
+  const sq={};
+  for(let y=0;y<p;y++){const v=mod(y*y,p);(sq[v]=sq[v]||[]).push(y);}
+  const pts=[];
+  for(let x=0;x<p;x++) for(const y of (sq[rhs(x)]||[])) pts.push([x,y]);
+  return pts;
+}
+function linePts(P,Q){
+  if(P==="O"&&Q==="O") return [];
+  if(P==="O"||Q==="O"){const F=P==="O"?Q:P;
+    return Array.from({length:p},(_,y)=>[F[0],y]);}
+  const same=mod(P[0]-Q[0],p)===0&&mod(P[1]-Q[1],p)===0;
+  if(same){
+    if(mod(P[1],p)===0) return Array.from({length:p},(_,y)=>[P[0],y]);
+    const m=mod((3*P[0]*P[0]+f)*inv(mod(2*P[1],p),p),p);
+    const c=mod(P[1]-m*P[0],p);
+    return Array.from({length:p},(_,x)=>[x,mod(m*x+c,p)]);
+  }
+  if(mod(P[0]-Q[0],p)===0) return Array.from({length:p},(_,y)=>[P[0],y]);
+  const m=mod((Q[1]-P[1])*inv(mod(Q[0]-P[0],p),p),p);
+  const c=mod(P[1]-m*P[0],p);
+  return Array.from({length:p},(_,x)=>[x,mod(m*x+c,p)]);
+}
+function sum2(P,Q){
+  if(P==="O"&&Q==="O") return {S:"O",R:null,msg:"𝒪 + 𝒪 = 𝒪."};
+  if(P==="O") return {S:Q,R:null,msg:"𝒪 + Q = Q (𝒪 is the identity)."};
+  if(Q==="O") return {S:P,R:null,msg:"P + 𝒪 = P (𝒪 is the identity)."};
+  const same=mod(P[0]-Q[0],p)===0&&mod(P[1]-Q[1],p)===0;
+  if(same&&mod(P[1],p)===0) return {S:"O",R:null,msg:"P = Q is 2-torsion, so 2P = 𝒪."};
+  if(!same&&mod(P[0]-Q[0],p)===0) return {S:"O",R:null,msg:"P and Q are inverses, so P + Q = 𝒪."};
+  const m=same?mod((3*P[0]*P[0]+f)*inv(mod(2*P[1],p),p),p)
+              :mod((Q[1]-P[1])*inv(mod(Q[0]-P[0],p),p),p);
+  const x3=mod(m*m-P[0]-Q[0],p), yR=mod(m*(x3-P[0])+P[1],p);
+  return {S:[x3,mod(-yR,p)], R:[x3,yR], msg:null};
+}
+const h=()=>Math.floor(p/2);
+const M=34;                              // margin for the O corner
+const GX=x=>M+ (sym(x)+h())/(p-1)*(cv.width-2*M);
+const GY=y=>cv.height-M-(sym(y)+h())/(p-1)*(cv.height-2*M);
+const OPX=()=>cv.width-14, OPY=()=>14;
+const fmt=P=>P==="O"?"𝒪":`(${sym(P[0])}, ${sym(P[1])})`;
+function render(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const disc=mod(-16*(4*f*f*f+27*g*g),p);
+  const pts=disc===0?[]:curvePts();
+  ctx.fillStyle="rgba(255,255,255,0.10)";
+  for(let x=0;x<p;x++)for(let y=0;y<p;y++){
+    ctx.beginPath(); ctx.arc(GX(x),GY(y),1.3,0,7); ctx.fill();}
+  const both=sel.length===2, res=both?sum2(sel[0],sel[1]):null;
+  if(both){
+    ctx.fillStyle="rgba(224,182,79,0.55)";
+    for(const [x,y] of linePts(sel[0],sel[1])){
+      ctx.beginPath(); ctx.arc(GX(x),GY(y),Math.max(2.4,42/p),0,7); ctx.fill();}
+  }
+  ctx.fillStyle=DOM;
+  for(const [x,y] of pts){
+    ctx.beginPath(); ctx.arc(GX(x),GY(y),Math.max(3,66/p),0,7); ctx.fill();}
+  ctx.font="12px system-ui";
+  if(res&&!res.msg){
+    ctx.fillStyle=PUR; ctx.beginPath();
+    ctx.arc(GX(res.R[0]),GY(res.R[1]),Math.max(4.5,80/p),0,7); ctx.fill();
+    ctx.fillText("R",GX(res.R[0])+8,GY(res.R[1])-6);
+    ctx.fillStyle=SUP; ctx.beginPath();
+    ctx.arc(GX(res.S[0]),GY(res.S[1]),Math.max(5.5,90/p),0,7); ctx.fill();
+    ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillText(fmt(sel[0])===fmt(sel[1])?"2P":"P + Q",GX(res.S[0])+9,GY(res.S[1])-7);
+  }
+  sel.forEach((P,i)=>{
+    if(P==="O")return;
+    ctx.fillStyle=i?GRN:RED; ctx.beginPath();
+    ctx.arc(GX(P[0]),GY(P[1]),Math.max(5.5,90/p),0,7); ctx.fill();
+    ctx.strokeStyle="#fff"; ctx.lineWidth=1.4; ctx.stroke();
+    ctx.fillStyle=i?GRN:RED; ctx.fillText(i?"Q":"P",GX(P[0])+9,GY(P[1])-7);
+  });
+  // O marker top-right
+  const sumIsO=res&&res.S==="O";
+  ctx.fillStyle=sel.includes("O")?(sel[0]==="O"?RED:GRN):(sumIsO?SUP:OLI);
+  ctx.beginPath(); ctx.arc(OPX(),OPY(),sumIsO?8:6,0,7); ctx.fill();
+  ctx.fillStyle=OLI; ctx.fillText("𝒪",OPX()-22,OPY()+5);
+  let s=`E: y² = x³ + ${f}x + ${g} (mod ${p})`;
+  if(disc===0) s+=` &nbsp;<span style="color:${SUP}">singular — step f or g</span>`;
+  else s+=` &nbsp;·&nbsp; #E = ${pts.length+1}`;
+  sel.forEach((P,i)=>{s+=` &nbsp;·&nbsp; <b style="color:${i?GRN:RED}">${i?"Q":"P"}</b> = ${fmt(P)}`;});
+  if(res){
+    const dbl=sel[0]!=="O"&&sel[1]!=="O"&&mod(sel[0][0]-sel[1][0],p)===0&&mod(sel[0][1]-sel[1][1],p)===0;
+    s+=` &nbsp;·&nbsp; <b style="color:${SUP}">${dbl?"2P":"P + Q"} = ${fmt(res.S)}</b>`;
+    if(res.msg) s+=` <span style="color:${MUT}">— ${res.msg}</span>`;
+  }
+  out.innerHTML=s;
+}
+cv.addEventListener("pointerdown",e=>{
+  const b=cv.getBoundingClientRect(), mx=(e.clientX-b.left)*cv.width/b.width,
+        my=(e.clientY-b.top)*cv.height/b.height;
+  {const dx=OPX()-mx, dy=OPY()-my;
+   if(dx*dx+dy*dy<15*15){ if(sel.length>=2)sel=[]; sel.push("O"); render(); return;}}
+  const disc=mod(-16*(4*f*f*f+27*g*g),p);
+  if(disc===0) return;
+  let best=null,bd=16*16;
+  for(const q of curvePts()){
+    const dx=GX(q[0])-mx, dy=GY(q[1])-my;
+    if(dx*dx+dy*dy<bd){bd=dx*dx+dy*dy; best=q;}
+  }
+  if(best){ if(sel.length>=2)sel=[]; sel.push(best); }
+  else sel=[];
+  render();
+});
+function syncFG(){document.getElementById("qfval").textContent=f;
+  document.getElementById("qgval").textContent=g; sel=[]; render();}
+document.getElementById("qfup").onclick=()=>{f=mod(f+1,p);syncFG();};
+document.getElementById("qfdn").onclick=()=>{f=mod(f-1,p);syncFG();};
+document.getElementById("qgup").onclick=()=>{g=mod(g+1,p);syncFG();};
+document.getElementById("qgdn").onclick=()=>{g=mod(g-1,p);syncFG();};
+document.querySelectorAll(".gpbtn").forEach(b=>b.addEventListener("click",()=>{
+  p=+b.dataset.p; f=mod(f,p); g=mod(g,p); sel=[];
+  document.querySelectorAll(".gpbtn").forEach(z=>z.classList.toggle("on",z===b));
+  syncFG();
+}));
+render();
+</script>
+"""
