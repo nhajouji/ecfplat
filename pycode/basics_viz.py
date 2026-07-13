@@ -318,3 +318,149 @@ document.querySelectorAll(".dbtn").forEach(b=>b.addEventListener("click",()=>{
 render();
 </script>
 """
+
+
+def torus_folding_html() -> str:
+    """S4 applet: an l-isogeny folds the torus l-to-1.
+
+    Replaces the tau/s/t sliders + degree select + direction radio + static
+    matplotlib pair. Left: the fundamental domain sliced into l slabs, the
+    kernel (red) and the whole fibre of P; drag P (or tau), pick l and the
+    kernel direction with buttons. Right: the folded cell of Lambda' with the
+    single image phi(P), live."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">ℓ =</span>
+    <button class="seg lbtn" data-l="2">2</button>
+    <button class="seg lbtn on" data-l="3">3</button>
+    <button class="seg lbtn" data-l="4">4</button>
+    <button class="seg lbtn" data-l="5">5</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 4px 0 14px;">kernel =</span>
+    <button class="seg kbtn on" data-k="v">⟨1/ℓ⟩ vertical</button>
+    <button class="seg kbtn" data-k="h">⟨τ/ℓ⟩ horizontal</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell">
+      <div class="cap">E = ℂ/Λ, sliced into ℓ slabs — drag P (and τ)</div>
+      <canvas id="fda" width="330" height="330"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">E′ = ℂ/Λ′ — the slabs folded onto one cell</div>
+      <canvas id="fdb" width="330" height="330"></canvas>
+    </div>
+  </div>
+  <div id="fdout" style="margin-top:8px;font-size:.93rem;"></div>
+  <div class="hint" style="margin-top:4px;">white = the fibre of P (its ℓ kernel-translates, one per slab) · red = the kernel · all ℓ fibre points land on the single image φ(P)</div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f", GRN="#69b382";
+const cva=document.getElementById("fda"), cvb=document.getElementById("fdb");
+const out=document.getElementById("fdout");
+let tau={x:0.25,y:1.0}, ell=3, vert=true, P={s:0.30,t:0.55};
+let drag=null;                                  // 'tau' | 'P' | null
+
+const pos=(cu,cv)=>({x:cu+cv*tau.x, y:cv*tau.y});
+let CX,CY,HS;
+function fitView(){
+  const cs=[pos(0,0),pos(1,0),pos(1,1),pos(0,1)];
+  const xs=cs.map(c=>c.x), ys=cs.map(c=>c.y);
+  CX=(Math.min(...xs)+Math.max(...xs))/2; CY=(Math.min(...ys)+Math.max(...ys))/2;
+  HS=Math.max(Math.max(...xs)-Math.min(...xs), Math.max(...ys)-Math.min(...ys))/2+0.25;
+}
+const PX=(cv,x)=>(x-(CX-HS))/(2*HS)*cv.width;
+const PY=(cv,y)=>((CY+HS)-y)/(2*HS)*cv.height;
+function poly(cv,ctx,verts){
+  ctx.beginPath();
+  verts.forEach((v,i)=>{i?ctx.lineTo(PX(cv,v.x),PY(cv,v.y)):ctx.moveTo(PX(cv,v.x),PY(cv,v.y));});
+  ctx.closePath();
+}
+const slabCol=k=>`hsla(${215-135*k/Math.max(1,ell-1)},55%,50%,0.32)`;
+function dot(cv,ctx,x,y,r,fill,ring){
+  ctx.fillStyle=fill; ctx.beginPath(); ctx.arc(PX(cv,x),PY(cv,y),r,0,7); ctx.fill();
+  if(ring){ctx.strokeStyle=ring; ctx.lineWidth=1.6; ctx.stroke();}
+}
+function drawLeft(){
+  const ctx=cva.getContext("2d");
+  ctx.clearRect(0,0,cva.width,cva.height);
+  for(let k=0;k<ell;k++){
+    const c = vert
+      ? [pos(k/ell,0),pos((k+1)/ell,0),pos((k+1)/ell,1),pos(k/ell,1)]
+      : [pos(0,k/ell),pos(1,k/ell),pos(1,(k+1)/ell),pos(0,(k+1)/ell)];
+    poly(cva,ctx,c); ctx.fillStyle=slabCol(k); ctx.fill();
+    ctx.strokeStyle="rgba(255,255,255,0.25)"; ctx.lineWidth=0.8; ctx.stroke();
+  }
+  // kernel points (red) and the fibre of P (white)
+  for(let k=0;k<ell;k++){
+    const K = vert?pos(k/ell,0):pos(0,k/ell);
+    dot(cva,ctx,K.x,K.y,5.5,RED,"#fff");
+  }
+  ctx.font="12px system-ui";
+  for(let k=0;k<ell;k++){
+    const F = vert?pos((P.s+k/ell)%1,P.t):pos(P.s,(P.t+k/ell)%1);
+    dot(cva,ctx,F.x,F.y,k?4.5:7,"#fff",k?null:DOM);
+    if(!k){ctx.fillStyle=INK; ctx.fillText("P",PX(cva,F.x)+8,PY(cva,F.y)-6);}
+  }
+  const t=pos(0,1);
+  dot(cva,ctx,t.x,t.y,6,SUP,"#000");
+  ctx.fillStyle=INK; ctx.fillText("τ",PX(cva,t.x)-14,PY(cva,t.y)-6);
+}
+function drawRight(){
+  const ctx=cvb.getContext("2d");
+  ctx.clearRect(0,0,cvb.width,cvb.height);
+  const u = vert?pos(1/ell,0):pos(1,0);
+  const v = vert?pos(0,1):pos(0,1/ell);
+  poly(cvb,ctx,[{x:0,y:0},u,{x:u.x+v.x,y:u.y+v.y},v]);
+  ctx.fillStyle="rgba(105,179,130,0.18)"; ctx.fill();
+  ctx.strokeStyle=GRN; ctx.lineWidth=1.8; ctx.stroke();
+  dot(cvb,ctx,0,0,5.5,RED,"#fff");
+  const si = vert?(P.s%(1/ell)):P.s, ti = vert?P.t:(P.t%(1/ell));
+  const I = pos(si,ti);
+  ctx.font="12px system-ui";
+  dot(cvb,ctx,I.x,I.y,7,"#fff",SUP);
+  ctx.fillStyle=INK; ctx.fillText("φ(P)",PX(cvb,I.x)+8,PY(cvb,I.y)-6);
+}
+function render(){
+  fitView(); drawLeft(); drawRight();
+  const lam = vert?`(1/${ell})ℤ + τℤ`:`ℤ + (τ/${ell})ℤ`;
+  out.innerHTML=`τ = ${tau.x.toFixed(2)} + ${tau.y.toFixed(2)}i`
+    +` &nbsp;·&nbsp; P: (s,t) = (${P.s.toFixed(2)}, ${P.t.toFixed(2)})`
+    +` &nbsp;·&nbsp; Λ′ = ${lam} &nbsp;·&nbsp; φ is ${ell}-to-1`;
+}
+function evXY(e){
+  const b=cva.getBoundingClientRect();
+  return {x:(CX-HS)+(e.clientX-b.left)/b.width*2*HS,
+          y:(CY+HS)-(e.clientY-b.top)/b.height*2*HS};
+}
+cva.addEventListener("pointerdown",e=>{
+  const q=evXY(e), t=pos(0,1);
+  cva.setPointerCapture(e.pointerId);
+  const dx=PX(cva,t.x)-PX(cva,q.x), dy=PY(cva,t.y)-PY(cva,q.y);
+  drag = (dx*dx+dy*dy<14*14) ? "tau" : "P";
+  if(drag==="P"){const tt=q.y/tau.y, ss=q.x-tt*tau.x;
+    P={s:((ss%1)+1)%1, t:((tt%1)+1)%1};}
+  render(); e.preventDefault();
+});
+cva.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  const q=evXY(e);
+  if(drag==="tau"){tau.x=Math.max(-0.5,Math.min(0.5,q.x)); tau.y=Math.max(0.4,Math.min(2.0,q.y));}
+  else{const tt=q.y/tau.y, ss=q.x-tt*tau.x;
+    P={s:((ss%1)+1)%1, t:((tt%1)+1)%1};}
+  render();
+});
+window.addEventListener("pointerup",()=>{drag=null;});
+document.querySelectorAll(".lbtn").forEach(b=>b.addEventListener("click",()=>{
+  ell=+b.dataset.l;
+  document.querySelectorAll(".lbtn").forEach(z=>z.classList.toggle("on",z===b));
+  render();
+}));
+document.querySelectorAll(".kbtn").forEach(b=>b.addEventListener("click",()=>{
+  vert=(b.dataset.k==="v");
+  document.querySelectorAll(".kbtn").forEach(z=>z.classList.toggle("on",z===b));
+  render();
+}));
+render();
+</script>
+"""

@@ -2735,125 +2735,19 @@ with tab_fold:
         "kernel."
     )
     st.markdown(
-        "Pick a lattice $\\Lambda = \\mathbb{Z} + \\tau\\mathbb{Z}$, a degree "
-        "$\\ell$, and a cyclic kernel direction. The point $P$ (and its $\\ell$ "
-        "kernel-translates, the whole fibre) is shown on the left; its single image "
-        "$\\varphi(P)$ is shown on the right."
+        "Pick a degree $\\ell$ and a cyclic kernel direction with the buttons; "
+        "**drag $P$** anywhere in the domain (and the gold $\\tau$ corner to "
+        "reshape the lattice). The whole fibre of $P$ — its $\\ell$ "
+        "kernel-translates, one per slab — moves with it on the left, and all "
+        "of them land on the single image $\\varphi(P)$ on the right."
     )
-
-    st.divider()
-
-    fold_ctrl, fold_plot = st.columns([1, 2])
-
-    with fold_ctrl:
-        st.markdown("**Lattice**")
-        ftau_re = st.slider("Re(τ)", -0.5, 0.5, 0.25, 0.01, key="fold_re")
-        ftau_im = st.slider("Im(τ)",  0.4, 2.0, 1.0, 0.05, key="fold_im")
-        st.markdown("**Isogeny**")
-        fell = st.select_slider("degree ℓ", options=[2, 3, 4, 5], value=3,
-                                key="fold_ell")
-        fdir = st.radio(
-            "cyclic kernel",
-            ["⟨1/ℓ⟩  (vertical slabs)", "⟨τ/ℓ⟩  (horizontal slabs)"],
-            key="fold_dir")
-        vertical = fdir.startswith("⟨1/ℓ⟩")
-        st.markdown("**Point $P = s\\cdot 1 + t\\cdot\\tau$**")
-        fps = st.slider("s", 0.0, 1.0, 0.30, 0.02, key="fold_s")
-        fpt = st.slider("t", 0.0, 1.0, 0.55, 0.02, key="fold_t")
-        st.caption(
-            f"$\\Lambda' = "
-            + (r"\tfrac{1}{%d}\mathbb{Z} + \tau\mathbb{Z}$" % fell if vertical
-               else r"\mathbb{Z} + \tfrac{1}{%d}\tau\mathbb{Z}$" % fell)
-            + f"  — kernel of order {fell}."
-        )
-
-    with fold_plot:
-        one_f = np.array([1.0, 0.0])
-        tau_f = np.array([ftau_re, ftau_im])
-
-        def _xy(s, t):
-            return s * one_f + t * tau_f
-
-        # kernel generator fractions and the target cell basis
-        if vertical:
-            ker_pts = [_xy(k / fell, 0.0) for k in range(fell)]
-            tgt_u, tgt_v = _xy(1.0 / fell, 0.0), tau_f      # small cell basis
-            s_img = (fps % (1.0 / fell)); t_img = fpt
-        else:
-            ker_pts = [_xy(0.0, k / fell) for k in range(fell)]
-            tgt_u, tgt_v = one_f, _xy(0.0, 1.0 / fell)
-            s_img = fps; t_img = (fpt % (1.0 / fell))
-
-        # fibre of P = the ell kernel-translates
-        if vertical:
-            fibre = [_xy((fps + k / fell) % 1.0, fpt) for k in range(fell)]
-        else:
-            fibre = [_xy(fps, (fpt + k / fell) % 1.0) for k in range(fell)]
-        img_pt = s_img * one_f + t_img * tau_f
-
-        strip_cols = plt.cm.viridis(np.linspace(0.15, 0.85, fell))
-
-        fig_fd, (axL, axR) = plt.subplots(1, 2, figsize=(9, 4.2))
-
-        # ── Left: E = C/Lambda, sliced into ell slabs ─────────────────────────
-        for k in range(fell):
-            if vertical:
-                corners = [_xy(k / fell, 0), _xy((k + 1) / fell, 0),
-                           _xy((k + 1) / fell, 1), _xy(k / fell, 1)]
-            else:
-                corners = [_xy(0, k / fell), _xy(1, k / fell),
-                           _xy(1, (k + 1) / fell), _xy(0, (k + 1) / fell)]
-            axL.add_patch(MplPolygon(corners, facecolor=strip_cols[k],
-                                     alpha=0.35, edgecolor="gray", lw=0.7,
-                                     zorder=1))
-        # kernel points
-        for K in ker_pts:
-            axL.scatter(*K, color="crimson", s=55, zorder=4,
-                        edgecolor="white", linewidth=0.7)
-        # fibre of P
-        for Q in fibre:
-            axL.scatter(*Q, color="black", s=50, zorder=5)
-        axL.scatter(*fibre[0], color="black", s=90, zorder=6)
-        axL.annotate("$P$", fibre[0], xytext=(6, 6),
-                     textcoords="offset points", fontsize=12, fontweight="bold")
-        axL.set_title("$E = \\mathbb{C}/\\Lambda$  (sliced into $\\ell$)",
-                      fontsize=10)
-
-        # ── Right: E' = C/Lambda' ─────────────────────────────────────────────
-        axR.add_patch(MplPolygon(
-            [np.zeros(2), tgt_u, tgt_u + tgt_v, tgt_v],
-            facecolor=[0.85, 0.9, 0.85, 0.5], edgecolor="seagreen",
-            lw=1.8, zorder=1))
-        axR.scatter(0, 0, color="crimson", s=55, zorder=4,
-                    edgecolor="white", linewidth=0.7)
-        axR.scatter(*img_pt, color="black", s=90, zorder=5)
-        axR.annotate("$\\varphi(P)$", img_pt, xytext=(6, 6),
-                     textcoords="offset points", fontsize=12, fontweight="bold")
-        axR.set_title("$E' = \\mathbb{C}/\\Lambda'$  (folded)", fontsize=10)
-
-        for ax in (axL, axR):
-            ax.axhline(0, color="k", lw=0.4)
-            ax.axvline(0, color="k", lw=0.4)
-            ax.set_aspect("equal")
-            ax.set_frame_on(False)
-            ax.set_xticks([]); ax.set_yticks([])
-        # shared limits from the (larger) domain
-        allx = [0, 1, 1 + tau_f[0], tau_f[0]]
-        ally = [0, 0, tau_f[1], tau_f[1]]
-        padf = 0.25
-        for ax in (axL, axR):
-            ax.set_xlim(min(allx) - padf, max(allx) + padf)
-            ax.set_ylim(min(ally) - padf, max(ally) + padf)
-
-        fig_fd.tight_layout()
-        st.pyplot(fig_fd)
-        plt.close(fig_fd)
-        st.caption(
-            "Left: the $\\ell$ coloured slabs of $\\mathbb{C}/\\Lambda$, the kernel "
-            "points (red), and the fibre of $P$ — its $\\ell$ kernel-translates "
-            "(black). Right: all $\\ell$ of them fold onto the single image "
-            "$\\varphi(P)$ in the smaller torus $\\mathbb{C}/\\Lambda'$."
-        )
+    components.html(basics_viz.torus_folding_html(), height=560, scrolling=False)
+    st.caption(
+        "Left: the $\\ell$ coloured slabs of $\\mathbb{C}/\\Lambda$, the kernel "
+        "points (red), and the fibre of $P$ — its $\\ell$ kernel-translates "
+        "(white). Right: all $\\ell$ of them fold onto the single image "
+        "$\\varphi(P)$ in the smaller torus $\\mathbb{C}/\\Lambda'$."
+    )
 
 
 # ── Tab: Vélu's formulas over 𝔽ₚ ──────────────────────────────────────────────
