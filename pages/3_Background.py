@@ -541,11 +541,12 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
             "the isogeny it names is drawn as the two lattices $\\Lambda = \\langle "
             "1, \\tau\\rangle \\subset \\Lambda'$ — the domain in blue, the "
             "index-$\\ell$ superlattice (the codomain $E' = \\mathbb{C}/\\Lambda'$) "
-            "in gold. The gold point $w(\\tau) = -1/(\\ell\\tau)$ on the left is the "
-            "**dual** isogeny. The coloured dots are the **endomorphism points** — "
-            "the $\\tau$ with $j(\\tau) = j(\\ell\\tau)$, one colour per CM "
-            "discriminant — computed with the repository's quadratic-form tools; "
-            "watch $\\tau$ and $w(\\tau)$ meet as you pass through one."
+            "in gold. The gold point $w(\\tau) = -1/(\\ell\\tau)$ is the **dual** "
+            "isogeny $E' \\to E$; composing $j$ with $w_\\ell$ reads off the "
+            "codomain. The **dashed curves** are the interior part of the real "
+            "locus of $j$ — the images of $\\operatorname{Re}\\tau = 0$ under "
+            "$\\Gamma_0(\\ell)$ — while the tile boundaries carry the rest of it "
+            "(the arcs where $j \\in [0, 1728]$ and the walls where $j \\le 0$)."
         )
         components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
 
