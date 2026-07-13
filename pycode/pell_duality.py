@@ -1178,6 +1178,188 @@ def test_genus_conjecture(verbose=True):
 
 from nt import quad_rec
 
+##########################################################################
+# Per-discriminant pairing verification (for the identity paper)        #
+##########################################################################
+# The identity x0l_fp_card(p,l) + supsingtrace(l,p) = 2p+2 should hold
+# discriminant by discriminant: for each trace a in [0, 2 sqrt p], with
+# d = a^2 - 4p, the a-contribution to #X_0(l)(F_p) plus the a-contribution
+# to Tr(char-l degree-p graph) should equal 2 * clgr_sum(d), up to explicit
+# corrections at j = 0, 1728 (the only j's straddling several classes,
+# since only O_{-3}, O_{-4} have extra units) and at ramified d.
+
+from identities import (clgr_sum as _clgr_sum, clgr_size_gen as _clgr_gen,
+                        supsingtrace as _sstr, x0l_fp_card as _x0card,
+                        disc_closure as _disc_closure)
+from nt import primesBetween, discfac as _discfac
+
+def identity_sweep(N=200, verbose=True):
+    """Check the 2p+2 identity for all ordered pairs of primes 5 <= p,l < N,
+    plus the forced anchors: supsingtrace(l, p) == p+1 for l-1 | 12."""
+    ps = [q for q in primesBetween(2, N)]
+    bad = []
+    for p in ps:
+        for l in ps:
+            if p == l:
+                continue
+            if _x0card(p, l) + _sstr(l, p) != 2 * p + 2:
+                bad.append(('identity', p, l))
+        for l in (2, 3, 5, 7, 13):
+            if l != p and _sstr(l, p) != p + 1:
+                bad.append(('anchor', p, l))
+    if verbose:
+        n = len(ps) * (len(ps) - 1)
+        print(f'identity checked on {n} ordered pairs (p,l < {N}): '
+              f'{len(bad)} failures')
+        for t in bad[:20]:
+            print('  ', t)
+    return bad
+
+def _x0_contrib_by_a(p, l):
+    """Noncuspidal #X_0(l)(F_p) decomposed by trace a >= 0 (mirrors
+    x0l_fp_card / ecfp_disc_l_isocts, scoped to one isogeny class).
+
+    The orders O_{-3}, O_{-4} (extra units) are the only ones straddling
+    several classes (j = 0, 1728 quartic/sextic twists); their contribution
+    is attached to the smallest a where they appear — the same convention
+    as the d3seen/d4seen dedup in identities.supsingtrace."""
+    out = {}
+    a = 1
+    while a * a < 4 * p:
+        cl = _disc_closure(a * a - 4 * p)
+        clset = set(cl)
+        total = 0
+        for d0 in cl:
+            if d0 in (-3, -4):
+                # j = 0, 1728 straddle several classes (twists with distinct
+                # traces); their X_0-points aggregate kernels across twists
+                # and are verified in the special block, not per class
+                continue
+            qr = quad_rec(d0, l)
+            if d0 * l * l in clset:            # vertices with descending edges
+                if d0 == -3:
+                    nu = 1 + qr + (l - qr) // 3
+                elif d0 == -4:
+                    nu = 1 + qr + (l - qr) // 2
+                else:
+                    nu = l + 1
+            else:
+                nu = 1 + qr
+            total += nu * _clgr_gen(d0)
+        out[a] = total
+        a += 1
+    # supersingular classes (a = 0), as in x0l_fp_card
+    out[0] = _clgr_sum(-4 * p) if quad_rec(-p, l) == 1 else 0
+    return out
+
+def _trace_contrib_by_a(l, p):
+    """supsingtrace(l, p) decomposed by a; the O_{-3}, O_{-4} parts are
+    excluded per class (verified in the special block instead)."""
+    out = {}
+    d3seen = d4seen = False
+    a = 0
+    while a * a < 4 * p:
+        term = 0
+        d, c = _discfac(a * a - 4 * p)
+        if quad_rec(d, l) < 1:
+            while c % l == 0:
+                c //= l
+            h = _clgr_sum(d * c * c)
+            ram = (d % l == 0) or (d % p == 0)
+            mult = 1 if ram else 2
+            if d == -3:
+                term = mult * (h if not d3seen else h - 1)
+                d3seen = True
+            elif d == -4:
+                term = mult * (h if not d4seen else h - 1)
+                d4seen = True
+            else:
+                term = mult * h
+        out[a] = term
+        a += 1
+    return out
+
+def pairing_table(p, l, verbose=True):
+    """Per-a table: X0(a), Tr(a), 2*clgr_sum(a^2-4p), delta.  Verifies the
+    global identity and catalogs where the per-a pairing needs corrections."""
+    x0 = _x0_contrib_by_a(p, l)
+    tr = _trace_contrib_by_a(l, p)
+    all_ds = set()
+    fams = {-3: [], -4: []}
+    for a in sorted(set(x0) | set(tr)):
+        d = a * a - 4 * p
+        all_ds |= set(_disc_closure(d))
+        f = _discfac(d)[0]
+        if a >= 1 and f in fams:
+            fams[f].append(a)
+    rows = []
+    for a in sorted(set(x0) | set(tr)):
+        d = a * a - 4 * p
+        f = _discfac(d)[0]
+        if a >= 1 and f in fams:
+            continue                       # handled as a family below
+        lhs = x0.get(a, 0) + tr.get(a, 0)
+        # a >= 1 rows carry the +-a twist doubling; a = 0 is its own negative
+        target = 2 * _clgr_sum(d) if a >= 1 else _clgr_sum(d)
+        tags = ('ram-l' if quad_rec(f, l) == 0 else '') + (',ss' if a == 0 else '')
+        rows.append({'a': a, 'd': d, 'lhs': lhs, 'target': target,
+                     'delta': lhs - target, 'tags': tags.strip(',')})
+    # j = 0, 1728 families: the unit orders O_{-3}, O_{-4} straddle their
+    # classes (twists carry distinct traces), so the pairing holds for the
+    # family in aggregate, with the straddled order counted once:
+    #   sum lhs = 2 [ sum_a clgr_sum(a^2-4p) - (k-1) ],  k = family size
+    for f, members in fams.items():
+        if not members:
+            continue
+        # X0 family total: scoped counts plus the j = 0/1728 vertex itself,
+        # counted once with its global edge count (as in ecfp_disc_l_isocts)
+        qr = quad_rec(f, l)
+        if f * l * l in all_ds:
+            nu = 1 + qr + (l - qr) // (3 if f == -3 else 2)
+        else:
+            nu = 1 + qr
+        x0_fam = sum(x0.get(a, 0) for a in members) + nu * _clgr_gen(f)
+        tr_fam = sum(tr.get(a, 0) for a in members)
+        k = len(members)
+        target = 2 * (sum(_clgr_sum(a * a - 4 * p) for a in members) - (k - 1))
+        rows.append({'a': tuple(members), 'd': f, 'lhs': x0_fam + tr_fam,
+                     'target': target, 'delta': x0_fam + tr_fam - target,
+                     'tags': f'family j={"0" if f == -3 else "1728"} (k={k})'})
+    total = sum(r['lhs'] for r in rows)
+    ok_global = (total == 2 * p) and \
+                (total == _x0card(p, l) - 2 + _sstr(l, p))
+    if verbose:
+        print(f'(p={p}, l={l}): per-class + family contributions sum to '
+              f'{total} (want {2*p}); consistent with formulas: {ok_global}')
+        for r in rows:
+            if r['delta'] or r['tags']:
+                print(f"  a={str(r['a']):>9s} d={r['d']:6d}  lhs={r['lhs']:4d} "
+                      f"target={r['target']:4d} delta={r['delta']:3d}  [{r['tags']}]")
+    return {'rows': rows, 'total': total, 'ok_global': ok_global}
+
+def pairing_catalog(N=60, verbose=True):
+    """Run pairing_table over all pairs p != l < N (p, l >= 5); summarize
+    which (tags -> delta) patterns occur."""
+    ps = [q for q in primesBetween(5, N)]
+    patterns = {}
+    bad_global = []
+    for p in ps:
+        for l in ps:
+            if p == l:
+                continue
+            t = pairing_table(p, l, verbose=False)
+            if not t['ok_global']:
+                bad_global.append((p, l, t['total']))
+            for r in t['rows']:
+                key = (r['tags'], r['delta'])
+                patterns[key] = patterns.get(key, 0) + 1
+    if verbose:
+        print(f'global failures: {len(bad_global)}', bad_global[:10])
+        print('observed (tags -> delta) patterns:')
+        for (tags, delta), ct in sorted(patterns.items()):
+            print(f'  [{tags or "generic"}] delta={delta:3d}   x{ct}')
+    return patterns, bad_global
+
 ##############################################
 # Stage 4: the symmetry grid beyond Atkin l  #
 ##############################################
