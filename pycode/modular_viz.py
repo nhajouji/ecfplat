@@ -736,14 +736,43 @@ _JCOEFS = {
 }
 _MVAL = {"3": 729, "5": 125, "7": 49, "13": 13}
 
+# Endomorphism (diagonal) points of X_0(l): the 2l roots of j_l(x) = j_l(m/x).
+# ALL lie exactly on the self-dual circle |x| = sqrt(m) (verified to 1e-10;
+# l=5 matches the exact values -11±2i, -2±11i, ±5√5, -9±2i√11, 7±2i√19 from
+# the x05pic.nb notebook). Precomputed via numpy polyroots; baked so the page
+# stays import-light.
+_ENDO_PTS = {
+  "3": [[-5.0, -26.532998], [23.0, -14.142136], [27.0, 0.0], [23.0, 14.142136],
+        [-5.0, 26.532998], [-27.0, 0.0]],
+  "5": [[-11.0, -2.0], [-9.0, -6.63325], [-2.0, -11.0], [7.0, -8.717798],
+        [11.18034, 0.0], [7.0, 8.717798], [-2.0, 11.0], [-9.0, 6.63325],
+        [-11.0, 2.0], [-11.18034, 0.0]],
+  "7": [[-5.5, -4.330127], [-1.742641, -6.779617], [2.5, -6.538348],
+        [5.5, -4.330127], [6.5, -2.598076], [6.742641, -1.880637], [7.0, 0.0],
+        [6.742641, 1.880637], [6.5, 2.598076], [5.5, 4.330127],
+        [2.5, 6.538348], [-1.742641, 6.779617], [-5.5, 4.330127], [-7.0, 0.0]],
+  "13": [[-3.342329, -1.352344], [-2.598076, -2.5], [-1.5, -3.278719],
+         [-0.232051, -3.598076], [1.0, -3.464102], [2.0, -3.0],
+         [2.5, -2.598076], [2.598076, -2.5], [2.842329, -2.21837],
+         [3.0, -2.0], [3.232051, -1.598076], [3.5, -0.866025],
+         [3.605551, 0.0], [3.5, 0.866025], [3.232051, 1.598076], [3.0, 2.0],
+         [2.842329, 2.21837], [2.598076, 2.5], [2.5, 2.598076], [2.0, 3.0],
+         [1.0, 3.464102], [-0.232051, 3.598076], [-1.5, 3.278719],
+         [-2.598076, 2.5], [-3.342329, 1.352344], [-3.605551, 0.0]],
+}
+
 
 def genus0_dial_html() -> str:
-    """§9.3 applet: the algebraic model X_0(l) = P^1 (the x-line, no gluing).
+    """§9.3 applet: the algebraic model X_0(l) = P^1, interacted with over R.
 
-    Domain-colours the x-plane by the j-map j_l(x) (so the real locus of j -- the
-    Belyi graph -- shows up as the seams); a draggable x reads off the domain
-    j_l(x) and its Fricke partner m/x reads off the codomain j_l(m/x). The dashed
-    circle |x| = sqrt(m) is the Fricke fixed locus (there m/x = conj(x))."""
+    The x-plane (dimly domain-coloured by j_l) is only the AMBIENT space; the
+    live interaction is a point sliding along the REAL line. Overlaid: the real
+    locus of j_l weighted Belyi-style (preimage of [0,1728] prominent; preimages
+    of j<=0 and j>=1728 faint), the 2l endomorphism points on the self-dual
+    circle |x| = sqrt(m), and -- for the worked example l=5 -- the two REAL
+    elliptic curves the point x gives via the universal-curve section
+    t(x) = (11+x-sqrt(x^2+22x+125))/2 into the Tate form
+    y^2+(1-t)xy-ty = x^3-tx^2 (kernel <(0,0)> marked). From x05pic.nb."""
     import json as _j
     return _HEAD + r"""
 <div class="panel">
@@ -754,21 +783,30 @@ def genus0_dial_html() -> str:
     <button class="seg ellbtn" data-l="7">7</button>
     <button class="seg ellbtn" data-l="13">13</button>
   </div>
-  <div class="stage" style="grid-template-columns: 360px 1fr;">
+  <div class="stage" style="grid-template-columns: 380px 1fr;">
     <div class="cell">
-      <div class="cap">the x-line, coloured by j<sub>ℓ</sub>(x)</div>
-      <canvas id="gd" width="360" height="360"></canvas>
+      <div class="cap">X₀(ℓ) = the real x-line, inside its ambient plane</div>
+      <canvas id="gd" width="380" height="380"></canvas>
     </div>
     <div class="cell" style="justify-content:flex-start;">
       <div class="cap" style="text-align:left;">the isogeny at x</div>
-      <div id="gdpanel" style="border:1px solid #23272c;border-radius:8px;padding:14px;min-height:150px;font-size:.95rem;line-height:1.7;"></div>
-      <div class="hint" style="text-align:left;margin-top:8px;">drag x; the gold point is its Fricke partner m/x. Dashed circle: |x| = √m (self-dual).</div>
+      <div id="gdpanel" style="border:1px solid #23272c;border-radius:8px;padding:12px 14px;font-size:.93rem;line-height:1.65;"></div>
+      <div id="gdcurves" style="display:none;margin-top:10px;">
+        <div style="display:flex;gap:10px;">
+          <div><canvas id="gcd" width="180" height="168" style="border:1px solid #23272c;border-radius:8px;"></canvas>
+               <div id="gcdcap" class="hint" style="text-align:center;margin-top:3px;"></div></div>
+          <div><canvas id="gcc" width="180" height="168" style="border:1px solid #23272c;border-radius:8px;"></canvas>
+               <div id="gcccap" class="hint" style="text-align:center;margin-top:3px;"></div></div>
+        </div>
+        <div class="hint" style="text-align:left;margin-top:6px;">E<sub>t</sub>: y² + (1−t)xy − ty = x³ − tx², &nbsp;t(x) = ½(11 + x − √(x²+22x+125)); dots = the kernel ⟨(0,0)⟩.</div>
+      </div>
+      <div class="hint" style="text-align:left;margin-top:8px;">drag x along ℝ; gold = Fricke partner m/x. Bright locus: j<sub>ℓ</sub> ∈ [0,1728] (the dessin); red dots: the 2ℓ endomorphism points, all on |x| = √m (dashed).</div>
     </div>
   </div>
 </div>
 <script>
 "use strict";
-const JCO=""" + _j.dumps(_JCOEFS) + r""", MVAL=""" + _j.dumps(_MVAL) + r""";
+const JCO=""" + _j.dumps(_JCOEFS) + r""", MVAL=""" + _j.dumps(_MVAL) + r""", ENDO=""" + _j.dumps(_ENDO_PTS) + r""";
 const DOM="#4da3d8", SUP="#e0b64f", INK="#d7d9dc", MUT="#9aa4ad";
 
 const C=(re,im)=>({re,im});
@@ -785,14 +823,17 @@ function hsv2rgb(h,s,v){const i=Math.floor(h*6),f=h*6-i,p=v*(1-s),q=v*(1-f*s),t=
 
 let ell="5";
 const rad=()=>2.2*Math.sqrt(MVAL[ell]);
-let x=C(Math.sqrt(125)*0.6, Math.sqrt(125)*0.8), dragging=false;
+let xr=-6.0, dragging=false;          // the point of X_0(l): REAL x only
 
 const cv=document.getElementById("gd"), ctx=cv.getContext("2d");
 const panel=document.getElementById("gdpanel");
+const curvebox=document.getElementById("gdcurves");
+const cvD=document.getElementById("gcd"), cvC=document.getElementById("gcc");
+const capD=document.getElementById("gcdcap"), capC=document.getElementById("gcccap");
 const X=re=>(re+rad())/(2*rad())*cv.width;
 const Y=im=>(rad()-im)/(2*rad())*cv.height;
-const inv=(px,py)=>C(-rad()+px/cv.width*2*rad(), rad()-py/cv.height*2*rad());
 
+// ambient backdrop: the j_l-colouring of the plane, dimmed (it is scenery now)
 let bgCache={};
 function bg(){
   if(bgCache[ell])return bgCache[ell];
@@ -801,57 +842,174 @@ function bg(){
     const j=jmap(C(-R+px/W*2*R, R-py/H*2*R));
     const mag=Math.hypot(j.re,j.im);
     let hue=(Math.atan2(j.im,j.re)/(2*Math.PI)); hue=((hue%1)+1)%1;
-    const val=0.34+0.46*(0.5+0.5*Math.sin(Math.log(mag+1e-12)*1.7));
-    const rgb=hsv2rgb(hue,0.58,Math.max(0,Math.min(1,val))), i=(py*W+px)*4;
+    const val=0.22+0.26*(0.5+0.5*Math.sin(Math.log(mag+1e-12)*1.7));
+    const rgb=hsv2rgb(hue,0.34,Math.max(0,Math.min(1,val))), i=(py*W+px)*4;
     img.data[i]=rgb[0]*255; img.data[i+1]=rgb[1]*255; img.data[i+2]=rgb[2]*255; img.data[i+3]=255;
   }
   bgCache[ell]=img; return img;
 }
-function fmtC(z){const a=z.re,b=z.im,mag=Math.hypot(a,b),s=b<0?"−":"+";
-  const f=v=>mag>1e5?v.toExponential(2):v.toFixed(2);
-  return `${f(a)} ${s} ${f(Math.abs(b))}i`;}
+
+// real locus of j_l via marching squares on Im j = 0, Belyi-weighted:
+// class 1 = preimage of [0,1728] (the dessin, prominent), 0 = j<0, 2 = j>1728
+function jclass(j){ return (j.re>=0 && j.re<=1728) ? 1 : (j.re<0 ? 0 : 2); }
+let belyiCache={};
+function belyi(){
+  if(belyiCache[ell])return belyiCache[ell];
+  const N=150, R=rad(), h=2*R/N, W=N+1, im=new Float64Array(W*W);
+  for(let iy=0;iy<W;iy++)for(let ix=0;ix<W;ix++)
+    im[iy*W+ix]=jmap(C(-R+ix*h, R-iy*h)).im;
+  const segs={0:[],1:[],2:[]};
+  const px=ix=>-R+ix*h, py=iy=>R-iy*h;
+  for(let iy=0;iy<N;iy++){
+    const y0=py(iy), y1=py(iy+1);
+    if(y0>=-1e-12 && y1<=1e-12) continue;            // the axis itself: drawn separately
+    for(let ix=0;ix<N;ix++){
+      const a=im[iy*W+ix], b=im[iy*W+ix+1], c=im[(iy+1)*W+ix+1], d=im[(iy+1)*W+ix];
+      const pts=[];
+      if(a*b<0) pts.push([px(ix)+h*a/(a-b), y0]);
+      if(b*c<0) pts.push([px(ix+1), y0+(y1-y0)*b/(b-c)]);
+      if(d*c<0) pts.push([px(ix)+h*d/(d-c), y1]);
+      if(a*d<0) pts.push([px(ix), y0+(y1-y0)*a/(a-d)]);
+      for(let k=0;k+1<pts.length;k+=2){
+        const mx=(pts[k][0]+pts[k+1][0])/2, my=(pts[k][1]+pts[k+1][1])/2;
+        segs[jclass(jmap(C(mx,my)))].push([pts[k][0],pts[k][1],pts[k+1][0],pts[k+1][1]]);
+      }
+    }
+  }
+  belyiCache[ell]=segs; return segs;
+}
+// same weighting along the real axis (the part we actually touch)
+let axisCache={};
+function axisRuns(){
+  if(axisCache[ell])return axisCache[ell];
+  const R=rad(), M=420, runs=[]; let cur=null;
+  for(let i=0;i<=M;i++){
+    const v=-R+2*R*i/M;
+    const cls=Math.abs(v)<1e-9?2:jclass(jmap(C(v,0)));
+    if(cur && cur.c===cls) cur.b=v; else {cur={a:v,b:v,c:cls}; runs.push(cur);}
+  }
+  axisCache[ell]=runs; return runs;
+}
+
+function fmtR(v){ if(!isFinite(v)) return "∞";
+  return Math.abs(v)>=1e6?v.toExponential(2):(Math.abs(v)>=100?v.toFixed(0):v.toFixed(2)); }
 
 function draw(){
   ctx.putImageData(bg(),0,0);
   const R=rad(), m=MVAL[ell];
-  // axes
-  ctx.strokeStyle="rgba(255,255,255,0.18)"; ctx.lineWidth=1;
-  ctx.beginPath(); ctx.moveTo(0,Y(0)); ctx.lineTo(cv.width,Y(0)); ctx.moveTo(X(0),0); ctx.lineTo(X(0),cv.height); ctx.stroke();
+  // imaginary axis, faint
+  ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(X(0),0); ctx.lineTo(X(0),cv.height); ctx.stroke();
+  // Belyi-weighted real locus: faint classes first, dessin on top
+  const segs=belyi();
+  const styles={0:["rgba(150,185,255,0.30)",1],2:["rgba(255,255,255,0.22)",1],1:["#ffd47f",2.2]};
+  for(const cls of [0,2,1]){
+    ctx.strokeStyle=styles[cls][0]; ctx.lineWidth=styles[cls][1]; ctx.beginPath();
+    for(const s of segs[cls]){ ctx.moveTo(X(s[0]),Y(s[1])); ctx.lineTo(X(s[2]),Y(s[3])); }
+    ctx.stroke();
+  }
+  // the real line: the actual X_0(l), same weighting but heavier
+  for(const r of axisRuns()){
+    const st={0:["rgba(150,185,255,0.55)",2],2:["rgba(255,255,255,0.45)",2],1:["#ffd47f",3.5]}[r.c];
+    ctx.strokeStyle=st[0]; ctx.lineWidth=st[1];
+    ctx.beginPath(); ctx.moveTo(X(r.a),Y(0)); ctx.lineTo(X(r.b),Y(0)); ctx.stroke();
+  }
   // self-dual circle |x| = sqrt(m)
-  ctx.strokeStyle="rgba(255,255,255,0.55)"; ctx.setLineDash([5,4]); ctx.lineWidth=1.3;
+  ctx.strokeStyle="rgba(255,255,255,0.5)"; ctx.setLineDash([5,4]); ctx.lineWidth=1.2;
   ctx.beginPath(); ctx.arc(X(0),Y(0), Math.sqrt(m)/(2*R)*cv.width, 0, 7); ctx.stroke(); ctx.setLineDash([]);
-  // cusp 0
+  // the 2l endomorphism (CM) points -- all on the circle
+  ctx.fillStyle="#ef6f6f";
+  for(const p of ENDO[ell]){ ctx.beginPath(); ctx.arc(X(p[0]),Y(p[1]),3,0,7); ctx.fill(); }
+  // cusp x=0
   ctx.fillStyle=INK; ctx.beginPath(); ctx.arc(X(0),Y(0),3,0,7); ctx.fill();
   ctx.font="12px system-ui"; ctx.fillText("0", X(0)+6, Y(0)+14);
-  // Fricke partner m/x (gold), then x (white)
-  const fr=cmulr(cinv(x), m);
-  ctx.fillStyle=SUP; ctx.beginPath(); ctx.arc(X(fr.re),Y(fr.im),6,0,7); ctx.fill();
-  ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
-  ctx.fillStyle=INK; ctx.fillText("m/x", X(fr.re)+8, Y(fr.im)-6);
-  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(X(x.re),Y(x.im),6,0,7); ctx.fill();
+  // Fricke partner m/x (gold) then x (white) -- both live on the real line
+  const fr=m/xr;
+  if(Math.abs(fr)<=R){
+    ctx.fillStyle=SUP; ctx.beginPath(); ctx.arc(X(fr),Y(0),6,0,7); ctx.fill();
+    ctx.strokeStyle="#000"; ctx.lineWidth=1; ctx.stroke();
+    ctx.fillStyle=INK; ctx.fillText("m/x", X(fr)+8, Y(0)-8);
+  }
+  ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(X(xr),Y(0),6,0,7); ctx.fill();
   ctx.strokeStyle=DOM; ctx.lineWidth=2; ctx.stroke();
-  ctx.fillStyle=INK; ctx.fillText("x", X(x.re)+8, Y(x.im)-6);
-}
-function swatch(j){const mag=Math.hypot(j.re,j.im);let h=(Math.atan2(j.im,j.re)/(2*Math.PI));h=((h%1)+1)%1;
-  const v=0.34+0.46*(0.5+0.5*Math.sin(Math.log(mag+1e-12)*1.7)); const rgb=hsv2rgb(h,0.58,Math.max(0,Math.min(1,v)));
-  return `rgb(${rgb[0]*255|0},${rgb[1]*255|0},${rgb[2]*255|0})`;}
-function render(){
-  draw();
-  const m=MVAL[ell], fr=cmulr(cinv(x),m), jx=jmap(x), jfr=jmap(fr);
-  const sw=j=>`<span style="display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:middle;background:${swatch(j)};margin-right:6px;"></span>`;
-  panel.innerHTML =
-    `<div style="color:${MUT};font-size:.85rem;">x = ${fmtC(x)} &nbsp;·&nbsp; m = ${m}</div>`
-    + `<div style="margin-top:10px;">${sw(jx)}<b style="color:${DOM}">domain</b> &nbsp;j<sub>ℓ</sub>(x) = ${fmtC(jx)}</div>`
-    + `<div style="margin-top:6px;">${sw(jfr)}<b style="color:${SUP}">codomain</b> &nbsp;j<sub>ℓ</sub>(m/x) = ${fmtC(jfr)}</div>`
-    + `<div style="color:${MUT};font-size:.82rem;margin-top:12px;">The seams in the colouring are the real locus of j<sub>ℓ</sub> (its Belyi graph) — the algebraic shadow of the analytic gluing.</div>`;
+  ctx.fillStyle=INK; ctx.fillText("x", X(xr)+8, Y(0)-8);
 }
 
-function evt(e){const r=cv.getBoundingClientRect();return C(-rad()+(e.clientX-r.left)/r.width*2*rad(), rad()-(e.clientY-r.top)/r.height*2*rad());}
-cv.addEventListener("pointerdown",e=>{dragging=true; cv.setPointerCapture(e.pointerId); x=evt(e); render(); e.preventDefault();});
-cv.addEventListener("pointermove",e=>{if(dragging){x=evt(e); render();}});
+// ---- the two real elliptic curves at x (worked example l=5) ----------------
+// section X_0(5) -> X_1(5): t(x) solves t-11-1/t = x, radicand always > 0 on R
+const tsec=v=>(11+v-Math.sqrt(v*v+22*v+125))/2;
+function drawCurve(cc,t,stroke){
+  const g=cc.getContext("2d"), Wp=cc.width, Hp=cc.height;
+  g.clearRect(0,0,Wp,Hp);
+  const a1=1-t, a2=-t, a3=-t;
+  const q=xx=>a1*xx+a3, F=xx=>q(xx)*q(xx)+4*(xx*xx*xx+a2*xx*xx);
+  // real roots of the branch cubic F (Cauchy bound + scan/bisect)
+  const co=[a3*a3, 2*a1*a3, a1*a1+4*a2, 4];
+  const B=1+Math.max(Math.abs(co[0]),Math.abs(co[1]),Math.abs(co[2]))/4;
+  const roots=[]; let pv=F(-B);
+  for(let i=1;i<=400;i++){ const xv=-B+2*B*i/400, v=F(xv);
+    if(pv===0) roots.push(-B+2*B*(i-1)/400);
+    if(pv*v<0){ let lo=-B+2*B*(i-1)/400, hi=xv;
+      for(let k=0;k<40;k++){ const mid=(lo+hi)/2; (F(lo)*F(mid)<=0)?hi=mid:lo=mid; }
+      roots.push((lo+hi)/2); }
+    pv=v; }
+  const ker=[[0,0],[0,t],[t,t*t],[t,0]];
+  let lo=Math.min(...roots,0,t), hi=Math.max(...roots,0,t);
+  const span=Math.max(hi-lo,1e-3); lo-=0.12*span; hi+=0.65*span;
+  // sample both branches, collect y-range
+  const NS=260, ys=[], pts=[];
+  for(let i=0;i<=NS;i++){ const xv=lo+(hi-lo)*i/NS, f=F(xv);
+    if(f>=0){ const s=Math.sqrt(f), y1=(-q(xv)+s)/2, y2=(-q(xv)-s)/2;
+      pts.push([xv,y1,y2]); ys.push(y1,y2); } else pts.push(null); }
+  for(const k of ker) ys.push(k[1]);
+  let ylo=Math.min(...ys), yhi=Math.max(...ys);
+  const ypad=0.1*Math.max(yhi-ylo,1e-3); ylo-=ypad; yhi+=ypad;
+  const PX=xx=>(xx-lo)/(hi-lo)*(Wp-12)+6, PY=yy=>(yhi-yy)/(yhi-ylo)*(Hp-12)+6;
+  g.strokeStyle="rgba(255,255,255,0.10)"; g.lineWidth=1;
+  g.beginPath(); g.moveTo(PX(lo),PY(0)); g.lineTo(PX(hi),PY(0));
+  g.moveTo(PX(0),PY(ylo)); g.lineTo(PX(0),PY(yhi)); g.stroke();
+  g.strokeStyle=stroke; g.lineWidth=1.8;
+  for(const br of [1,2]){ g.beginPath(); let pen=false;
+    for(const p of pts){ if(!p){pen=false;continue;}
+      const px=PX(p[0]), py=PY(p[br]);
+      pen?g.lineTo(px,py):g.moveTo(px,py); pen=true; }
+    g.stroke(); }
+  g.fillStyle="#ef6f6f";
+  for(const k of ker){ g.beginPath(); g.arc(PX(k[0]),PY(k[1]),3,0,7); g.fill(); }
+}
+
+function render(){
+  const sm=Math.sqrt(MVAL[ell]);
+  if(Math.abs(Math.abs(xr)-sm)<0.015*rad()) xr=(xr<0?-sm:sm);  // snap to +-sqrt(m)
+  draw();
+  const m=MVAL[ell], fr=m/xr, jx=jmap(C(xr,0)).re, jfr=jmap(C(fr,0)).re;
+  const selfdual=Math.abs(Math.abs(xr)-sm)<1e-9;
+  let html =
+    `<div style="color:${MUT};font-size:.85rem;">x = ${fmtR(xr)} &nbsp;·&nbsp; m/x = ${fmtR(fr)} &nbsp;·&nbsp; m = ${m}</div>`
+    + `<div style="margin-top:8px;"><b style="color:${DOM}">domain</b> &nbsp;j<sub>ℓ</sub>(x) = ${fmtR(jx)}</div>`
+    + `<div style="margin-top:4px;"><b style="color:${SUP}">codomain</b> &nbsp;j<sub>ℓ</sub>(m/x) = ${fmtR(jfr)}</div>`;
+  if(selfdual) html += `<div style="color:#ef6f6f;font-size:.85rem;margin-top:6px;">x ≈ ±√m: self-dual — E ≅ E/C, a real curve with an ℓ-endomorphism (CM).</div>`;
+  panel.innerHTML=html;
+  if(ell==="5"){
+    curvebox.style.display="block";
+    const t=tsec(xr), tf=tsec(fr);
+    drawCurve(cvD,t,DOM); drawCurve(cvC,tf,SUP);
+    capD.innerHTML=`domain: t = ${fmtR(t)}`;
+    capC.innerHTML=`codomain: t′ = ${fmtR(tf)}`;
+  } else {
+    curvebox.style.display="none";
+    panel.innerHTML += `<div style="color:${MUT};font-size:.82rem;margin-top:10px;">Equation recovery runs through the universal curve over X₁(5) — select ℓ = 5 to see the two real curves.</div>`;
+  }
+}
+
+function evt(e){const r=cv.getBoundingClientRect(); let v=-rad()+(e.clientX-r.left)/r.width*2*rad();
+  const eps=0.02*rad(); if(Math.abs(v)<eps) v=(v<0?-eps:eps);   // keep off the cusp x=0
+  return v;}
+cv.addEventListener("pointerdown",e=>{dragging=true; cv.setPointerCapture(e.pointerId); xr=evt(e); render(); e.preventDefault();});
+cv.addEventListener("pointermove",e=>{if(dragging){xr=evt(e); render();}});
 window.addEventListener("pointerup",()=>{dragging=false;});
 document.querySelectorAll(".ellbtn").forEach(b=>b.addEventListener("click",()=>{
-  ell=b.dataset.l; const sm=Math.sqrt(MVAL[ell]); x=C(sm*0.6, sm*0.8);
+  ell=b.dataset.l; xr=-0.55*rad();
   document.querySelectorAll(".ellbtn").forEach(z=>z.classList.toggle("on",z===b));
   render();
 }));
