@@ -13,6 +13,7 @@ from matplotlib.patches import Arc as MplArc
 
 import slide_viz
 import modular_viz
+import basics_viz
 
 
 # ── Chapter 3 (Modular Curves) helpers ────────────────────────────────────────
@@ -1684,166 +1685,15 @@ with tab3:
         "analytic picture."
     )
     st.markdown(
-        "Use the applet below to explore the group law on a torus. "
-        "Points $z_1$ and $z_2$ are specified by their fractional coordinates "
-        "$(s, t)$ in the parallelogram: $z = s \\cdot 1 + t \\cdot \\tau$, with $s, t \\in [0, 1)$. "
-        "When their sum falls outside the fundamental domain, it is translated back in — "
-        "this is the 'wrapping around' of the torus."
+        "Use the applet below to explore the group law on a torus. A point of "
+        "the parallelogram has fractional coordinates $(s, t)$: $z = s \\cdot 1 "
+        "+ t \\cdot \\tau$ with $s, t \\in [0, 1)$. **Drag the gold $\\tau$ "
+        "corner** to reshape the lattice, then **click** to place $z_1$ and "
+        "$z_2$ — their sum is drawn live as honest vector addition, and when it "
+        "falls outside the fundamental domain it is translated back in: the "
+        "'wrapping around' of the torus."
     )
-
-    st.divider()
-
-    # ── Group law applet: click two points, compute their sum ─────────────────
-    ctrl3, plot3 = st.columns([1, 2])
-
-    with ctrl3:
-        st.markdown("**Lattice**")
-        tau_re3 = st.slider("Re(τ)", -0.5, 0.5, 0.2, 0.01, key="bg3c_re")
-        tau_im3 = st.slider("Im(τ)",  0.1, 3.0, 1.2, 0.05, key="bg3c_im")
-        _sign3  = "+" if tau_re3 >= 0 else "-"
-        st.latex(rf"\tau = {tau_re3:.2f} {_sign3} {abs(tau_im3):.2f}\,i")
-
-    # Clickable grid of fractional coordinates (s, t) ∈ [0,1)².
-    _STEP3 = 0.05
-    _grid3 = [(round(s, 3), round(t, 3))
-              for s in np.arange(0.0, 1.0, _STEP3)
-              for t in np.arange(0.0, 1.0, _STEP3)]
-    _grid3_set = set(_grid3)
-
-    sel3 = [pt for pt in st.session_state.get("bg3_sel", []) if pt in _grid3_set]
-    st.session_state["bg3_sel"] = sel3
-    show3 = (st.session_state.get("bg3_mode") == "sum") and len(sel3) == 2
-
-    s3 = t3 = s3_raw = t3_raw = None
-    wrapped = False
-    if show3:
-        (s1, t1), (s2, t2) = sel3[0], sel3[1]
-        s3_raw, t3_raw = s1 + s2, t1 + t2
-        s3, t3 = s3_raw % 1.0, t3_raw % 1.0
-        wrapped = (s3_raw >= 1.0) or (t3_raw >= 1.0)
-
-    with ctrl3:
-        st.markdown("**Pick two points**")
-        st.caption("Click inside the parallelogram to choose $z_1$ then $z_2$ "
-                   "(a third click clears). The identity $0$ is the olive corner.")
-        for nm, pt in zip(("z₁", "z₂"), sel3):
-            st.markdown(f"- **{nm}**: $(s, t) = ({pt[0]:.2f}, {pt[1]:.2f})$")
-        c3a, c3b = st.columns(2)
-        if c3a.button("Clear", key="bg3_clear", width="stretch"):
-            st.session_state["bg3_sel"] = []
-            st.session_state["bg3_mode"] = None
-            st.rerun()
-        if c3b.button("Compute sum", key="bg3_compute",
-                      width="stretch", disabled=(len(sel3) != 2)):
-            st.session_state["bg3_mode"] = "sum"
-            st.rerun()
-        if show3:
-            st.success(f"z₁ + z₂:  (s, t) = ({s3:.2f}, {t3:.2f})")
-            if wrapped:
-                st.caption("(wrapped back into the fundamental domain)")
-
-    with plot3:
-        tau3 = np.array([tau_re3, tau_im3])
-        one3 = np.array([1.0, 0.0])
-
-        def _xy(s, t):
-            return s * one3 + t * tau3
-
-        verts3 = [np.zeros(2), one3, one3 + tau3, tau3]
-
-        fig = go.Figure()
-        # Adjacent copies (torus context)
-        for dm in (-1, 0, 1):
-            for dn in (-1, 0, 1):
-                if dm == 0 and dn == 0:
-                    continue
-                shift = dm * one3 + dn * tau3
-                vv = [v + shift for v in verts3] + [verts3[0] + shift]
-                fig.add_trace(go.Scatter(
-                    x=[p[0] for p in vv], y=[p[1] for p in vv],
-                    mode="lines", fill="toself",
-                    fillcolor="rgba(220,220,220,0.18)",
-                    line=dict(color="lightgray", width=0.8),
-                    hoverinfo="skip", showlegend=False))
-        # Fundamental domain
-        vv0 = verts3 + [verts3[0]]
-        fig.add_trace(go.Scatter(
-            x=[p[0] for p in vv0], y=[p[1] for p in vv0],
-            mode="lines", fill="toself", fillcolor="rgba(178,178,210,0.45)",
-            line=dict(color="steelblue", width=2),
-            hoverinfo="skip", showlegend=False))
-
-        # Sum as vector addition: the parallelogram 0–z₁–(z₁+z₂)–z₂ and the
-        # two vectors out of the origin.
-        if show3:
-            z1xy = _xy(*sel3[0])
-            z2xy = _xy(*sel3[1])
-            raw_xy = _xy(s3_raw, t3_raw)
-            para = [(0.0, 0.0), tuple(z1xy), tuple(raw_xy), tuple(z2xy), (0.0, 0.0)]
-            fig.add_trace(go.Scatter(
-                x=[p[0] for p in para], y=[p[1] for p in para], mode="lines",
-                line=dict(color="gray", width=1, dash="dot"),
-                hoverinfo="skip", showlegend=False))
-            for tip, col in ((z1xy, "red"), (z2xy, "green")):
-                fig.add_annotation(x=tip[0], y=tip[1], ax=0.0, ay=0.0,
-                                   xref="x", yref="y", axref="x", ayref="y",
-                                   showarrow=True, arrowcolor=col,
-                                   arrowwidth=2, arrowhead=2)
-            # Wrapping: unreduced point + arrow back into the domain
-            if wrapped:
-                red_xy = _xy(s3, t3)
-                fig.add_trace(go.Scatter(
-                    x=[raw_xy[0]], y=[raw_xy[1]], mode="markers",
-                    marker=dict(color="orange", size=12, opacity=0.35),
-                    hoverinfo="skip", showlegend=False))
-                fig.add_annotation(x=red_xy[0], y=red_xy[1], ax=raw_xy[0], ay=raw_xy[1],
-                                   xref="x", yref="y", axref="x", ayref="y",
-                                   showarrow=True, arrowcolor="orange",
-                                   arrowwidth=1.5, arrowhead=2)
-
-        # "0" label at the identity (origin)
-        fig.add_annotation(x=0.0, y=0.0, text="0", showarrow=False,
-                           xshift=-8, yshift=-8, font=dict(size=13, color="olive"))
-
-        # Clickable grid, with the origin, z1/z2 and sum coloured
-        _role3  = {pt: nm for nm, pt in zip(("z1", "z2"), sel3)}
-        sum_pt  = (round(s3, 3), round(t3, 3)) if show3 else None
-        gcols, gsizes = [], []
-        for pt in _grid3:
-            if show3 and sum_pt is not None and pt == sum_pt:
-                gcols.append("orange"); gsizes.append(15)
-            elif pt in _role3:
-                gcols.append("red" if _role3[pt] == "z1" else "green")
-                gsizes.append(15)
-            elif pt == (0.0, 0.0):
-                gcols.append("olive"); gsizes.append(13)
-            else:
-                gcols.append("rgba(70,90,160,0.55)"); gsizes.append(6)
-        gx = [_xy(s, t)[0] for (s, t) in _grid3]
-        gy = [_xy(s, t)[1] for (s, t) in _grid3]
-        fig.add_trace(go.Scatter(
-            x=gx, y=gy, mode="markers",
-            marker=dict(color=gcols, size=gsizes),
-            customdata=list(range(len(_grid3))),
-            hovertext=[f"(s, t) = ({s:.2f}, {t:.2f})" for (s, t) in _grid3],
-            hoverinfo="text", showlegend=False,
-            selected=dict(marker=dict(opacity=1.0)),
-            unselected=dict(marker=dict(opacity=1.0))))
-
-        fig.update_layout(
-            margin=dict(l=10, r=10, t=38, b=10), height=520,
-            plot_bgcolor="white", showlegend=False,
-            title=dict(text="Group law on ℂ/Λ", x=0.5, xanchor="center",
-                       font=dict(size=14)))
-        fig.update_xaxes(visible=False)
-        fig.update_yaxes(visible=False, scaleanchor="x", scaleratio=1)
-        ev = st.plotly_chart(fig, width="stretch", on_select="rerun",
-                             selection_mode="points", key="bg3_chart")
-
-        idx = _click_index(ev)
-        if idx is not None and 0 <= idx < len(_grid3):
-            _two_point_pick("bg3", _grid3[idx])
-            st.rerun()
+    components.html(basics_viz.torus_group_html(), height=560, scrolling=False)
 
 
 # ── Tab 4: Endomorphisms and Complex Multiplication ───────────────────────────
@@ -2849,193 +2699,18 @@ with tab_isog:
     st.markdown("#### Isogenies are determined by their kernels")
     st.markdown(
         "Every finite subgroup $C \\subseteq E$ is the kernel of an isogeny, and "
-        "$C$ pins down the codomain $E/C$. Pick a lattice $\\Lambda$ and a prime "
-        "degree $d$; the $d \\times d$ grid of **$d$-torsion points** $E[d]$ is "
-        "shown in the fundamental domain on the left. **Click a nonzero point** to "
-        "choose a generator $P$ of an order-$d$ kernel $C = \\langle P\\rangle$ — "
-        "the codomain $E/C = \\mathbb{C}/\\Lambda'$ then appears on the right, with "
-        "$\\Lambda' = \\Lambda + \\mathbb{Z}P$."
+        "$C$ pins down the codomain $E/C$. On the left is a fundamental domain "
+        "of $\\Lambda$ with the $d \\times d$ grid of **$d$-torsion points** "
+        "$E[d]$: **drag the gold $\\tau$ corner** to reshape the lattice, pick "
+        "the prime degree $d$ with the buttons, and **click a nonzero point** to "
+        "choose the generator $P$ of an order-$d$ kernel $C = \\langle P"
+        "\\rangle$. The codomain $E/C = \\mathbb{C}/\\Lambda'$ on the right, "
+        "with $\\Lambda' = \\Lambda + \\mathbb{Z}P$, follows along live."
     )
-
-    ik_ctrl, ik_left, ik_right = st.columns([1, 2, 2])
-
-    with ik_ctrl:
-        ik_re = st.slider("Re(τ)", -0.5, 0.5, 0.30, 0.01, key="ik_re")
-        ik_im = st.slider("Im(τ)", 0.4, 2.0, 1.00, 0.05, key="ik_im")
-        ik_d = st.select_slider("degree d (prime)", options=[2, 3, 5, 7],
-                                value=3, key="ik_d")
-
-    d = int(ik_d)
-    u = np.array([1.0, 0.0])
-    v = np.array([float(ik_re), float(ik_im)])
-
-    def _pos(cu, cv):                       # (1, τ)-coordinates → (x, y)
-        return cu * u + cv * v
-
-    grid = [(a, b) for a in range(d) for b in range(d)]   # index ↔ this order
-    kkey = f"ik_ker_{d}"
-    ker = st.session_state.get(kkey)        # chosen generator (a, b) or None
-    if ker is not None and (ker[0] >= d or ker[1] >= d):
-        ker = None
-
-    # kernel subgroup ⟨P⟩, and a label k ↦ kP for each of its points
-    ker_set = set()
-    kmap = {}
-    if ker is not None:
-        kmap = {((ker[0] * k) % d, (ker[1] * k) % d): k for k in range(d)}
-        ker_set = set(kmap)
-
-    def _ext_gcd(aa, bb):
-        if bb == 0:
-            return (aa, 1, 0)
-        g, x, y = _ext_gcd(bb, aa % bb)
-        return (g, y, x - (aa // bb) * y)
-
-    def _lprime_cell():
-        """Reduced-basis fundamental-domain corners (xy) for Λ' = Λ + ZP."""
-        a0, b0 = ker
-        if a0 % d != 0:
-            _, _s, t = _ext_gcd(d, a0)          # t·a0 ≡ 1 (mod d)
-            V1, V2 = (1, (t * b0) % d), (0, d)
-        else:
-            V1, V2 = (d, 0), (0, 1)
-        f1 = _pos(V1[0] / d, V1[1] / d)
-        f2 = _pos(V2[0] / d, V2[1] / d)
-        for _ in range(50):                     # Gaussian reduction → compact cell
-            if f2 @ f2 < f1 @ f1:
-                f1, f2 = f2, f1
-            m = round((f1 @ f2) / (f1 @ f1))
-            if m == 0:
-                break
-            f2 = f2 - m * f1
-        return f1, f2
-
-    # shared square view box (from the fundamental-domain corners)
-    corners = [_pos(0, 0), _pos(1, 0), _pos(1, 1), _pos(0, 1)]
-    cxs = [c[0] for c in corners]; cys = [c[1] for c in corners]
-    cx, cy = (min(cxs) + max(cxs)) / 2, (min(cys) + max(cys)) / 2
-    hs = max(max(cxs) - min(cxs), max(cys) - min(cys)) / 2 + 0.2
-    xrng, yrng = [cx - hs, cx + hs], [cy - hs, cy + hs]
-
-    def _fd_path():
-        c = corners
-        return (f"M {c[0][0]},{c[0][1]} L {c[1][0]},{c[1][1]} "
-                f"L {c[2][0]},{c[2][1]} L {c[3][0]},{c[3][1]} Z")
-
-    def _layout(fig, title):
-        fig.add_shape(type="path", path=_fd_path(),
-                      fillcolor="rgba(140,140,140,0.10)",
-                      line=dict(color="rgba(130,130,130,0.6)", width=1),
-                      layer="below")
-        fig.update_layout(
-            title=dict(text=title, font=dict(size=13), x=0.5, xanchor="center"),
-            xaxis=dict(visible=False, range=xrng),
-            yaxis=dict(visible=False, range=yrng, scaleanchor="x", scaleratio=1),
-            margin=dict(l=0, r=0, t=34, b=0), height=400, showlegend=False,
-            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
-        )
-
-    # ── Left figure: domain with clickable d-torsion grid ─────────────────────
-    gx, gy, colors, sizes, symbols, texts = [], [], [], [], [], []
-    for (a, b) in grid:
-        xy = _pos(a / d, b / d)
-        gx.append(xy[0]); gy.append(xy[1])
-        if (a, b) == (0, 0):
-            colors.append("#888"); sizes.append(10); symbols.append("circle")
-        elif (a, b) == ker:
-            colors.append("crimson"); sizes.append(16); symbols.append("star")
-        elif (a, b) in ker_set:
-            colors.append("crimson"); sizes.append(11); symbols.append("circle")
-        else:
-            colors.append("steelblue"); sizes.append(10); symbols.append("circle")
-        # label the kernel points by their multiple of P
-        k = kmap.get((a, b))
-        if k is None:
-            texts.append("")
-        elif k == 0:
-            texts.append("O")
-        elif k == 1:
-            texts.append("P")
-        else:
-            texts.append(f"{k}P")
-
-    figL = go.Figure()
-    figL.add_trace(go.Scatter(
-        x=gx, y=gy, mode="markers+text",
-        marker=dict(color=colors, size=sizes, symbol=symbols,
-                    line=dict(width=0.6, color="white")),
-        text=texts, textposition="top center",
-        textfont=dict(size=11, color="crimson"),
-        customdata=grid,
-        hovertemplate="P = (%{customdata[0]}, %{customdata[1]}) / "
-                      + str(d) + "<extra></extra>",
-    ))
-    _layout(figL, "Domain  E = ℂ/Λ   (grid = E[d])")
-
-    with ik_left:
-        ev = st.plotly_chart(figL, on_select="rerun", selection_mode="points",
-                             key=f"ik_left_{d}", config={"displayModeBar": False})
-
-    # read the click → new generator
-    new_ab = None
-    try:
-        pts = ev["selection"]["points"]
-    except (TypeError, KeyError):
-        pts = None
-    if pts:
-        pt = pts[-1]
-        idx = pt.get("point_index", pt.get("point_number"))
-        if idx is not None and 0 <= idx < len(grid):
-            cand = grid[idx]
-            if cand != (0, 0):
-                new_ab = cand
-    if new_ab is not None and new_ab != ker:
-        st.session_state[kkey] = new_ab
-        st.rerun()
-
-    # ── Right figure: codomain lattice Λ' = Λ + ZP ────────────────────────────
-    with ik_right:
-        if ker is None:
-            st.info("Click a nonzero point on the left to choose a kernel "
-                    "generator $P$.")
-        else:
-            ox, oy, nx, ny = [], [], [], []
-            for m in range(-1, 3):
-                for n in range(-1, 3):
-                    for k in range(d):
-                        xy = _pos(m + k * ker[0] / d, n + k * ker[1] / d)
-                        if k == 0:
-                            ox.append(xy[0]); oy.append(xy[1])
-                        else:
-                            nx.append(xy[0]); ny.append(xy[1])
-            figR = go.Figure()
-            figR.add_trace(go.Scatter(
-                x=nx, y=ny, mode="markers", name="added by C",
-                marker=dict(color="goldenrod", size=9,
-                            line=dict(width=0.5, color="white")),
-                hoverinfo="skip"))
-            figR.add_trace(go.Scatter(
-                x=ox, y=oy, mode="markers", name="Λ",
-                marker=dict(color="#888", size=9,
-                            line=dict(width=0.5, color="white")),
-                hoverinfo="skip"))
-            _layout(figR,
-                    f"Codomain  E/C = ℂ/Λ′   (P = ({ker[0]},{ker[1]})/{d})")
-            # the smaller fundamental domain of Λ' (area 1/d of the original)
-            f1c, f2c = _lprime_cell()
-            cell = [np.zeros(2), f1c, f1c + f2c, f2c]
-            figR.add_shape(
-                type="path",
-                path=(f"M {cell[0][0]},{cell[0][1]} L {cell[1][0]},{cell[1][1]} "
-                      f"L {cell[2][0]},{cell[2][1]} L {cell[3][0]},{cell[3][1]} Z"),
-                fillcolor="rgba(46,139,87,0.20)",
-                line=dict(color="seagreen", width=2))
-            st.plotly_chart(figR, key=f"ik_right_{d}",
-                            config={"displayModeBar": False})
-
+    components.html(basics_viz.isogeny_kernel_html(), height=560, scrolling=False)
     st.caption(
         "Left: the $d$-torsion $E[d]$ in a fundamental domain of $\\Lambda$; the "
-        "chosen generator $P$ is the star and its subgroup $\\langle P\\rangle = "
+        "chosen generator $P$ is ringed and its subgroup $\\langle P\\rangle = "
         "\\{O, P, \\ldots, (d{-}1)P\\}$ is red. Right: the codomain lattice "
         "$\\Lambda' = \\Lambda + \\mathbb{Z}P$ — the original lattice $\\Lambda$ "
         "(gray) plus the cosets the kernel adds (gold). The green parallelogram is "
