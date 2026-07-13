@@ -728,3 +728,135 @@ function render(){
 render();
 </script>
 """
+
+
+def cubic_family_html() -> str:
+    """S1 applet: the family y^2 = x^3 + fx + g over the (f, g)-plane.
+
+    Replaces the f/g sliders + matplotlib curve. Left: the (f, g)-plane with
+    the discriminant locus 4f^3 + 27g^2 = 0 drawn (the cuspidal curve
+    separating one-component from two-component curves); drag the point --
+    it SNAPS onto the locus nearby, so the singular curves (node, and the
+    cusp at f = g = 0) are actually reachable. Right: the real curve, live,
+    with the roots of the cubic marked."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="stage" style="grid-template-columns: 300px 1fr;">
+    <div class="cell">
+      <div class="cap">the (f, g)-plane — drag; Δ = 0 locus drawn</div>
+      <canvas id="cfa" width="300" height="330"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">y² = x³ + fx + g over ℝ</div>
+      <canvas id="cfb" width="340" height="330"></canvas>
+    </div>
+  </div>
+  <div id="cfout" style="margin-top:8px;font-size:.93rem;"></div>
+  <div class="hint" style="margin-top:4px;">inside the blue cusp region: Δ &gt; 0, two components · outside: Δ &lt; 0, one component · the marker snaps onto Δ = 0, where the curve degenerates (node; cusp at f = g = 0)</div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f";
+const cva=document.getElementById("cfa"), cvb=document.getElementById("cfb");
+const out=document.getElementById("cfout");
+const F0=-5,F1=5,G0=-5,G1=5;
+let f=-1.0, g=1.0, dragging=false;
+
+const PXa=x=>(x-F0)/(F1-F0)*cva.width, PYa=y=>(G1-y)/(G1-G0)*cva.height;
+const gLoc=ff=>Math.sqrt(Math.max(0,-4*ff*ff*ff/27));   // |g| on the locus
+function drawPlane(){
+  const ctx=cva.getContext("2d");
+  ctx.clearRect(0,0,cva.width,cva.height);
+  // region Delta > 0 (between the branches), tinted
+  ctx.fillStyle="rgba(77,163,216,0.12)";
+  ctx.beginPath();
+  for(let i=0;i<=120;i++){const ff=F0+i*(0-F0)/120; const px=PXa(ff),py=PYa(gLoc(ff));
+    i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+  for(let i=120;i>=0;i--){const ff=F0+i*(0-F0)/120;
+    ctx.lineTo(PXa(ff),PYa(-gLoc(ff)));}
+  ctx.closePath(); ctx.fill();
+  // axes
+  ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PXa(F0),PYa(0)); ctx.lineTo(PXa(F1),PYa(0));
+  ctx.moveTo(PXa(0),PYa(G0)); ctx.lineTo(PXa(0),PYa(G1)); ctx.stroke();
+  // the discriminant locus
+  ctx.strokeStyle=SUP; ctx.lineWidth=1.8;
+  for(const s of [1,-1]){
+    ctx.beginPath();
+    for(let i=0;i<=160;i++){const ff=F0+i*(0-F0)/160;
+      const px=PXa(ff),py=PYa(s*gLoc(ff));
+      i?ctx.lineTo(px,py):ctx.moveTo(px,py);}
+    ctx.stroke();
+  }
+  ctx.font="11px system-ui"; ctx.fillStyle=MUT;
+  ctx.fillText("f", PXa(F1)-12, PYa(0)-6);
+  ctx.fillText("g", PXa(0)+6, PYa(G1)+14);
+  ctx.fillStyle=DOM; ctx.fillText("Δ > 0", PXa(-4.2), PYa(0.4));
+  ctx.fillStyle=MUT; ctx.fillText("Δ < 0", PXa(2.2), PYa(3.6));
+  // marker
+  const disc=-16*(4*f*f*f+27*g*g), sing=Math.abs(disc)<1e-9;
+  ctx.fillStyle=sing?SUP:"#fff";
+  ctx.beginPath(); ctx.arc(PXa(f),PYa(g),6,0,7); ctx.fill();
+  ctx.strokeStyle=sing?RED:DOM; ctx.lineWidth=2; ctx.stroke();
+}
+function drawCurve(){
+  const ctx=cvb.getContext("2d"), X0=-3.3,X1=3.3,Y0=-4.5,Y1=4.5;
+  const PX=x=>(x-X0)/(X1-X0)*cvb.width, PY=y=>(Y1-y)/(Y1-Y0)*cvb.height;
+  ctx.clearRect(0,0,cvb.width,cvb.height);
+  ctx.strokeStyle="rgba(255,255,255,0.12)"; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(PX(X0),PY(0)); ctx.lineTo(PX(X1),PY(0));
+  ctx.moveTo(PX(0),PY(Y0)); ctx.lineTo(PX(0),PY(Y1)); ctx.stroke();
+  const NS=900;
+  ctx.strokeStyle=DOM; ctx.lineWidth=2;
+  for(const s of [1,-1]){
+    ctx.beginPath(); let pen=false;
+    for(let i=0;i<=NS;i++){
+      const x=X0+(X1-X0)*i/NS, y2=x*x*x+f*x+g;
+      if(y2>=0){const py=PY(s*Math.sqrt(y2));
+        pen?ctx.lineTo(PX(x),py):ctx.moveTo(PX(x),py); pen=true;}
+      else pen=false;
+    }
+    ctx.stroke();
+  }
+  // roots of the cubic on the x-axis
+  ctx.fillStyle=SUP;
+  let prev=X0*X0*X0+f*X0+g;
+  for(let i=1;i<=NS;i++){
+    const x=X0+(X1-X0)*i/NS, v=x*x*x+f*x+g;
+    if(prev*v<=0&&(prev!==0||v!==0)){
+      let lo=x-(X1-X0)/NS, hi=x;
+      for(let k=0;k<30;k++){const m=(lo+hi)/2;
+        ((lo*lo*lo+f*lo+g)*(m*m*m+f*m+g)<=0)?hi=m:lo=m;}
+      ctx.beginPath(); ctx.arc(PX((lo+hi)/2),PY(0),3.5,0,7); ctx.fill();
+    }
+    prev=v;
+  }
+}
+function render(){
+  drawPlane(); drawCurve();
+  const disc=-16*(4*f*f*f+27*g*g);
+  let sh;
+  if(Math.abs(disc)<1e-9) sh=`<b style="color:${RED}">singular</b> — ${(Math.abs(f)<1e-9&&Math.abs(g)<1e-9)?"a cusp":"a node"} (Δ = 0)`;
+  else sh=disc>0?"two components (Δ > 0)":"one component (Δ < 0)";
+  out.innerHTML=`y² = x³ ${f<0?"−":"+"} ${Math.abs(f).toFixed(1)}x ${g<0?"−":"+"} ${Math.abs(g).toFixed(1)}`
+    +` &nbsp;·&nbsp; Δ = −16(4f³ + 27g²) = ${disc.toFixed(1)} &nbsp;·&nbsp; ${sh}`;
+}
+function set(e){
+  const b=cva.getBoundingClientRect();
+  let ff=F0+(e.clientX-b.left)/b.width*(F1-F0),
+      gg=G1-(e.clientY-b.top)/b.height*(G1-G0);
+  ff=Math.max(F0,Math.min(F1,ff)); gg=Math.max(G0,Math.min(G1,gg));
+  // snap to the discriminant locus when close (in pixels)
+  if(ff<=0){
+    const gl=gLoc(ff), s=gg>=0?1:-1;
+    if(Math.abs(PYa(gg)-PYa(s*gl))<7 && Math.abs(gg)<G1) gg=s*gl;
+    if(Math.abs(ff)<0.15&&Math.abs(gg)<0.15&&Math.abs(PXa(ff)-PXa(0))<6) {ff=0;gg=0;}
+  }
+  f=ff; g=gg;
+}
+cva.addEventListener("pointerdown",e=>{dragging=true; cva.setPointerCapture(e.pointerId); set(e); render(); e.preventDefault();});
+cva.addEventListener("pointermove",e=>{if(dragging){set(e); render();}});
+window.addEventListener("pointerup",()=>{dragging=false;});
+render();
+</script>
+"""

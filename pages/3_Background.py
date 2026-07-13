@@ -1051,33 +1051,15 @@ with tab1:
 
     # ── Curve explorer ────────────────────────────────────────────────────────
     st.markdown("#### Explore")
-    ex_col, ex_plot = st.columns([1, 2])
-    with ex_col:
-        f_ex    = st.slider("f", -5.0, 5.0, -1.0, 0.1, key="bg1_f_ex")
-        g_ex    = st.slider("g", -5.0, 5.0,  1.0, 0.1, key="bg1_g_ex")
-        disc_ex = -16 * (4*f_ex**3 + 27*g_ex**2)
-        if abs(disc_ex) < 1e-4:
-            st.warning("Singular curve (Δ ≈ 0)")
-        elif disc_ex > 0:
-            st.info("Two components (Δ > 0)")
-        else:
-            st.info("One component (Δ < 0)")
-
-    with ex_plot:
-        xs_ex = np.linspace(-3.3, 3.3, 3000)
-        y2_ex = xs_ex**3 + f_ex*xs_ex + g_ex
-        yp_ex = np.where(y2_ex >= 0, np.sqrt(np.clip(y2_ex, 0, None)), np.nan)
-        fig_ex2, ax_ex2 = plt.subplots(figsize=(5, 4))
-        ax_ex2.plot(xs_ex,  yp_ex, color="steelblue", lw=2)
-        ax_ex2.plot(xs_ex, -yp_ex, color="steelblue", lw=2)
-        ax_ex2.axhline(0, color="k", lw=0.4)
-        ax_ex2.axvline(0, color="k", lw=0.4)
-        ax_ex2.set_xlim(-3.3, 3.3)
-        ax_ex2.set_ylim(-4.5, 4.5)
-        ax_ex2.set_title(f"$y^2 = x^3 {f_ex:+.1f}x {g_ex:+.1f}$", fontsize=11)
-        ax_ex2.set_frame_on(False)
-        st.pyplot(fig_ex2)
-        plt.close(fig_ex2)
+    st.markdown(
+        "The two shapes live in one family. **Drag the point in the "
+        "$(f, g)$-plane**: the gold curve is the discriminant locus "
+        "$4f^3 + 27g^2 = 0$, and crossing it is exactly where the oval pinches "
+        "off. The marker snaps onto the locus nearby, so you can see the "
+        "singular curves themselves — a node anywhere on it, and the cusp at "
+        "$f = g = 0$."
+    )
+    components.html(basics_viz.cubic_family_html(), height=470, scrolling=False)
 
     st.divider()
 
