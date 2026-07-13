@@ -2614,180 +2614,19 @@ with tab_velu:
     # ── Numeric applet ────────────────────────────────────────────────────────
     st.markdown("#### Compute one over $\\mathbb{F}_p$")
     st.markdown(
-        "Choose a curve and a degree. We find a kernel of that order, run Vélu, and "
-        "show both curves over $\\mathbb{F}_p$ with a point and its image."
+        "Choose $p$, a degree $\\ell$, and a curve (step $f$, $g$). The applet "
+        "finds a kernel of that order (searching out a curve that has one if "
+        "yours does not), runs Vélu, and shows both curves over $\\mathbb{F}_p$. "
+        "**Click any blue point** to choose $P$ — its image $\\varphi(P)$ "
+        "lights up on the codomain."
     )
-
-    _VPRIMES = [p for p in range(11, 60)
-                if all(p % d for d in range(2, int(p**0.5) + 1))]
-
-    def _v_sym(x, p):
-        xr = x % p
-        return xr if 2 * xr < p else xr - p
-
-    def _v_ec_pts(f, g, p):
-        out = []
-        for x in range(p):
-            r = (pow(x, 3, p) + f * x + g) % p
-            for y in range(p):
-                if (y * y) % p == r:
-                    out.append((x, y))
-        return out
-
-    def _v_kernel(f, g, p, ell):
-        """Return (S, two_torsion_index_set) or None."""
-        if ell == 2:
-            roots = [x for x in range(p) if (pow(x, 3, p) + f * x + g) % p == 0]
-            if not roots:
-                return None
-            return [(roots[0], 0)], {0}
-        # ell == 3: order-3 points are roots of the 3-division polynomial
-        for x in range(p):
-            if (3 * pow(x, 4, p) + 6 * f * x * x + 12 * g * x - f * f) % p == 0:
-                r = (pow(x, 3, p) + f * x + g) % p
-                for y in range(1, p):
-                    if (y * y) % p == r:
-                        return [(x, y)], set()
-        return None
-
-    def _v_run(f, g, p, S, tt):
-        v = w = 0
-        data = []
-        for i, (xq, yq) in enumerate(S):
-            gx = (3 * xq * xq + f) % p
-            uq = (4 * yq * yq) % p
-            vq = gx % p if i in tt else (2 * gx) % p
-            v = (v + vq) % p
-            w = (w + uq + xq * vq) % p
-            data.append((xq, yq, uq, vq))
-        f2, g2 = (f - 5 * v) % p, (g - 7 * w) % p
-
-        def phi(x, y):
-            X = x % p
-            corr = 0
-            for (xq, yq, uq, vq) in data:
-                inv = pow((x - xq) % p, -1, p)
-                X = (X + vq * inv + uq * inv * inv) % p
-                corr = (corr + vq * inv * inv + 2 * uq * pow(inv, 3, p)) % p
-            return X, (y * ((1 - corr) % p)) % p
-
-        return f2, g2, phi
-
-    v_ctrl, v_plot = st.columns([1, 2])
-
-    with v_ctrl:
-        vp = st.selectbox("p", _VPRIMES, index=_VPRIMES.index(23), key="velu_p")
-        vf = int(st.number_input("f", value=1, step=1, key="velu_f"))
-        vg = int(st.number_input("g", value=1, step=1, key="velu_g"))
-        vell = st.select_slider("degree ℓ", options=[2, 3], value=2, key="velu_ell")
-
-        vdisc = (-16 * (4 * pow(vf, 3) + 27 * pow(vg, 2))) % vp
-        velu_ok = False
-        if vdisc == 0:
-            st.warning("Singular curve mod p — adjust f or g.")
-        else:
-            ker = _v_kernel(vf, vg, vp, vell)
-            if ker is None:
-                st.warning(
-                    f"No kernel of order {vell} over $\\mathbb{{F}}_{{{vp}}}$ for "
-                    "this curve — try another $(f, g, p)$ or degree."
-                )
-            else:
-                S, tt = ker
-                f2, g2, phi = _v_run(vf, vg, vp, S, tt)
-                velu_ok = True
-                st.success("Smooth curve ✓  kernel found ✓")
-                st.markdown("**Codomain $E/C$**")
-                st.latex(rf"Y^2 = X^3 + {f2}\,X + {g2} \pmod{{{vp}}}")
-                xq0 = S[0][0]
-                st.caption(
-                    f"kernel generator at $x = {_v_sym(xq0, vp)}$ "
-                    + ("(2-torsion, $y=0$)" if vell == 2
-                       else f", $y = {_v_sym(S[0][1], vp)}$")
-                )
-
-    with v_plot:
-        if not velu_ok:
-            st.info("Pick a curve with a kernel of the chosen order.")
-        else:
-            E_pts  = _v_ec_pts(vf, vg, vp)
-            E2_pts = _v_ec_pts(f2, g2, vp)
-            ker_x  = {q[0] % vp for q in S}
-
-            # choose a source point P (not in the kernel)
-            xs_av = sorted({x for (x, y) in E_pts if x not in ker_x})
-            with v_ctrl:
-                st.markdown("**Point $P$ on $E$**")
-                if xs_av:
-                    px = st.select_slider("x (P)",
-                                          options=[_v_sym(x, vp) for x in xs_av],
-                                          key="velu_px")
-                    pxr = px % vp
-                    py_opts = sorted({y for (x, y) in E_pts if x == pxr})
-                    py = (st.radio("y (P)", [_v_sym(y, vp) for y in py_opts],
-                                   horizontal=True, key="velu_py")
-                          if len(py_opts) > 1 else _v_sym(py_opts[0], vp))
-                    pyr = py % vp
-                    PX, PY = phi(pxr, pyr)
-                    st.markdown(
-                        f"$\\varphi(P) = ({_v_sym(PX, vp)},\\ {_v_sym(PY, vp)})$"
-                    )
-                else:
-                    px = py = None
-
-            st.caption(
-                f"$\\#E(\\mathbb{{F}}_{{{vp}}}) = {len(E_pts)+1}"
-                f" = \\#(E/C)(\\mathbb{{F}}_{{{vp}}}) = {len(E2_pts)+1}$ "
-                "— isogenous curves have equal point counts."
-            )
-
-            h = vp // 2
-            amb = [(_v_sym(x, vp), _v_sym(y, vp))
-                   for x in range(vp) for y in range(vp)]
-
-            fig_v, (axE, axE2) = plt.subplots(1, 2, figsize=(9, 4.6))
-
-            for ax, pts, ttl in [
-                (axE,  E_pts,  rf"$E:\ y^2=x^3+{vf%vp}x+{vg%vp}$"),
-                (axE2, E2_pts, rf"$E/C:\ y^2=x^3+{f2}x+{g2}$"),
-            ]:
-                ax.scatter([q[0] for q in amb], [q[1] for q in amb],
-                           color="gray", alpha=0.18, s=6, zorder=1)
-                ax.scatter([_v_sym(x, vp) for (x, y) in pts],
-                           [_v_sym(y, vp) for (x, y) in pts],
-                           color="steelblue", s=22, zorder=3)
-                ax.set_xlim(-h - 0.5, h + 0.5)
-                ax.set_ylim(-h - 0.5, h + 0.5)
-                ax.set_aspect("equal"); ax.set_frame_on(False)
-                ax.set_xticks([]); ax.set_yticks([])
-                ax.set_title(ttl, fontsize=10)
-
-            # kernel points (red) on E
-            for (xq, yq) in S:
-                for sy in ({0} if vell == 2 else {yq, (-yq) % vp}):
-                    axE.scatter(_v_sym(xq, vp), _v_sym(sy, vp),
-                                color="crimson", s=70, zorder=5,
-                                edgecolor="white", linewidth=0.7)
-            # P on E and its image on E/C
-            if px is not None:
-                axE.scatter(px, py, color="seagreen", s=90, zorder=6)
-                axE.annotate("$P$", (px, py), xytext=(5, 5),
-                             textcoords="offset points", color="seagreen",
-                             fontsize=12, fontweight="bold")
-                axE2.scatter(_v_sym(PX, vp), _v_sym(PY, vp),
-                             color="seagreen", s=90, zorder=6)
-                axE2.annotate("$\\varphi(P)$", (_v_sym(PX, vp), _v_sym(PY, vp)),
-                              xytext=(5, 5), textcoords="offset points",
-                              color="seagreen", fontsize=12, fontweight="bold")
-
-            fig_v.tight_layout()
-            st.pyplot(fig_v)
-            plt.close(fig_v)
-            st.caption(
-                "Red: the kernel $C$ on $E$. Green: a point $P$ and its image "
-                "$\\varphi(P)$ on the codomain $E/C$. Every point of $E$ maps to a "
-                "point of $E/C$, exactly $\\ell$-to-$1$."
-            )
+    components.html(basics_viz.velu_html(), height=590, scrolling=False)
+    st.caption(
+        "Red: the kernel $C$ on $E$. Green: the chosen point $P$ and its image "
+        "$\\varphi(P)$ on the codomain $E/C$. Every point of $E$ maps to a "
+        "point of $E/C$, exactly $\\ell$-to-$1$ — and the two curves have the "
+        "same number of points."
+    )
 
 
 # ══ §5 — Modular tools ════════════════════════════════════════════════════════

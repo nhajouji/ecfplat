@@ -477,7 +477,7 @@ def hasse_count_html() -> str:
     every |a| <= 2 sqrt p occurs), so the applet runs in both directions."""
     return _HEAD + r"""
 <div class="panel">
-  <div class="modebar">
+  <div class="modebar" style="flex-wrap:wrap;">
     <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">p =</span>
     <button class="seg pbtn" data-p="5">5</button>
     <button class="seg pbtn" data-p="11">11</button>
@@ -858,5 +858,209 @@ cva.addEventListener("pointerdown",e=>{dragging=true; cva.setPointerCapture(e.po
 cva.addEventListener("pointermove",e=>{if(dragging){set(e); render();}});
 window.addEventListener("pointerup",()=>{dragging=false;});
 render();
+</script>
+"""
+
+
+def velu_html() -> str:
+    """S4 applet: Velu's formulas over F_p, numerically.
+
+    Replaces the p selectbox + f/g number inputs + degree select_slider +
+    x(P) select_slider + y(P) radio + static matplotlib pair. Controls are
+    buttons/steppers; the source point P is chosen by CLICKING a point of
+    E(F_p) on the left grid (kernel red, P green), and phi(P) lights up on
+    the codomain grid. When the current curve has no order-l kernel the
+    applet searches out one that does. Math is a JS port of the page's
+    _v_kernel/_v_run (Velu sums, 3-division polynomial for l=3)."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;">
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin-right:4px;">p =</span>
+    <button class="seg vpbtn" data-p="11">11</button>
+    <button class="seg vpbtn on" data-p="23">23</button>
+    <button class="seg vpbtn" data-p="31">31</button>
+    <button class="seg vpbtn" data-p="47">47</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 4px 0 14px;">ℓ =</span>
+    <button class="seg vlbtn on" data-l="2">2</button>
+    <button class="seg vlbtn" data-l="3">3</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 14px;">f =</span>
+    <button class="seg" id="vfdn">−</button><span id="vfval" style="align-self:center;min-width:26px;text-align:center;">1</span><button class="seg" id="vfup">+</button>
+    <span style="align-self:center;color:var(--muted);font-size:.9rem;margin:0 2px 0 10px;">g =</span>
+    <button class="seg" id="vgdn">−</button><span id="vgval" style="align-self:center;min-width:26px;text-align:center;">1</span><button class="seg" id="vgup">+</button>
+  </div>
+  <div class="stage" style="grid-template-columns: 1fr 1fr;">
+    <div class="cell">
+      <div class="cap">E(𝔽ₚ) — kernel red; <b>click a point P</b></div>
+      <canvas id="vla" width="330" height="330"></canvas>
+    </div>
+    <div class="cell">
+      <div class="cap">(E/C)(𝔽ₚ) — Vélu's codomain, with φ(P)</div>
+      <canvas id="vlb" width="330" height="330"></canvas>
+    </div>
+  </div>
+  <div id="vlout" style="margin-top:8px;font-size:.93rem;line-height:1.7;"></div>
+  <div class="hint" style="margin-top:4px;">both grids use symmetric representatives (−p/2, p/2] · #E = #(E/C): isogenous curves have equal point counts · if the curve has no order-ℓ kernel over 𝔽ₚ, one is searched out for you</div>
+</div>
+<script>
+"use strict";
+const INK="#d7d9dc", MUT="#9aa4ad", DOM="#4da3d8", SUP="#e0b64f", RED="#ef6f6f", GRN="#69b382";
+const cva=document.getElementById("vla"), cvb=document.getElementById("vlb");
+const out=document.getElementById("vlout");
+let p=23, ell=2, f=1, g=1, P=null;
+let state=null;   // {S, tt, f2, g2, Epts, E2pts, kerSet}
+
+const mod=(a,m)=>((a%m)+m)%m;
+function powmod(b,e,m){let r=1n;b=BigInt(mod(b,m));let E=BigInt(e);const M=BigInt(m);
+  while(E>0n){if(E&1n)r=r*b%M; b=b*b%M; E>>=1n;} return Number(r);}
+const inv=(a,m)=>powmod(a,m-2,m);
+const sym=x=>{const r=mod(x,p); return 2*r<p?r:r-p;};
+const rhs=(x,ff,gg)=>mod(x*x*x+ff*x+gg,p);
+function curvePts(ff,gg){
+  const sq={};                                  // sqrt table
+  for(let y=0;y<p;y++){const v=mod(y*y,p); (sq[v]=sq[v]||[]).push(y);}
+  const pts=[];
+  for(let x=0;x<p;x++){const r=rhs(x,ff,gg);
+    for(const y of (sq[r]||[])) pts.push([x,y]);}
+  return pts;
+}
+function kernel(ff,gg){
+  if(ell===2){
+    for(let x=0;x<p;x++) if(rhs(x,ff,gg)===0) return {S:[[x,0]], tt:new Set([0])};
+    return null;
+  }
+  for(let x=0;x<p;x++){
+    if(mod(3*x*x*x*x+6*ff*x*x+12*gg*x-ff*ff,p)!==0) continue;
+    const r=rhs(x,ff,gg);
+    for(let y=1;y<p;y++) if(mod(y*y,p)===r) return {S:[[x,y]], tt:new Set()};
+  }
+  return null;
+}
+function velu(ff,gg,S,tt){
+  let v=0,w=0; const data=[];
+  S.forEach((q,i)=>{
+    const gx=mod(3*q[0]*q[0]+ff,p), uq=mod(4*q[1]*q[1],p);
+    const vq=tt.has(i)?gx:mod(2*gx,p);
+    v=mod(v+vq,p); w=mod(w+uq+q[0]*vq,p);
+    data.push([q[0],q[1],uq,vq]);
+  });
+  const f2=mod(ff-5*v,p), g2=mod(gg-7*w,p);
+  const phi=(x,y)=>{
+    let X=mod(x,p), corr=0;
+    for(const [xq,yq,uq,vq] of data){
+      const iv=inv(mod(x-xq,p),p);
+      X=mod(X+vq*iv+uq*iv*iv,p);
+      corr=mod(corr+vq*iv*iv+2*uq*powmod(iv,3,p),p);
+    }
+    return [X, mod(y*mod(1-corr,p),p)];
+  };
+  return {f2,g2,phi};
+}
+function rebuild(searchIfMissing){
+  const disc=mod(-16*(4*f*f*f+27*g*g),p);
+  let ker=disc===0?null:kernel(f,g);
+  if(!ker&&searchIfMissing){
+    for(let t=0;t<4000&&!ker;t++){
+      const ff=Math.floor(Math.random()*p), gg=Math.floor(Math.random()*p);
+      if(mod(-16*(4*ff*ff*ff+27*gg*gg),p)===0) continue;
+      const k=kernel(ff,gg);
+      if(k){f=ff; g=gg; ker=k;}
+    }
+    syncFG();
+  }
+  if(!ker){state=null; P=null; return;}
+  const {S,tt}=ker, {f2,g2,phi}=velu(f,g,S,tt);
+  const kerSet=new Set();
+  for(const [xq,yq] of S){
+    if(ell===2) kerSet.add(xq+","+0);
+    else {kerSet.add(xq+","+yq); kerSet.add(xq+","+mod(-yq,p));}
+  }
+  state={S,tt,f2,g2,phi,kerSet,Epts:curvePts(f,g),E2pts:curvePts(f2,g2)};
+  if(P&&(state.kerSet.has(P[0]+","+P[1])||rhs(P[0],f,g)!==mod(P[1]*P[1],p))) P=null;
+  if(!P) P=state.Epts.find(q=>!state.kerSet.has(q[0]+","+q[1]))||null;
+}
+const h=()=>Math.floor(p/2);
+const GX=(cv,x)=>(sym(x)+h()+0.5)/(p)*cv.width;
+const GY=(cv,y)=>(h()-sym(y)+0.5)/(p)*cv.height;
+function drawGrid(cv,pts,ffs,extra){
+  const ctx=cv.getContext("2d");
+  ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.fillStyle="rgba(255,255,255,0.10)";
+  for(let x=0;x<p;x++)for(let y=0;y<p;y++){
+    ctx.beginPath(); ctx.arc(GX(cv,x),GY(cv,y),1.2,0,7); ctx.fill();
+  }
+  ctx.fillStyle=DOM;
+  for(const [x,y] of pts){
+    ctx.beginPath(); ctx.arc(GX(cv,x),GY(cv,y),Math.max(2.6,60/p),0,7); ctx.fill();
+  }
+  if(extra) extra(ctx);
+}
+function render(){
+  if(!state){
+    drawGrid(cva,[],f); drawGrid(cvb,[],0);
+    out.innerHTML=`<span style="color:${SUP}">y² = x³ + ${f}x + ${g} has no order-${ell} kernel over 𝔽<sub>${p}</sub> (or is singular)</span> — step f/g, or switch ℓ/p to auto-search.`;
+    return;
+  }
+  const st=state;
+  drawGrid(cva,st.Epts,f,ctx=>{
+    ctx.font="12px system-ui";
+    for(const key of st.kerSet){
+      const [x,y]=key.split(",").map(Number);
+      ctx.fillStyle=RED; ctx.beginPath();
+      ctx.arc(GX(cva,x),GY(cva,y),Math.max(4,80/p),0,7); ctx.fill();
+      ctx.strokeStyle="#fff"; ctx.lineWidth=1; ctx.stroke();
+    }
+    if(P){
+      ctx.fillStyle=GRN; ctx.beginPath();
+      ctx.arc(GX(cva,P[0]),GY(cva,P[1]),Math.max(5,90/p),0,7); ctx.fill();
+      ctx.strokeStyle="#fff"; ctx.lineWidth=1.4; ctx.stroke();
+      ctx.fillStyle=GRN; ctx.fillText("P",GX(cva,P[0])+8,GY(cva,P[1])-6);
+    }
+  });
+  const IM=P?st.phi(P[0],P[1]):null;
+  drawGrid(cvb,st.E2pts,st.f2,ctx=>{
+    if(IM){
+      ctx.font="12px system-ui";
+      ctx.fillStyle=GRN; ctx.beginPath();
+      ctx.arc(GX(cvb,IM[0]),GY(cvb,IM[1]),Math.max(5,90/p),0,7); ctx.fill();
+      ctx.strokeStyle="#fff"; ctx.lineWidth=1.4; ctx.stroke();
+      ctx.fillStyle=GRN; ctx.fillText("φ(P)",GX(cvb,IM[0])+8,GY(cvb,IM[1])-6);
+    }
+  });
+  const q0=st.S[0];
+  out.innerHTML=`E: y² = x³ + ${f}x + ${g} &nbsp;·&nbsp; kernel gen (${sym(q0[0])}, ${sym(q0[1])})`
+    +` &nbsp;·&nbsp; <b style="color:${SUP}">E/C: Y² = X³ + ${st.f2}X + ${st.g2}</b> (mod ${p})`
+    +(P?` &nbsp;·&nbsp; <b style="color:${GRN}">P = (${sym(P[0])}, ${sym(P[1])}) ↦ φ(P) = (${sym(IM[0])}, ${sym(IM[1])})</b>`:"")
+    +` &nbsp;·&nbsp; #E = #(E/C) = ${st.Epts.length+1}`;
+}
+cva.addEventListener("pointerdown",e=>{
+  if(!state) return;
+  const b=cva.getBoundingClientRect();
+  const mx=(e.clientX-b.left)*cva.width/b.width, my=(e.clientY-b.top)*cva.height/b.height;
+  let best=null,bd=15*15;
+  for(const q of state.Epts){
+    if(state.kerSet.has(q[0]+","+q[1])) continue;
+    const dx=GX(cva,q[0])-mx, dy=GY(cva,q[1])-my;
+    if(dx*dx+dy*dy<bd){bd=dx*dx+dy*dy; best=q;}
+  }
+  if(best){P=best; render();}
+});
+function syncFG(){document.getElementById("vfval").textContent=f;
+  document.getElementById("vgval").textContent=g;}
+const step=(df,dg)=>{f=mod(f+df,p); g=mod(g+dg,p); syncFG(); P=null; rebuild(false); render();};
+document.getElementById("vfup").onclick=()=>step(1,0);
+document.getElementById("vfdn").onclick=()=>step(-1,0);
+document.getElementById("vgup").onclick=()=>step(0,1);
+document.getElementById("vgdn").onclick=()=>step(0,-1);
+document.querySelectorAll(".vpbtn").forEach(b=>b.addEventListener("click",()=>{
+  p=+b.dataset.p; f=mod(f,p); g=mod(g,p); P=null;
+  document.querySelectorAll(".vpbtn").forEach(z=>z.classList.toggle("on",z===b));
+  syncFG(); rebuild(true); render();
+}));
+document.querySelectorAll(".vlbtn").forEach(b=>b.addEventListener("click",()=>{
+  ell=+b.dataset.l; P=null;
+  document.querySelectorAll(".vlbtn").forEach(z=>z.classList.toggle("on",z===b));
+  rebuild(true); render();
+}));
+rebuild(true); render();
 </script>
 """
