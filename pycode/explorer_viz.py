@@ -722,3 +722,254 @@ document.getElementById("ctInfo").innerHTML=
 })();
 </script>
 """.replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS).replace("__H__", str(height_px))
+
+
+def ss_graph_descriptor(graph) -> dict:
+    """JSON-able descriptor for the canvas SS-graph widget.
+
+    Ports the plotly layout: Frobenius = reflection across y = 0, conjugate
+    pairs mirrored at ±θ on a circle of radius R, rational vertices along the
+    horizontal diameter (regular n-gon when everything is rational)."""
+    import math
+    from ss_graph import jstr
+
+    p, l, s = graph["p"], graph["l"], graph["s"]
+    verts, rational, frob = graph["vertices"], graph["rational"], graph["frob"]
+    adj = graph["adj"]
+    n = len(verts)
+    rats = [i for i in range(n) if rational[i]]
+    pairs = [(i, frob[i]) for i in range(n) if i < frob[i]]
+    spacing = 0.85
+    pos = {}
+    if not pairs:
+        R = max(n * spacing / (2 * math.pi), 1.2)
+        for k, i in enumerate(rats):
+            ang = math.pi / 2 - (2 * math.pi * k / n if n > 1 else 0.0)
+            pos[i] = (R * math.cos(ang), R * math.sin(ang))
+    else:
+        c, r = len(pairs), len(rats)
+        R = max(1.5, (c + 1) * spacing / math.pi, (r + 1) * spacing / 1.6)
+        for k, (i, i2) in enumerate(pairs):
+            th = math.pi * (k + 1) / (c + 1)
+            pos[i] = (R * math.cos(th), R * math.sin(th))
+            pos[i2] = (R * math.cos(th), -R * math.sin(th))
+        for k, i in enumerate(rats):
+            x = -0.8 * R + 1.6 * R * (k / (r - 1)) if r > 1 else 0.0
+            pos[i] = (x, 0.0)
+    nodes = []
+    for i in range(n):
+        nbrs = [[k, adj[i][k]] for k in range(n) if adj[i][k]]
+        nodes.append({"x": round(pos[i][0], 4), "y": round(pos[i][1], 4),
+                      "j": jstr(verts[i], s), "rational": bool(rational[i]),
+                      "frob": frob[i], "nbrs": nbrs})
+    edges = [{"i": e["i"], "k": e["k"], "m": e["m"], "m_rev": e["m_rev"],
+              "fixed": e["frob_class"] == "fixed"} for e in graph["edges"]]
+    return {"p": p, "l": l, "R": R, "nodes": nodes, "edges": edges,
+            "pairs": [list(pr) for pr in pairs]}
+
+
+def ss_graph_html(desc: dict, height_px: int = 620) -> str:
+    """Canvas supersingular ℓ-isogeny graph.
+
+    Consumes ss_graph_descriptor. Frobenius acts literally as the reflection
+    across the horizontal axis. Toggles: mark 𝔽_p-rational vertices, show the
+    Frobenius pairing, colour edges by Frobenius action. Drag to pan, wheel
+    to zoom, hover/click a vertex for its isogeny neighbourhood."""
+    payload = dict(desc)
+    payload["H"] = height_px
+    return '<meta charset="utf-8">' + _HEAD + """
+<div class="panel" style="max-width:900px;">
+  <div class="modebar" style="flex-wrap:wrap; align-items:center;">
+    <button class="seg on" id="sgRat">𝔽_p-rational</button>
+    <button class="seg" id="sgPair">Frobenius pairing</button>
+    <button class="seg" id="sgFrE">edges by Frobenius</button>
+    <span style="flex:1;"></span>
+    <button class="seg" id="sgFit">reset view</button>
+  </div>
+  <canvas id="ssg" width="860" height="__H__" style="touch-action:none; cursor:grab;"></canvas>
+  <div class="info" id="sgInfo" style="min-height:1.4em;">&nbsp;</div>
+  <div class="hint">Frobenius is the reflection across the axis · drag to pan · scroll to zoom · hover / click a vertex</div>
+</div>
+<script>
+(() => {
+"use strict";
+__NAV_JS__
+const DATA = __DATA__;
+const ACCENT="#4da3d8", GOLD="#e0b64f", RED="#ef6f6f", INK="#d7d9dc", MUT="#9aa4ad";
+const EDGE="#565b61", EDGE_DIM="#3a3e43", FIX_E="#3f7fa8", SWAP_E="#c9974a", PAIRL="#7a6a8f";
+const cv=document.getElementById("ssg"), ctx=cv.getContext("2d");
+const info=document.getElementById("sgInfo");
+const N=DATA.nodes.length;
+let showRat=true, showPairs=false, frobE=false;
+let hover=-1, sel=-1;
+let view={k:1, tx:0, ty:0};
+
+function fitView(){
+  const xs=DATA.nodes.map(nd=>nd.x), ys=DATA.nodes.map(nd=>nd.y);
+  const x0=Math.min(...xs)-0.7, x1=Math.max(...xs)+0.7,
+        y0=Math.min(...ys)-0.7, y1=Math.max(...ys)+0.7;
+  const pad=30;
+  const k=Math.min((cv.width-2*pad)/(x1-x0), (cv.height-2*pad)/(y1-y0));
+  view={k, tx:cv.width/2-k*(x0+x1)/2, ty:cv.height/2+k*(y0+y1)/2};
+}
+const W2C=(x,y)=>[view.k*x+view.tx, -view.k*y+view.ty];   // math y up
+
+function nodeR(){ return Math.max(5, Math.min(14, 220/Math.max(N,10))); }
+
+function edgeColor(e){
+  if(sel>=0) return (e.i===sel||e.k===sel)?RED:EDGE_DIM;
+  if(frobE)  return e.fixed?FIX_E:SWAP_E;
+  return EDGE;
+}
+
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  const rN=nodeR(), loopR=0.30;
+  // rational axis
+  if(showRat && DATA.pairs.length){
+    ctx.strokeStyle="rgba(224,182,79,0.28)"; ctx.setLineDash([5,5]); ctx.lineWidth=1;
+    const [ax,ay]=W2C(-0.92*DATA.R,0), [bx,by]=W2C(0.92*DATA.R,0);
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  // Frobenius pairing connectors
+  if(showPairs){
+    ctx.strokeStyle=PAIRL; ctx.setLineDash([2,4]); ctx.lineWidth=1;
+    for(const [i,k] of DATA.pairs){
+      const [ax,ay]=W2C(DATA.nodes[i].x,DATA.nodes[i].y),
+            [bx,by]=W2C(DATA.nodes[k].x,DATA.nodes[k].y);
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(bx,by); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+  }
+  // edges
+  ctx.font="11px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+  for(const e of DATA.edges){
+    const a=DATA.nodes[e.i], b=DATA.nodes[e.k];
+    const col=edgeColor(e), w=(sel>=0&&(e.i===sel||e.k===sel))?2.4:1.5;
+    ctx.strokeStyle=col; ctx.lineWidth=w;
+    if(e.i===e.k){
+      // self-loop: circle hung outward (below the axis for axis vertices)
+      const d=Math.hypot(a.x,a.y);
+      const ux=Math.abs(a.y)<1e-9?0:(d>1e-9?a.x/d:0),
+            uy=Math.abs(a.y)<1e-9?-1:(d>1e-9?a.y/d:1);
+      const cxw=a.x+ux*(loopR+0.16), cyw=a.y+uy*(loopR+0.16);
+      const [px,py]=W2C(cxw,cyw);
+      ctx.beginPath(); ctx.arc(px,py,loopR*view.k,0,7); ctx.stroke();
+      if(e.m>1){
+        const [mx,my]=W2C(a.x+ux*(2*loopR+0.42), a.y+uy*(2*loopR+0.42));
+        ctx.fillStyle=MUT; ctx.fillText("×"+e.m, mx, my);
+      }
+      continue;
+    }
+    // axis-to-axis edges bow upward so collinear vertices don't hide them
+    let at;
+    if(Math.abs(a.y)<1e-9 && Math.abs(b.y)<1e-9){
+      const cxw=0.5*(a.x+b.x), cyw=0.45*Math.abs(b.x-a.x);
+      const [p0x,p0y]=W2C(a.x,a.y), [c1x,c1y]=W2C(cxw,cyw), [p1x,p1y]=W2C(b.x,b.y);
+      ctx.beginPath(); ctx.moveTo(p0x,p0y); ctx.quadraticCurveTo(c1x,c1y,p1x,p1y); ctx.stroke();
+      at=t=>{const u=1-t;
+        return [u*u*p0x+2*u*t*c1x+t*t*p1x, u*u*p0y+2*u*t*c1y+t*t*p1y];};
+    }else{
+      const [p0x,p0y]=W2C(a.x,a.y), [p1x,p1y]=W2C(b.x,b.y);
+      ctx.beginPath(); ctx.moveTo(p0x,p0y); ctx.lineTo(p1x,p1y); ctx.stroke();
+      at=t=>[p0x+t*(p1x-p0x), p0y+t*(p1y-p0y)];
+    }
+    ctx.fillStyle=MUT;
+    if(e.m===e.m_rev){
+      if(e.m>1){ const [mx,my]=at(0.5); ctx.fillText("×"+e.m, mx, my-7); }
+    }else{
+      const [ax2,ay2]=at(0.25), [bx2,by2]=at(0.75);
+      ctx.fillText("×"+e.m, ax2, ay2-7); ctx.fillText("×"+e.m_rev, bx2, by2-7);
+    }
+  }
+  // nodes
+  DATA.nodes.forEach((nd,i)=>{
+    const [x,y]=W2C(nd.x,nd.y);
+    ctx.fillStyle=(showRat&&nd.rational)?GOLD:ACCENT;
+    ctx.beginPath(); ctx.arc(x,y,rN,0,7); ctx.fill();
+    if(i===sel||i===hover){
+      ctx.strokeStyle=i===sel?RED:INK; ctx.lineWidth=2.4;
+      ctx.beginPath(); ctx.arc(x,y,rN+3,0,7); ctx.stroke();
+    }
+  });
+  // j labels when readable
+  if(N<=60){
+    ctx.font="500 11.5px system-ui"; ctx.fillStyle=INK;
+    ctx.textAlign="center"; ctx.textBaseline="bottom";
+    DATA.nodes.forEach((nd,i)=>{
+      const [x,y]=W2C(nd.x,nd.y);
+      ctx.fillText(nd.j, x, y-rN-3);
+    });
+  }
+}
+
+function readout(i){
+  const nd=DATA.nodes[i];
+  const tag=nd.rational?"𝔽_p-rational":"conjugate of j = "+DATA.nodes[nd.frob].j;
+  const nb=nd.nbrs.map(([k,m])=>DATA.nodes[k].j+(m>1?" ×"+m:"")).join(", ");
+  return "j = "+nd.j+" · "+tag+" · ℓ-isogenous to: "+nb;
+}
+function refreshInfo(){
+  if(sel>=0) info.textContent=readout(sel);
+  else if(hover>=0) info.textContent=readout(hover);
+  else info.textContent="(p, ℓ) = ("+DATA.p+", "+DATA.l+") · "+N+" supersingular j-invariants in 𝔽_p²";
+}
+
+const evPos=ev=>{const r=cv.getBoundingClientRect();
+  return [(ev.clientX-r.left)*cv.width/r.width,(ev.clientY-r.top)*cv.height/r.height];};
+function hit(px,py){
+  const rN=nodeR()+4;
+  for(let i=N-1;i>=0;i--){
+    const [x,y]=W2C(DATA.nodes[i].x,DATA.nodes[i].y);
+    if((px-x)*(px-x)+(py-y)*(py-y)<=rN*rN) return i;
+  }
+  return -1;
+}
+let panning=false, moved=false, px0=0, py0=0;
+cv.addEventListener("pointerdown",ev=>{
+  const [x,y]=evPos(ev);
+  panning=true; moved=false; px0=x; py0=y;
+  cv.setPointerCapture(ev.pointerId); cv.style.cursor="grabbing";
+});
+cv.addEventListener("pointermove",ev=>{
+  const [x,y]=evPos(ev);
+  if(panning){
+    if(Math.abs(x-px0)+Math.abs(y-py0)>3) moved=true;
+    if(moved){ view.tx+=x-px0; view.ty+=y-py0; px0=x; py0=y; draw(); }
+  }else{
+    const h=hit(x,y);
+    if(h!==hover){ hover=h; cv.style.cursor=h>=0?"pointer":"grab"; draw(); refreshInfo(); }
+  }
+});
+cv.addEventListener("pointerup",ev=>{
+  cv.style.cursor="grab";
+  if(panning&&!moved){
+    const [x,y]=evPos(ev);
+    const h=hit(x,y);
+    sel=(h===sel)?-1:h;
+    draw(); refreshInfo();
+  }
+  panning=false;
+});
+cv.addEventListener("wheel",ev=>{
+  ev.preventDefault();
+  const [x,y]=evPos(ev);
+  const f=Math.exp(-ev.deltaY*0.0016);
+  const k2=Math.min(60,Math.max(2,view.k*f)), g=k2/view.k;
+  view={k:k2, tx:x-g*(x-view.tx), ty:y-g*(y-view.ty)};
+  draw();
+},{passive:false});
+
+const segRat=document.getElementById("sgRat"), segPair=document.getElementById("sgPair"),
+      segFrE=document.getElementById("sgFrE");
+segRat.addEventListener("click",()=>{showRat=!showRat; segRat.classList.toggle("on",showRat); draw();});
+segPair.addEventListener("click",()=>{showPairs=!showPairs; segPair.classList.toggle("on",showPairs); draw();});
+segFrE.addEventListener("click",()=>{frobE=!frobE; segFrE.classList.toggle("on",frobE); draw();});
+document.getElementById("sgFit").addEventListener("click",()=>{fitView(); draw();});
+
+fitView(); draw(); refreshInfo();
+})();
+</script>
+""".replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS) \
+   .replace("__H__", str(height_px))
