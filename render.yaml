@@ -1,0 +1,18 @@
+# Render blueprint for the ecfplat Streamlit app (elliptic-curves.info).
+# Connect the GitHub repo in the Render dashboard and it picks this up,
+# or use "New +" -> "Blueprint". Custom domains are added in the dashboard
+# under Settings -> Custom Domains (see docs/DEPLOY.md).
+services:
+  - type: web
+    name: ecfplat
+    runtime: python
+    plan: starter          # free also works, but spins down when idle
+    buildCommand: pip install -r requirements.txt
+    startCommand: >-
+      streamlit run app.py
+      --server.port $PORT --server.address 0.0.0.0
+      --server.headless true
+      --browser.gatherUsageStats false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.13.5"
