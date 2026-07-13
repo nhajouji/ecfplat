@@ -568,7 +568,7 @@ def x0_fricke_html() -> str:
   </div>
   <div class="stage">
     <div class="cell">
-      <div class="cap">X₀(ℓ): the isogeny τ and its Fricke dual w(τ)</div>
+      <div class="cap">X₀(ℓ): the isogeny τ and its Fricke dual 𝔉ℓ(τ)</div>
       <canvas id="mvX" width="340" height="340"></canvas>
     </div>
     <div class="cell">
@@ -662,7 +662,7 @@ function drawX(){
   const fr = x0pos(w).pos;
   xCtx.fillStyle="rgba(224,182,79,0.6)"; xCtx.beginPath(); xCtx.arc(xX(fr.re),xY(fr.im),6,0,7); xCtx.fill();
   xCtx.strokeStyle=SUP; xCtx.lineWidth=1.6; xCtx.stroke();
-  xCtx.fillStyle=INK; xCtx.font="12px system-ui"; xCtx.fillText("w(τ)", xX(fr.re)+9, xY(fr.im)-6);
+  xCtx.fillStyle=INK; xCtx.font="12px system-ui"; xCtx.fillText("𝔉(τ)", xX(fr.re)+9, xY(fr.im)-6);
   xCtx.fillStyle="#fff"; xCtx.beginPath(); xCtx.arc(xX(tau.re),xY(tau.im),6,0,7); xCtx.fill();
   xCtx.strokeStyle=DOM; xCtx.lineWidth=2; xCtx.stroke();
   xCtx.fillStyle=INK; xCtx.fillText("τ", xX(tau.re)+9, xY(tau.im)-6);
@@ -705,7 +705,7 @@ function render(){
   drawX(); drawE();
   info.innerHTML = `<b style="color:${DOM}">E = ℂ/Λ</b>, Λ = ⟨1, τ⟩ &nbsp;→&nbsp; `
     + `<b style="color:${SUP}">E′ = ℂ/Λ′</b> (degree ℓ, subgroup ${subName()}). `
-    + `Fricke sends τ to <b style="color:${SUP}">w(τ) = −1/(ℓτ)</b> — the dual isogeny E′ → E.`;
+    + `Fricke sends τ to <b style="color:${SUP}">𝔉ℓ(τ) = −1/(ℓτ)</b> — the dual isogeny E′ → E.`;
   hint.textContent = "drag anywhere on the left to move the isogeny τ; the dashed curves are the interior real locus of j (Re τ = 0 and its Γ₀(ℓ)-images)";
 }
 

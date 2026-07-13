@@ -528,86 +528,88 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
 
     # ── §9.2 — the j-map and Fricke involution ────────────────────────────────
     with tab_x0j:
-        st.subheader("The $j$-map and the Fricke Involution")
+        st.subheader("The $j$-map $j_\\ell$ and the Fricke Involution $\\mathfrak{F}_\\ell$")
         st.markdown(
             "A point of $X_0(\\ell)$ is a whole isogeny $[E \\to E']$. Two "
             "functions pull the arithmetic back out of it."
         )
         st.markdown(
-            "**The $j$-map.** Forgetting the subgroup gives a map $X_0(\\ell) "
-            "\\to X(1)$, $(E, C) \\mapsto E$; post-composing with $j$ gives"
+            "**The $j$-map $j_\\ell$.** Forgetting the subgroup is the map"
         )
-        st.latex(r"j : X_0(\ell) \to \mathbb{P}^1, \qquad j\big([E \to E']\big) = j(E),")
+        st.latex(r"j_\ell : X_0(\ell) \to X(1), \qquad j_\ell\big([E \to E']\big) = [E].")
         st.markdown(
-            "the isomorphism class of the **domain**. In the $\\tau$-model it is "
-            "simply $\\tau \\mapsto j(\\tau)$."
+            "Since $X(1)$ is the $j$-line (§8), $j_\\ell$ records the **domain**'s "
+            "$j$-invariant; in the $\\tau$-model it is simply $\\tau \\mapsto "
+            "j(\\tau)$. (We keep the subscript because on the algebraic models "
+            "there are several maps down to $X(1)$ and we must say which one.)"
         )
         st.markdown(
-            "**The Fricke involution.** Sending an isogeny to its dual gives an "
-            "involution $w_\\ell : X_0(\\ell) \\to X_0(\\ell)$, $[E \\to E'] "
-            "\\mapsto [E' \\to E]$. On $\\mathcal{H}$ it is the Atkin–Lehner "
-            "matrix $\\left(\\begin{smallmatrix} 0 & -1 \\\\ \\ell & 0"
-            "\\end{smallmatrix}\\right)$, i.e."
+            "**The Fricke involution $\\mathfrak{F}_\\ell$.** Sending an isogeny to "
+            "its dual gives an involution $\\mathfrak{F}_\\ell : X_0(\\ell) \\to "
+            "X_0(\\ell)$, $[E \\to E'] \\mapsto [E' \\to E]$. On $\\mathcal{H}$ it "
+            "is the Atkin–Lehner matrix $\\left(\\begin{smallmatrix} 0 & -1 \\\\ "
+            "\\ell & 0\\end{smallmatrix}\\right)$, i.e."
         )
-        st.latex(r"w_\ell : \tau \mapsto -\frac{1}{\ell\,\tau}.")
+        st.latex(r"\mathfrak{F}_\ell : \tau \mapsto -\frac{1}{\ell\,\tau}.")
         st.markdown(
             "It normalizes $\\Gamma_0(\\ell)$ (so it descends to $X_0(\\ell)$), "
-            "squares to the identity ($w_\\ell^2\\tau = \\tau$), and carries the "
-            "flag $\\langle 1,\\tau\\rangle \\subset \\langle\\tfrac1\\ell,\\tau"
-            "\\rangle$ to the dual flag."
+            "squares to the identity ($\\mathfrak{F}_\\ell^2\\tau = \\tau$), and "
+            "carries the flag $\\langle 1,\\tau\\rangle \\subset "
+            "\\langle\\tfrac1\\ell,\\tau\\rangle$ to the dual flag."
         )
         st.markdown(
             "Now the payoff. The codomain is $E' = \\mathbb{C}/\\Lambda'$ with "
             "$\\Lambda' = \\langle\\tfrac1\\ell,\\tau\\rangle \\sim \\langle 1, "
-            "\\ell\\tau\\rangle$, so $j(E') = j(\\ell\\tau)$. And since $j(-1/z) = "
-            "j(z)$,"
+            "\\ell\\tau\\rangle$, so its $j$-invariant is $j(\\ell\\tau)$. And "
+            "since $j(-1/z) = j(z)$,"
         )
-        st.latex(r"j\big(w_\ell\, \tau\big) = j\!\left(-\tfrac{1}{\ell\tau}\right) "
+        st.latex(r"j_\ell\big(\mathfrak{F}_\ell\, \tau\big) = j\!\left(-\tfrac{1}{\ell\tau}\right) "
                  r"= j(\ell\tau) = j(E').")
         st.markdown(
-            "So $j$ and $j \\circ w_\\ell$ hand you the **two endpoints** of the "
-            "isogeny — the domain and codomain $j$-invariants. This is exactly the "
-            "pair $(j, j')$ that the modular polynomial $\\Phi_\\ell$ relates (§5). "
-            "With *any* model of $X_0(\\ell)$ plus these two functions, a point "
-            "tells you both."
+            "So $j_\\ell$ and $j_\\ell \\circ \\mathfrak{F}_\\ell$ hand you the "
+            "**two endpoints** of the isogeny — the domain and codomain "
+            "$j$-invariants. This is exactly the pair $(j, j')$ that the modular "
+            "polynomial $\\Phi_\\ell$ relates (§5). With *any* model of "
+            "$X_0(\\ell)$ plus these two functions, a point tells you both."
         )
-        st.markdown(
-            "**Where the two agree.** The isogeny is an endomorphism ($E \\cong "
-            "E'$) exactly when $j(\\tau) = j(\\ell\\tau)$ — the Fricke-fixed points, "
-            "and the Fricke-swapped pairs collapsing to a single $j$. These are the "
-            "**CM points**: the singular moduli of §8, and precisely the diagonal "
-            "$\\Phi_\\ell(X, X) = 0$. So $X_0(\\ell)$ sees the CM world again — the "
-            "thread we pull to build the bijection of §6."
-        )
-        st.markdown(
-            "Drag the point $\\tau$ around $X_0(\\ell)$ on the left. On the right, "
-            "the isogeny it names is drawn as the two lattices $\\Lambda = \\langle "
-            "1, \\tau\\rangle \\subset \\Lambda'$ — the domain in blue, the "
-            "index-$\\ell$ superlattice (the codomain $E' = \\mathbb{C}/\\Lambda'$) "
-            "in gold. The gold point $w(\\tau) = -1/(\\ell\\tau)$ is the **dual** "
-            "isogeny $E' \\to E$; composing $j$ with $w_\\ell$ reads off the "
-            "codomain. The **dashed curves** are the interior part of the real "
-            "locus of $j$ — the images of $\\operatorname{Re}\\tau = 0$ under "
-            "$\\Gamma_0(\\ell)$ — while the tile boundaries carry the rest of it "
-            "(the arcs where $j \\in [0, 1728]$ and the walls where $j \\le 0$)."
-        )
-        components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
-
         st.markdown("#### The two $j$-maps, side by side")
         st.markdown(
-            "The same domain-colouring as in §8, now for both endpoints of the "
-            "isogeny. On the left, $\\tau \\mapsto j(\\tau)$ colours each point of "
+            "The same domain-colouring as in §8, now for both endpoints. On the "
+            "left, $\\tau \\mapsto j_\\ell(\\tau) = j(\\tau)$ colours each point of "
             "$X_0(\\ell)$ by its **domain**; on the right, $\\tau \\mapsto "
-            "j(\\ell\\tau) = j(w_\\ell\\tau)$ colours it by its **codomain**. Fricke "
-            "interchanges the two pictures. Where the colours **agree** we have "
-            "$j(\\tau) = j(\\ell\\tau)$ — the endomorphisms, the CM points lying on "
-            "the circle $|\\tau| = 1/\\sqrt{\\ell}$."
+            "j_\\ell(\\mathfrak{F}_\\ell\\tau) = j(\\ell\\tau)$ colours it by its "
+            "**codomain**. The involution $\\mathfrak{F}_\\ell$ interchanges the "
+            "two."
         )
         _fr_ell = st.radio(
             "Level $\\ell$", [2, 3, 5, 7], index=2, horizontal=True,
             key="x0j_fricke_ell",
         )
         st.pyplot(_j_fricke_figure(_fr_ell))
+
+        st.markdown(
+            "**Where the two agree.** The isogeny is an endomorphism ($E \\cong "
+            "E'$) exactly where $j_\\ell(\\tau) = j_\\ell(\\mathfrak{F}_\\ell"
+            "\\tau)$ — the $\\mathfrak{F}_\\ell$-fixed points, and the swapped "
+            "pairs collapsing to a single $j$-value. These are the **CM points**: "
+            "the singular moduli of §8, precisely the diagonal $\\Phi_\\ell(X, X) "
+            "= 0$, and they lie on the circle $|\\tau| = 1/\\sqrt{\\ell}$ (the "
+            "fixed locus of $\\mathfrak{F}_\\ell$). So $X_0(\\ell)$ sees the CM "
+            "world again — the thread we pull to build the bijection of §6."
+        )
+        st.markdown(
+            "Drag the point $\\tau$ around $X_0(\\ell)$ on the left. On the right, "
+            "the isogeny it names is drawn as the two lattices $\\Lambda = \\langle "
+            "1, \\tau\\rangle \\subset \\Lambda'$ — the domain in blue, the "
+            "index-$\\ell$ superlattice (the codomain $E' = \\mathbb{C}/\\Lambda'$) "
+            "in gold. The gold point $\\mathfrak{F}_\\ell(\\tau) = -1/(\\ell\\tau)$ "
+            "is the **dual** isogeny $E' \\to E$. The **dashed curves** are the "
+            "interior part of the real locus of $j$ — the images of "
+            "$\\operatorname{Re}\\tau = 0$ under $\\Gamma_0(\\ell)$ — while the "
+            "tile boundaries carry the rest of it (the arcs where $j \\in [0, "
+            "1728]$ and the walls where $j \\le 0$)."
+        )
+        components.html(modular_viz.x0_fricke_html(), height=470, scrolling=False)
 
     # ── §9.3 — algebraic models ───────────────────────────────────────────────
     with tab_x0alg:
@@ -639,31 +641,31 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         st.markdown(
             "**The maps, explicitly.** Because we hold the universal curve in "
             "hand, $j$ is an explicit rational function of the parameters; it "
-            "descends to the $j$-map $X_0(\\ell) \\to \\mathbb{P}^1$. For the "
+            "descends to the $j$-map $j_\\ell : X_0(\\ell) \\to X(1)$. For the "
             "*other* endpoint, apply **Vélu's formulas** (§4) to the universal "
             "curve to get the universal degree-$\\ell$ isogeny $E \\to E/C$; the "
-            "$j$-invariant of its codomain is $j \\circ w_\\ell$ as a rational "
-            "function. (Computing this universal isogeny can even shortcut the "
-            "quotient above.)"
+            "$j$-invariant of its codomain is $j_\\ell \\circ \\mathfrak{F}_\\ell$ "
+            "as a rational function. (Computing this universal isogeny can even "
+            "shortcut the quotient above.)"
         )
         st.markdown(
             "**Worked example: $\\ell = 5$.** Here $X_0(5)$ has genus $0$, so a "
             "single **Hauptmodul** $t$ coordinatizes it and both maps are rational "
             "in $t$:"
         )
-        st.latex(r"j = \frac{(t^2 + 250\,t + 3125)^3}{t^5}, \qquad "
-                 r"j \circ w_5 = \frac{(t^2 + 10\,t + 5)^3}{t},")
+        st.latex(r"j_5 = \frac{(t^2 + 250\,t + 3125)^3}{t^5}, \qquad "
+                 r"j_5 \circ \mathfrak{F}_5 = \frac{(t^2 + 10\,t + 5)^3}{t},")
         st.markdown(
-            "with the Fricke involution acting as $t \\mapsto 125/t$ — indeed "
-            "$j(125/t)$ reproduces the second formula. Dialling $t$ walks along "
+            "with $\\mathfrak{F}_5$ acting as $t \\mapsto 125/t$ — indeed "
+            "$j_5(125/t)$ reproduces the second formula. Dialling $t$ walks along "
             "$X_0(5)$, and the two rational functions read off the domain and "
             "codomain $j$-invariants of the corresponding $5$-isogeny."
         )
         st.markdown(
             "**Why these levels.** The repository stores such $j$-maps for the "
             "prime levels where $X_0(\\ell)$ is genus $0$ — $\\ell \\in \\{2, 3, "
-            "5, 7, 13\\}$ — with Fricke always of the tidy form $t \\mapsto m/t$, "
-            "where"
+            "5, 7, 13\\}$ — with $\\mathfrak{F}_\\ell$ always of the tidy form "
+            "$t \\mapsto m/t$, where"
         )
         st.latex(r"m = \ell^{\,12/(\ell - 1)} \in \{4096,\ 729,\ 125,\ 49,\ 13\}.")
         st.markdown(
@@ -675,8 +677,8 @@ with st.expander("§9 — The modular curve $X_0(\\ell)$", expanded=False):
         )
         st.caption(
             "_Picture to come: a genus-$0$ dial — pick $\\ell \\in \\{2,3,5,7,13\\}$, "
-            "move $t$, and read $j(\\text{domain}) = j(t)$ and $j(\\text{codomain}) "
-            "= j(m/t)$ straight off the model._"
+            "move $t$, and read the domain $j_\\ell(t)$ and the codomain "
+            "$j_\\ell(m/t)$ straight off the model._"
         )
         st.markdown(
             "The full computations — the universal isogeny, larger $\\ell$, and "
