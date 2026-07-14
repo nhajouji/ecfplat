@@ -13,5 +13,6 @@ pg = st.navigation([
     st.Page("pages/3_Background.py", title="Background", icon="📖"),
     st.Page("pages/1_Explorer.py",   title="Explorer",   icon="🌋"),
     st.Page("pages/4_SS_Graph.py",   title="Supersingular Graph", icon="🕸️"),
+    st.Page("pages/5_Gallery.py",    title="Gallery",    icon="🖼️"),
 ])
 pg.run()

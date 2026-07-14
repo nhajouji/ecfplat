@@ -84,14 +84,15 @@ with c3:
 
 # ── Gallery teaser ────────────────────────────────────────────────────────────
 st.divider()
-st.markdown("### Gallery — coming soon")
+st.markdown("### Gallery")
 st.markdown(
-    "Curated superlatives (first failures, record class numbers, the primes "
-    "where the easy algorithms break) and hi-res prints from the physical "
-    "gallery. Meanwhile, the shader-rendered artwork built from this site's "
-    "lattice data — by Nadir Hajouji and Steve Trettel — lives at "
+    "Path-traced renders of lifted elliptic curves — the site's flat "
+    "pictures embedded as glowing tori in ℝ³ via the Hopf fibration, by "
+    "Nadir Hajouji and Steve Trettel — each linked to the Explorer view "
+    "where the same curve is alive. More at "
     "[elliptic-curves.art](https://elliptic-curves.art/)."
 )
+st.page_link("pages/5_Gallery.py", label="Enter the Gallery →")
 
 # ── Coverage ──────────────────────────────────────────────────────────────────
 st.divider()
