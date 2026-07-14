@@ -18,7 +18,8 @@ import streamlit.components.v1 as components
 from nt import primeQ, primefact, discfac, primesBetween
 from ecqf import (QFIsogenyClass, ECQFIsogenyClass, class_graph_descriptor,
                   disc_to_aps, GUARDS, P_MAX)
-from ecqf_tools import ec_eq_str_base, frob_to_mw_gens, abc_to_tau, abc_to_tau_str
+from ecqf_tools import (ec_eq_str_base, frob_to_mw_gens, abc_to_tau,
+                        abc_to_tau_str, ec_look_up, ap_in_pc_data)
 from palette import row_colors
 import explorer_viz
 
@@ -64,6 +65,38 @@ def _centered(c: int, p: int) -> int:
 
 def _valid_disc(d) -> bool:
     return d is not None and d < 0 and d % 4 in (0, 1)
+
+
+def _long_to_short(a1, a2, a3, a4, a6, p):
+    """(a1..a6) mod p -> the short model (A, B): complete square and cube.
+    Valid for p >= 5 (needs 48, 864 invertible)."""
+    b2 = (a1 * a1 + 4 * a2) % p
+    b4 = (2 * a4 + a1 * a3) % p
+    b6 = (a3 * a3 + 4 * a6) % p
+    c4 = (b2 * b2 - 24 * b4) % p
+    c6 = (-b2 ** 3 + 36 * b2 * b4 - 216 * b6) % p
+    A = (-c4 * pow(48, p - 2, p)) % p
+    B = (-c6 * pow(864, p - 2, p)) % p
+    return A, B
+
+
+def _resolve_curve(f, g, p):
+    """Analyze y² = x³ + fx + g over F_p; route to the right view.
+
+    Returns ('curve', a, node) when the class is in the tables (the full
+    curve page), ('eq', data) when only the computed invariants exist,
+    or ('singular', None)."""
+    if (4 * pow(f, 3, p) + 27 * pow(g, 2, p)) % p == 0:
+        return ("singular", None)
+    data = ec_look_up((f % p, g % p), p)
+    a = data["frob_tr"]
+    if ap_in_pc_data((a, p)):
+        cls = _load_ec_class(a, p)
+        key = data["j"] if a != 0 else (data["j"], data["s"])
+        qf = (cls.js_to_qf or {}).get(key)
+        if qf is not None:
+            return ("curve", a, cls.qfs_ordered.index(qf))
+    return ("eq", data)
 
 
 def _crumbs(*parts):
@@ -139,6 +172,42 @@ def entry_view():
                     f"isogeny class over $\\mathbb{{F}}_{{{p}}}$. Click a stem.")
         components.html(explorer_viz.hasse_picker_html(p, STORE_P_MAX),
                         height=400, scrolling=False)
+
+        st.markdown("**…or start from an equation** (over the same $p$)")
+        form = st.radio("Weierstrass form",
+                        ["y² = x³ + fx + g",
+                         "y² + a₁xy + a₃y = x³ + a₂x² + a₄x + a₆"],
+                        label_visibility="collapsed", key="eq_form")
+        if form.startswith("y² ="):
+            cf, cg = st.columns(2)
+            f_in = int(cf.number_input("f", value=1, step=1, key="eq_f"))
+            g_in = int(cg.number_input("g", value=3, step=1, key="eq_g"))
+        else:
+            cols = st.columns(5)
+            a1, a2, a3, a4, a6 = (
+                int(c.number_input(lbl, value=v, step=1, key=f"eq_{lbl}"))
+                for c, lbl, v in zip(cols, ("a₁", "a₂", "a₃", "a₄", "a₆"),
+                                     (0, -1, 1, -10, -20)))
+        if st.button("Analyze the curve →", width="stretch"):
+            if form.startswith("y² ="):
+                A, B = f_in % p, g_in % p
+            else:
+                A, B = _long_to_short(a1, a2, a3, a4, a6, p)
+            hit = _resolve_curve(A, B, p)
+            if hit[0] == "singular":
+                st.error("That curve is singular over "
+                         f"$\\mathbb{{F}}_{{{p}}}$ (Δ ≡ 0 mod p) — not an "
+                         "elliptic curve. Nudge a coefficient.")
+            else:
+                st.query_params.clear()
+                if hit[0] == "curve":
+                    _, a_tr, node = hit
+                    st.query_params.update(
+                        {"a": str(a_tr), "p": str(p), "node": str(node)})
+                else:
+                    st.query_params.update(
+                        {"p": str(p), "f": str(A), "g": str(B)})
+                st.rerun()
 
     with col_d:
         st.subheader("Start from a discriminant")
@@ -364,9 +433,60 @@ def curve_view(a: int, p: int, node: int):
         st.caption("No ℓ-isogenies for the offered degrees (they are inert here).")
 
 
+def eq_view(p: int, f: int, g: int):
+    """A curve given by equation, outside the precomputed tables (or a
+    shared ?p&f&g URL — which redirects to the full curve view when the
+    class turns out to be covered)."""
+    hit = _resolve_curve(f, g, p)
+    if hit[0] == "curve":
+        _, a_tr, node = hit
+        st.query_params.clear()
+        st.query_params.update({"a": str(a_tr), "p": str(p), "node": str(node)})
+        st.rerun()
+    fgc = tuple(_centered(v, p) for v in (f, g))
+    _crumbs(("⌂ Explorer", "?"), (f"{ec_eq_str_base(fgc)} over 𝔽_{p}", None))
+    if hit[0] == "singular":
+        st.error(f"y² = x³ + {fgc[0]}x + {fgc[1]} is singular over "
+                 f"$\\mathbb{{F}}_{{{p}}}$ (Δ ≡ 0 mod p) — not an elliptic "
+                 "curve.")
+        return
+    data = hit[1]
+    a = data["frob_tr"]
+    N = p + 1 - a
+    d = data["frob_disc"]
+    st.header(f"Curve view — {ec_eq_str_base(fgc)} over 𝔽_{p}")
+    lines = [
+        f"**j-invariant** &nbsp; {data['j']}",
+        f"**Cardinality** &nbsp; #E(𝔽_{p}) = {N}",
+        f"**Trace of Frobenius** &nbsp; a = {a}",
+        f"**Frobenius discriminant** &nbsp; {d} "
+        f"(field disc {data['endo_fun_disc']}, cond {data['frob_cond']})",
+    ]
+    if a == 0:
+        lines.append(f"**Supersingular** &nbsp; signature "
+                     f"({data['j']}, {data['s']:+d}) — this pins down the "
+                     f"𝔽_{p}-isomorphism class")
+    st.markdown("  \n".join(lines))
+    st.info("This class is one of the few (0.14%) whose curve tables are "
+            "still being computed — the invariants above hold regardless, "
+            f"and the class's exact lattice structure is at the "
+            f"[isogeny-class view](?a={a}&p={p}).")
+    if N <= 2000:
+        with st.expander(f"the {N} points of E(𝔽_{p})"):
+            sq = {}
+            for y in range(p):
+                sq.setdefault(y * y % p, []).append(y)
+            pts = ["𝒪 (at infinity)"]
+            for x in range(p):
+                rhs = (x ** 3 + f * x + g) % p
+                for y in sorted(set(sq.get(rhs, []))):
+                    pts.append(f"({x}, {y})")
+            st.markdown(" · ".join(pts))
+
+
 # ── router ────────────────────────────────────────────────────────────────────
 
-_a, _p, _d, _node = (_qp_int(k) for k in ("a", "p", "d", "node"))
+_a, _p, _d, _node, _f, _g = (_qp_int(k) for k in ("a", "p", "d", "node", "f", "g"))
 
 if _a is not None and _p is not None and primeQ(_p) and _a * _a < 4 * _p \
         and (_a == 0 or _a % _p != 0) and _p < P_MAX:
@@ -374,10 +494,13 @@ if _a is not None and _p is not None and primeQ(_p) and _a * _a < 4 * _p \
         curve_view(_a, _p, _node)
     else:
         class_view(_a, _p)
+elif _p is not None and _f is not None and _g is not None \
+        and primeQ(_p) and 5 <= _p < P_MAX:
+    eq_view(_p, _f % _p, _g % _p)
 elif _d is not None:
     disc_view(_d)
 else:
-    if _a is not None or _p is not None:
+    if _a is not None or (_p is not None and _f is None):
         st.error("That (a, p) isn't admissible — need p prime, a² < 4p, p ∤ a "
                  f"(or a = 0), p < {P_MAX}.")
     entry_view()
