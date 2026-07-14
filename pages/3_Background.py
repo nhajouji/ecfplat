@@ -95,9 +95,10 @@ with st.expander("§2 — CM Lattices and Frobenius", expanded=False):
     ])
 
 with st.expander("§3 — Pictures from lifts of Frobenius", expanded=False):
-    (tab_mult, tab_ell) = st.tabs([
+    (tab_mult, tab_ell, tab_hopf) = st.tabs([
         "The recipe, via the multiplicative group",
         "Elliptic curves",
+        "Into ℝ³ — the Hopf embedding",
     ])
 
 st.header("Equivalence of Categories")
@@ -1578,6 +1579,57 @@ with tab_ell:
         "class."
     )
     components.html(slide_viz.cm_torus_html(), height=440, scrolling=False)
+
+
+# ── Tab: Pictures from lifts of Frobenius — into R^3 ──────────────────────────
+with tab_hopf:
+    st.subheader("Into ℝ³: the Hopf Embedding")
+    st.markdown(
+        "The pictures in this chapter draw $\\mathbb{C}/\\Lambda$ flat — a "
+        "fundamental domain with its sides identified. To build the physical "
+        "objects in the [Gallery](/Gallery), we want the torus **in ℝ³**, and "
+        "we want the embedding to be *conformal*, so that it genuinely "
+        "represents the Riemann surface $\\mathbb{C}/\\Lambda$ rather than "
+        "just something torus-shaped. The familiar torus of revolution can't "
+        "do this: it realizes only one conformal class, and our lattices come "
+        "in every shape."
+    )
+    st.markdown(
+        "The machine that can is the **Hopf fibration** "
+        "$\\eta : S^3 \\to S^2$, which sends a unit vector "
+        "$(z, w) \\in \\mathbb{C}^2$ to $z/w$ on the Riemann sphere. Point "
+        "preimages are circles, any two of which are linked; the preimage of "
+        "a *curve* on $S^2$ is a surface in $S^3$:"
+    )
+    st.image(str(Path(__file__).parent / "gallery_img" / "full" / "hopf.jpg"),
+             caption="The Hopf fibration under stereographic projection: "
+                     "linked circle fibers (left); the preimage of a curve "
+                     "on S² is an annulus — close the curve and it becomes "
+                     "a torus (right).",
+             width="stretch")
+    st.markdown(
+        "**Pinkall's theorem** makes this quantitative: the preimage "
+        "$\\eta^{-1}(C)$ of a simple closed curve $C \\subset S^2$ of length "
+        "$L$ enclosing area $A$ is a **flat torus**, isometric to "
+        "$\\mathbb{C}/\\Lambda$ for $\\Lambda = 2\\pi\\mathbb{Z} \\oplus "
+        "(\\tfrac{A}{2} + i\\tfrac{L}{2})\\mathbb{Z}$ — and every conformal "
+        "class of torus arises this way. So to embed the lift of your "
+        "favourite curve: read off $A$ and $L$ from the lattice, find *any* "
+        "curve on the sphere with that length and area, take its Hopf "
+        "preimage, and stereographically project to ℝ³. Infinitely many "
+        "curves share the same $(A, L)$, and that freedom is exactly where "
+        "the aesthetics live — every render in the Gallery is one such "
+        "choice."
+    )
+    st.image(str(Path(__file__).parent / "gallery_img" / "full" / "HopfTori.jpg"),
+             caption="Curves on S² and the flat tori they bound in S³.",
+             width="stretch")
+    st.caption(
+        "Renders: Nadir Hajouji & Steve Trettel. The full pipeline — "
+        "uniformize the Deuring lift (§2), draw E(𝔽_pⁿ) as Fix(αⁿ) (§3), "
+        "embed via a Hopf torus — is written up in "
+        "[arXiv:2505.09627](https://arxiv.org/abs/2505.09627)."
+    )
 
 
 # ── Tab: Isogenies — kernels and degree ───────────────────────────────────────
