@@ -194,8 +194,55 @@ _pic("HopfTori.jpg",
 
 st.divider()
 
-# ── 5. coming next ────────────────────────────────────────────────────────────
-st.markdown("### 5 · Coming next")
+# ── 5. the ICM selection ──────────────────────────────────────────────────────
+st.markdown("### 5 · From the ICM gallery")
+st.markdown(
+    "A physical gallery of these renders is being presented at the **ICM** "
+    "(2026). It hangs in two halves. The first is *all of* "
+    "$\\mathbb{F}_5$: one picture per isogeny class — most classes are "
+    "singletons; the class [(a, p) = (2, 5)](/Explorer?a=2&p=5) has two "
+    "curves and hangs as a **column**, j = 1728 on top, so the wall itself "
+    "reads as a volcano (isogenies ascend and descend); and the "
+    "[supersingular class](/Explorer?a=0&p=5) — two "
+    "$\\mathbb{F}_p$-isomorphism classes sharing the endomorphism ring "
+    "ℤ[√−5], algebraically indistinguishable — is a single **lenticular "
+    "print** that changes as you walk past. The second half is *one "
+    "equation, many characteristics*: a single curve, $X_0(11)$, reduced "
+    "mod everything. Two pieces from the set:"
+)
+
+_pic("x0_5_surface.jpg",
+     "X₀(5) as a real elliptic surface — a slice of the universal curve "
+     "over X₁(5). Each thread is a real elliptic curve; four fibers are "
+     "highlighted. Every curve with a degree-5 endomorphism is a point of "
+     "X₀(5) — the lifts of Frobenius of the 𝔽₅ curves from the first half "
+     "of the gallery — and on the real line sit four special fibers: the "
+     "two lattices with CM by √−5 (the supersingular pair), and the pair "
+     "X₁(11) → X₀(11) with its dual: that map is itself a cyclic 5-isogeny "
+     "of elliptic curves, so it is a point of X₀(5) too. One picture, "
+     "bridging both halves of the gallery.")
+st.markdown(
+    "Live: [the supersingular class (0, 5)](/Explorer?a=0&p=5) · "
+    "[disc −20 view](/Explorer?d=-20) · modular curves in "
+    "[Background](/Background), Chapter 3"
+)
+
+_pic("x0_11_mod_107.jpg",
+     "X₀(11) mod 107: the six lifts of Frobenius. The reduced curve has "
+     "trace 18, so the Frobenius order ℤ[α] = ℤ[√−26] has discriminant "
+     "−104 and class number 6 — six lattices, six lifts, one curve. The "
+     "class group is cyclic of order 6, and the arrangement encodes it: "
+     "the tori sit like the 6th roots of unity.")
+st.markdown(
+    "Live: [(a, p) = (18, 107)](/Explorer?a=18&p=107) · "
+    "[disc −104 view](/Explorer?d=-104)"
+)
+st.caption("More of the ICM set will land here after the presentation.")
+
+st.divider()
+
+# ── 6. coming next ────────────────────────────────────────────────────────────
+st.markdown("### 6 · Coming next")
 st.markdown(
     "- **Superlatives** — record-setting primes and first failures, e.g. "
     "**15073**, the smallest prime where every class-number-1 integer "
