@@ -1,5 +1,6 @@
 [server]
-headless = true        # required for Streamlit Cloud
+headless = true        # required for headless hosting
+enableStaticServing = true   # serves ./static at /app/static (og image)
 
 [browser]
 gatherUsageStats = false
