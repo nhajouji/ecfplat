@@ -3,98 +3,52 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 LOGO = Path(__file__).parent / "ec_logo.jpg"
+HERO = Path(__file__).parent / "gallery_img" / "full" / "FrontCover.jpg"
 
 title_col, logo_col = st.columns([3, 1])
 with title_col:
     st.markdown("<style>h1 { text-align: center; }</style>", unsafe_allow_html=True)
-    st.markdown("# Elliptic Curves over $\\mathbb{F}_p$")
-    st.markdown("# via CM Lattices")
+    st.markdown("# Elliptic Curves")
+    st.markdown(
+        '<p style="text-align:center; font-size:1.05rem; opacity:.85;">'
+        "pictures, tools, and theory — from curves over finite fields to "
+        "the lattices that draw them</p>",
+        unsafe_allow_html=True,
+    )
 with logo_col:
     st.image(str(LOGO), width="stretch")
-st.markdown(
-    "Tools for visualizing categories of elliptic curves over $\\mathbb{F}_p$ "
-    "through precomputed equivalences with categories of CM lattices. "
-    "Touch the pictures — the math answers live."
-)
-st.caption("Created by Nadir Hajouji · Work in progress")
+
+st.caption("Created by Nadir Hajouji and Steve Trettel")
 
 st.divider()
 
-# ── Live showcase: a volcano that drills into the Explorer ────────────────────
+# ── the picture this site is about ────────────────────────────────────────────
 st.markdown("### The picture this site is about")
-st.markdown(
-    "The 2-isogeny graph of the curves over $\\mathbb{F}_{101}$ with trace "
-    "$a = 6$ — a **volcano**: the crater cycle is the class group acting on "
-    "the maximal order, the trees below descend through the suborders. "
-    "Hover a node, click it, and follow the link — you are in the Explorer."
+st.image(
+    str(HERO),
+    caption="Two elliptic curves over finite fields — y² = x³ + 3x (mod 5) "
+            "with its 640 points over 𝔽₆₂₅, and y² = x³ + 3 (mod 7) with its "
+            "2379 points over 𝔽₂₄₀₁ — lifted to characteristic zero and "
+            "drawn on tori in ℝ³.",
+    width="stretch",
 )
 
-from ecqf import ECQFIsogenyClass, class_graph_descriptor
-import explorer_viz
-
-
-@st.cache_resource(show_spinner=False)
-def _showcase_html():
-    cls = ECQFIsogenyClass(6, 101)
-    descs = {l: class_graph_descriptor(cls, l) for l in (2, 3)}
-    return explorer_viz.isogeny_graph_html(
-        descs, link_base="/Explorer?a=6&p=101", height_px=470)
-
-
-components.html(_showcase_html(), height=660, scrolling=False)
-
-# ── Entry points ──────────────────────────────────────────────────────────────
-st.divider()
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    st.subheader("Explorer")
-    st.markdown(
-        "The main journey: pick a **prime** or a **discriminant**, open an "
-        "isogeny class, walk its ℓ-isogeny volcano, inspect each curve. "
-        "Every view is a shareable URL."
-    )
-    st.page_link("pages/1_Explorer.py", label="Open the Explorer →")
-    st.markdown(
-        "Jump straight in: [(a, p) = (6, 101)](/Explorer?a=6&p=101) · "
-        "[supersingular (0, 101)](/Explorer?a=0&p=101) · "
-        "[discriminant −368](/Explorer?d=-368)"
-    )
-
-with c2:
-    st.subheader("Background")
-    st.markdown(
-        "Three interactive chapters: elliptic curves from scratch, the "
-        "analytic picture (tori, lattices, CM), and modular curves — "
-        "57 canvas applets, no formulas required to start."
-    )
-    st.page_link("pages/3_Background.py", label="Read the Background →")
-
-with c3:
-    st.subheader("Supersingular Graph")
-    st.markdown(
-        "The full $(\\ell+1)$-regular supersingular graph over "
-        "$\\mathbb{F}_{p^2}$, laid out so Frobenius is literally the "
-        "reflection across the axis."
-    )
-    st.page_link("pages/4_SS_Graph.py", label="Open the SS Graph →")
-
-# ── Gallery teaser ────────────────────────────────────────────────────────────
-st.divider()
-st.markdown("### Gallery")
 st.markdown(
-    "Path-traced renders of lifted elliptic curves — the site's flat "
-    "pictures embedded as glowing tori in ℝ³ via the Hopf fibration, by "
-    "Nadir Hajouji and Steve Trettel — each linked to the Explorer view "
-    "where the same curve is alive. More at "
-    "[elliptic-curves.art](https://elliptic-curves.art/)."
+    "- **[Background](/Background)** — how a picture like this *is* the "
+    "classical theory of elliptic curves over $\\mathbb{F}_p$, one "
+    "interactive lesson at a time.\n"
+    "- **[Explorer](/Explorer)** — the precomputed curve ↔ lattice "
+    "equivalences behind it: open any isogeny class and see its curves, "
+    "graphs, and lattices live.\n"
+    "- **[Gallery](/Gallery)** — the pictures we've made, each with its "
+    "story.\n"
+    "- **[…and more](/SS_Graph)** — the supersingular isogeny graph, for a "
+    "start."
 )
-st.page_link("pages/5_Gallery.py", label="Enter the Gallery →")
 
-# ── Coverage ──────────────────────────────────────────────────────────────────
+# ── coverage ──────────────────────────────────────────────────────────────────
 st.divider()
 st.markdown("### Dataset coverage")
 m1, m2, m3 = st.columns(3)
@@ -115,10 +69,10 @@ st.divider()
 
 st.markdown("### Updates")
 st.markdown(
-    "**July 2026** — Full remodel: one drill-down **Explorer** (replacing the "
-    "EC Search and Isogeny Class pages) with canvas isogeny volcanoes, "
-    "clickable Hasse intervals and shareable URLs; the supersingular graph "
-    "and the entire Background are now 100% canvas.\n\n"
+    "**July 2026** — Full remodel: one drill-down **Explorer** with canvas "
+    "isogeny volcanoes and shareable URLs; the supersingular graph and the "
+    "entire Background are 100% canvas; the **Gallery** opens with the ICM "
+    "and Bridges renders; the site moves to **elliptic-curves.info**.\n\n"
     "**June 2026** — Public beta release. Isogeny class browser, EC search, "
     "isogeny graph visualisation, and Background lessons."
 )
@@ -135,7 +89,8 @@ st.markdown(
     "mathematical computing library was part of the inspiration for making this project "
     "publicly accessible.\n\n"
     "The shader-rendered artwork is the work of "
-    "[Steve Trettel](https://stevejtrettel.site/). "
+    "[Steve Trettel](https://stevejtrettel.site/), and more of it lives at "
+    "[elliptic-curves.art](https://elliptic-curves.art/). "
     "This project grew out of conversations at the conference "
     "*[Integrating Research and Illustration in Number Theory](https://indico.math.cnrs.fr/event/16261/)*, "
     "and I am grateful to the illustrating mathematics community for the inspiration."
