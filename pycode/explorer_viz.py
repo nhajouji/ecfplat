@@ -692,13 +692,17 @@ const tx=-B/(2*A), ty=Math.sqrt(-D)/(2*A);
   if(need<have){const c=(x0+x1)/2,w=(y1-y0)*have; x0=c-w/2; x1=c+w/2;}
   else{const c=(y0+y1)/2,h=(x1-x0)/have; y0=c-h/2; y1=c+h/2;}
   const PX=x=>(x-x0)/(x1-x0)*cv.width, PY=y=>(y1-y)/(y1-y0)*cv.height;
-  // lattice m + n·τ
-  ctx.fillStyle="rgba(255,255,255,0.3)";
-  for(let n=Math.floor(y0/ty)-1;n<=Math.ceil(y1/ty)+1;n++)
-    for(let m=Math.floor(x0-n*tx)-1;m<=Math.ceil(x1-n*tx)+1;m++){
-      const x=m+n*tx, y=n*ty;
-      if(x>x0&&x<x1&&y>y0&&y<y1){ctx.beginPath();ctx.arc(PX(x),PY(y),2,0,7);ctx.fill();}
-    }
+  // lattice m + n·τ — skipped when the window would hold a dot soup
+  // (very eccentric cells at large p), where it reads as white noise
+  const estDots=((x1-x0))*((y1-y0)/ty);
+  if(estDots<=4000){
+    ctx.fillStyle="rgba(255,255,255,0.3)";
+    for(let n=Math.floor(y0/ty)-1;n<=Math.ceil(y1/ty)+1;n++)
+      for(let m=Math.floor(x0-n*tx)-1;m<=Math.ceil(x1-n*tx)+1;m++){
+        const x=m+n*tx, y=n*ty;
+        if(x>x0&&x<x1&&y>y0&&y<y1){ctx.beginPath();ctx.arc(PX(x),PY(y),2,0,7);ctx.fill();}
+      }
+  }
   const poly=(vs,fill,stroke,dash)=>{
     ctx.beginPath();
     vs.forEach((v,i)=>{i?ctx.lineTo(PX(v.x),PY(v.y)):ctx.moveTo(PX(v.x),PY(v.y));});

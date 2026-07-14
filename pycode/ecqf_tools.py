@@ -46,7 +46,11 @@ def ap_in_pc_data(ap:tuple[int,int])->bool:
         return ap[1] in get_ssps_pc()
     else:
         a,p = ap
-        return (abs(a),p) in get_aps_pc()
+        if (abs(a),p) in get_aps_pc():
+            return True
+        # beyond the eagerly-loaded 1K store: the lazy sqlite ext store
+        import ext_store
+        return ext_store.has_pair(abs(a), p)
 
 # Misc. tools
 def abc_to_tau(abc:tuple[int,int,int])->np.array:

@@ -22,7 +22,8 @@ from ecqf_tools import ec_eq_str_base, frob_to_mw_gens, abc_to_tau, abc_to_tau_s
 from palette import row_colors
 import explorer_viz
 
-STORE_P_MAX = 1021          # curve tables end here; structure goes on to P_MAX
+STORE_P_MAX = 8191          # curve tables cover 99.86% of classes to here
+                            # (the rest render structure-only, gracefully)
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -126,8 +127,9 @@ def entry_view():
         st.subheader("Start from a prime")
         p_raw = st.number_input("prime p", min_value=5, max_value=P_MAX - 1,
                                 value=101, step=2,
-                                help=f"Curve tables cover p ≤ {STORE_P_MAX}; "
-                                     f"lattice/graph structure goes on to p < {P_MAX}.")
+                                help=f"Curve tables cover 99.86% of classes for "
+                                     f"p < {P_MAX}; the few gaps render "
+                                     "structure-only.")
         p = int(p_raw)
         if not primeQ(p):
             below = primesBetween(2, p)
@@ -227,9 +229,9 @@ def class_view(a: int, p: int):
         facts += " &nbsp;·&nbsp; supersingular"
     st.markdown(facts)
     if not has_curves:
-        st.info(f"p = {p} is past the curve tables (p ≤ {STORE_P_MAX}), so this "
-                "view shows the lattice side only — the graph structure is "
-                "still exact.")
+        st.info("This class is one of the few (0.14%) whose curve tables are "
+                "still being computed, so this view shows the lattice side "
+                "only — the graph structure is exact.")
 
     link_base = f"?a={a}&p={p}"
     st.markdown("##### The ℓ-isogeny graph")

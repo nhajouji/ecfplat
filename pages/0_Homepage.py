@@ -61,8 +61,9 @@ st.caption(
     "using modular polynomials alone. The bootstrapping method fills in the harder, "
     "high-class-number discriminants, cutting the blocked classes roughly 20-fold. The "
     "supersingular correspondence is complete for all **1,026** primes in the same range. "
-    "The interactive curve tables currently load $p \\leq 1024$; graph structure is exact "
-    "for all $p < 8192$."
+    "The Explorer serves the full range interactively: every computed class loads its "
+    "curve tables on demand, and the few remaining gaps render their exact graph "
+    "structure."
 )
 
 st.divider()

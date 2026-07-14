@@ -160,6 +160,11 @@ class ECQFIsogenyClass(QFIsogenyClass):
             app = (abs(a), p)
             if app in get_aps_pc():
                 self.js_to_qf = ecqf_ord_1K_pc[app]
+            else:
+                # lazy sqlite ext store: same {j: form} contract, p < 8192
+                import ext_store
+                self.js_to_qf = ext_store.get_pair(abs(a), p)
+            if self.js_to_qf is not None:
                 self.jsigs = [j for j in self.js_to_qf]
                 self.js = self.jsigs
                 self.js_to_models = {js: ecfp_js_to_model(js, (a, p), self.nonsquare)
@@ -291,11 +296,15 @@ def disc_to_aps(d: int, p_max: int = P_MAX, include_imprimitive: bool = True):
 
 def coverage():
     """What the precomputed stores actually contain (for bounds + gap notes)."""
+    import ext_store
     aps = get_aps_pc()
     ssps = get_ssps_pc()
+    ext_n, ext_pmax = ext_store.stats()
     return {
         'ordinary_pairs': len(aps),
         'ordinary_p_max': max(p for (_, p) in aps),
+        'ext_pairs': ext_n,
+        'ext_p_max': ext_pmax,
         'ss_primes': len(ssps),
         'ss_p_max': max(ssps),
     }
