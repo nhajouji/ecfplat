@@ -21,7 +21,7 @@ def _img(name, caption):
 
 # ── Post 1 — sum of two squares ───────────────────────────────────────────────
 def render_sum_of_squares():
-    st.markdown("# The shortest vector is the answer")
+    st.markdown("# Minkowski and Frobenius")
     st.caption("How a 350-year-old theorem of Fermat — plus a little geometry of "
                "numbers — says something concrete about the Bitcoin curve. · July 2026")
 
@@ -295,7 +295,7 @@ are the *same ghost* — inversion, wearing three hats.
 POSTS = [
     {
         "slug": "sum-of-two-squares",
-        "title": "The shortest vector is the answer",
+        "title": "Minkowski and Frobenius",
         "date": "July 2026",
         "teaser": "Fermat says a prime p ≡ 1 (mod 4) is a sum of two squares. "
                   "Here's how to *find* the squares — as the shortest vector of a "
