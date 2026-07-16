@@ -136,7 +136,7 @@ picture.
 
 # ── Post 2 — the representation-theory story ──────────────────────────────────
 def render_three_languages():
-    st.markdown("# One square, three languages")
+    st.markdown("# The quantum story")
     st.caption("The same class group, read as geometry, as representation theory, "
                "and as particle physics — and a ± ambiguity that turns out to be "
                "the same ghost in all three. · July 2026")
@@ -305,11 +305,11 @@ POSTS = [
     },
     {
         "slug": "three-languages",
-        "title": "One square, three languages",
+        "title": "The quantum story",
         "date": "July 2026",
-        "teaser": "The same class group, read as geometry, as representation "
-                  "theory, and as particle physics — and a ± ambiguity that turns "
-                  "out to be the same ghost in all three.",
+        "teaser": "We reinterpret the graphs at the heart of this site's main "
+                  "algorithm in the language of representation theory — and, "
+                  "running alongside, particle physics.",
         "render": render_three_languages,
         "draft": True,
     },
