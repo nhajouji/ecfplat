@@ -45,8 +45,9 @@ ICM = [
                ("disc −4", "/Explorer?d=-4")]},
     {"slug": "icm-a0", "title": "Trace 0 over 𝔽₅ — supersingular",
      "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, with j = 0 "
-              "and no ordinary CM lift. Rendered as a lenticular print — render "
-              "coming soon.",
+              "and no ordinary CM lift — the one exceptional class over 𝔽₅. Made "
+              "as a lenticular print that flips between the untwisted torus and "
+              "its twisted form as you move past it.",
      "links": [("open in the Explorer", "/Explorer?a=0&p=5"),
                ("disc −20", "/Explorer?d=-20")]},
     {"slug": "icm-pcomplex", "title": "X₀(11) over ℂ",
@@ -79,10 +80,25 @@ ICM = [
      "links": [("the supersingular class (0, 5)", "/Explorer?a=0&p=5"),
                ("disc −20", "/Explorer?d=-20"),
                ("modular curves in the Background", "/Background")]},
-    {"slug": "icm-starscape", "title": "Elliptic starscape",
-     "blurb": "A guest piece by Elliot Kienzle: an elliptic curve drawn as a "
-              "night sky.",
-     "credit": "Elliot Kienzle",
+    {"slug": "icm-starscape",
+     "title": "Elliptic Starscape in the complex projective plane",
+     "blurb": "A guest piece by Elliot Kienzle (chessapig): the modular curve "
+              "X₀(11) drawn as a night sky in ℂℙ².",
+     "desc": (
+        r"Illustration of the modular curve $X_0(11)$ — the solutions to "
+        r"$y^2 - y = x^3 - x^2 - 10x - 20$ — as a subset of $\mathbb{CP}^2$. "
+        r"The white points are projections of complex points, plotting the real "
+        r"part of the point in a (nonstandard) affine chart. The blue curve shows "
+        r"the projected real locus. The points were computed by intersecting "
+        r"$X_0(11)$ with ~100,000 complex lines in $\mathbb{CP}^2$ of rational "
+        r"slope, then sized according to the slope's denominator. The resulting "
+        r"density of points is induced from the rotation-invariant metric on "
+        r"$\mathbb{CP}^2$. Under this projection, a complex line appears as an "
+        r"elliptical cloud. Notice how the cubic curve is a smoothing of three "
+        r"complex lines: a strong diagonal through the central point, the wider "
+        r"horizontal line encircling the central point, and the diffuse "
+        r"background parallel to the screen."),
+     "credit": "Elliot Kienzle (chessapig)",
      "links": []},
 ]
 
@@ -207,8 +223,21 @@ def detail_view(slug: str):
     e = ALL[slug]
     st.markdown("[← back to the Gallery](?)")
     st.subheader(e["title"])
-    st.image(str(IMG / "full" / f"{slug}.jpg"), width="stretch")
+    gif = IMG / "full" / f"{slug}.gif"
+    jpg = IMG / "full" / f"{slug}.jpg"
+    if gif.exists():   # animated (e.g. the lenticular flip) — embed so it animates
+        b64 = base64.b64encode(gif.read_bytes()).decode()
+        st.markdown(
+            f'<img src="data:image/gif;base64,{b64}" '
+            f'style="width:100%;border-radius:8px;" alt="{e["title"]}">',
+            unsafe_allow_html=True)
+    elif jpg.exists():
+        st.image(str(jpg), width="stretch")
+    else:
+        st.info("The render for this piece is coming soon.")
     st.markdown(e["blurb"])
+    if e.get("desc"):
+        st.markdown(e["desc"])
     if e["links"]:
         st.markdown(" · ".join(f"[{lbl}]({href})" for lbl, href in e["links"]))
     st.caption(f"Render: {e.get('credit', CREDIT_DEFAULT)}")
