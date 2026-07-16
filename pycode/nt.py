@@ -439,3 +439,284 @@ def frob_ext_degrees(a:int, p:int, l:int)->dict:
         return {'kind': 'inert', 'eigenvalues': None, 'degrees': [k], 'min_degree': k}
     degrees = [mult_order_mod(lam, l) for lam in eigs]
     return {'kind': kind, 'eigenvalues': eigs, 'degrees': degrees, 'min_degree': min(degrees)}
+
+# ===========================================================================
+# Gaussian integers Z[i] and the sum-of-two-squares algorithm
+# ---------------------------------------------------------------------------
+# A Gaussian integer a + b*i is stored as a tuple (a, b).  Everything here is
+# exact integer arithmetic (Python bigints), so it is safe for cryptographic
+# primes -- no floats anywhere, including the round-to-nearest division step.
+# ===========================================================================
+
+def _nint(a: int, n: int) -> int:
+    """Nearest integer to a/n for n > 0 (ties round toward +infinity).
+    Pure integer arithmetic -- no float rounding, safe for huge a."""
+    return (2 * a + n) // (2 * n)
+
+
+def gi_norm(z: tuple) -> int:
+    a, b = z
+    return a * a + b * b
+
+
+def gi_conj(z: tuple) -> tuple:
+    a, b = z
+    return (a, -b)
+
+
+def gi_add(z: tuple, w: tuple) -> tuple:
+    return (z[0] + w[0], z[1] + w[1])
+
+
+def gi_sub(z: tuple, w: tuple) -> tuple:
+    return (z[0] - w[0], z[1] - w[1])
+
+
+def gi_mul(z: tuple, w: tuple) -> tuple:
+    a, b = z
+    c, d = w
+    return (a * c - b * d, a * d + b * c)
+
+
+def gi_rounddiv(z: tuple, w: tuple) -> tuple:
+    """Closest Gaussian integer to z / w  (w != 0).
+
+    This is the geometry-of-numbers step: writing z in the orthogonal basis
+    (w, i*w) of the lattice Z[i]*w, the closest multiple of w to z is obtained
+    by rounding each coordinate <z, w>/N(w) and <z, i*w>/N(w) to the nearest
+    integer.  Concretely both come from z * conj(w) / N(w)."""
+    n = gi_norm(w)
+    a, b = gi_mul(z, gi_conj(w))          # z * conj(w) = <z,w> + <z,i w> i
+    return (_nint(a, n), _nint(b, n))
+
+
+def gi_divmod(z: tuple, w: tuple) -> tuple:
+    """Division with remainder in Z[i]: z = q*w + r with N(r) <= N(w)/2 < N(w)."""
+    q = gi_rounddiv(z, w)
+    r = gi_sub(z, gi_mul(q, w))
+    return q, r
+
+
+def gi_gcd(z: tuple, w: tuple, path: list = None) -> tuple:
+    """Euclidean algorithm in Z[i].  If `path` is a list, each remainder is
+    appended to it (useful for step counts and for drawing the descent)."""
+    while gi_norm(w) != 0:
+        z, w = w, gi_divmod(z, w)[1]
+        if path is not None:
+            path.append(w)
+    return z
+
+
+def sqrt_mod_prime(a: int, p: int):
+    """A square root of a mod p (p an odd prime), or None if a is a
+    non-residue.  Tonelli-Shanks -- works for cryptographic-size p."""
+    a %= p
+    if a == 0:
+        return 0
+    if pow(a, (p - 1) // 2, p) != 1:
+        return None
+    if p % 4 == 3:
+        return pow(a, (p + 1) // 4, p)
+    q, s = p - 1, 0
+    while q % 2 == 0:
+        q //= 2
+        s += 1
+    z = 2
+    while pow(z, (p - 1) // 2, p) != p - 1:
+        z += 1
+    m, c, t, r = s, pow(z, q, p), pow(a, q, p), pow(a, (q + 1) // 2, p)
+    while t != 1:
+        i, tt = 0, t
+        while tt != 1:
+            tt = tt * tt % p
+            i += 1
+        b = pow(c, 1 << (m - i - 1), p)
+        m, c, t, r = i, b * b % p, (t * b * b) % p, (r * b) % p
+    return r
+
+
+def sqrt_neg1(p: int):
+    """Smallest positive r with r^2 = -1 (mod p).  Exists iff p == 2 or
+    p % 4 == 1; returns None otherwise (or for p == 2, returns 1)."""
+    if p == 2:
+        return 1
+    r = sqrt_mod_prime(p - 1, p)
+    if r is None:
+        return None
+    return min(r, p - r)
+
+
+def sos(p: int) -> tuple:
+    """Write a prime p = a^2 + b^2 (requires p == 2 or p % 4 == 1), returning
+    (a, b) with 0 <= a <= b.
+
+    Method: seed z1 = 1 + r_p*i (which has norm r_p^2 + 1, a multiple of p),
+    then g = gcd_{Z[i]}(z1, p).  Because Z[i] is Euclidean, (z1, p) = the prime
+    ideal above p, so N(g) = p exactly.  Always succeeds -- no search."""
+    if p == 2:
+        return (1, 1)
+    r = sqrt_neg1(p)
+    if r is None:
+        raise ValueError(f"{p} is not 2 and not 1 mod 4; no sum of two squares")
+    g = gi_gcd((1, r), (p, 0))
+    a, b = abs(g[0]), abs(g[1])
+    return (min(a, b), max(a, b))
+
+
+def sos_cf(p: int, path: list = None) -> tuple:
+    """Sum of two squares by the Serret / Hermite continued-fraction descent
+    ("trick 1"): run the ordinary integer Euclidean algorithm on (p, r_p) and
+    read off the first pair of consecutive remainders that drop below sqrt(p).
+
+    This is the small-integer, fully elementary descent -- no Gaussian
+    arithmetic.  If `path` is a list, the remainder sequence is recorded."""
+    if p == 2:
+        return (1, 1)
+    r = sqrt_neg1(p)
+    if r is None:
+        raise ValueError(f"{p} is not 2 and not 1 mod 4; no sum of two squares")
+    import math
+    a, b = p, r
+    if path is not None:
+        path.extend([a, b])
+    root = math.isqrt(p)
+    while b > root:
+        a, b = b, a % b
+        if path is not None:
+            path.append(b)
+    # b is the first remainder <= sqrt(p); (b, a % b) are the straddling pair
+    c = a % b
+    return (min(b, c), max(b, c))
+
+
+# ===========================================================================
+# Eisenstein integers Z[omega] and the p = x^2 + 3 y^2 algorithm
+# ---------------------------------------------------------------------------
+# omega = (-1 + sqrt(-3))/2, a primitive cube root of unity, omega^2 = -1 - omega.
+# An Eisenstein integer a + b*omega is stored as (a, b).  Norm form is the
+# hexagonal-lattice norm  N(a + b*omega) = a^2 - a b + b^2.
+#
+# Z[omega] is the ring of integers of Q(sqrt(-3)) (disc -3, class number 1) and
+# is norm-Euclidean: coordinate-rounding of z*conj(w)/N(w) in the {1, omega}
+# basis gives a remainder of norm <= (3/4) N(w), because the norm form is
+# bounded by 3/4 on the box [-1/2,1/2]^2.  So the same gcd machinery as Z[i]
+# applies, and gcd(seed, p) always has norm exactly p.
+# ===========================================================================
+
+def e_norm(z: tuple) -> int:
+    a, b = z
+    return a * a - a * b + b * b
+
+
+def e_conj(z: tuple) -> tuple:
+    """Complex conjugate: bar(a + b*omega) = a + b*omega^2 = (a-b) - b*omega."""
+    a, b = z
+    return (a - b, -b)
+
+
+def e_add(z: tuple, w: tuple) -> tuple:
+    return (z[0] + w[0], z[1] + w[1])
+
+
+def e_sub(z: tuple, w: tuple) -> tuple:
+    return (z[0] - w[0], z[1] - w[1])
+
+
+def e_mul(z: tuple, w: tuple) -> tuple:
+    """(a+b w)(c+d w) = (ac - bd) + (ad + bc - bd) w,  using w^2 = -1 - w."""
+    a, b = z
+    c, d = w
+    return (a * c - b * d, a * d + b * c - b * d)
+
+
+def e_mul_omega(z: tuple) -> tuple:
+    """Multiply by omega (rotation by 120 deg): omega*(a + b w) = -b + (a-b) w."""
+    a, b = z
+    return (-b, a - b)
+
+
+def e_rounddiv(z: tuple, w: tuple) -> tuple:
+    """Closest Eisenstein integer to z / w (w != 0), by rounding the {1,omega}
+    coordinates of z*conj(w)/N(w).  Valid Euclidean step (norm form <= 3/4 on
+    the fundamental box)."""
+    n = e_norm(w)
+    a, b = e_mul(z, e_conj(w))
+    return (_nint(a, n), _nint(b, n))
+
+
+def e_divmod(z: tuple, w: tuple) -> tuple:
+    q = e_rounddiv(z, w)
+    r = e_sub(z, e_mul(q, w))
+    return q, r
+
+
+def e_gcd(z: tuple, w: tuple, path: list = None) -> tuple:
+    """Euclidean algorithm in Z[omega]; records remainders in `path` if given."""
+    while e_norm(w) != 0:
+        z, w = w, e_divmod(z, w)[1]
+        if path is not None:
+            path.append(w)
+    return z
+
+
+def eisenstein_units() -> list:
+    """The six units of Z[omega]: 1, omega, omega^2, and their negatives."""
+    us = []
+    z = (1, 0)
+    for _ in range(3):
+        us.append(z)
+        us.append((-z[0], -z[1]))
+        z = e_mul_omega(z)
+    return us
+
+
+def _seed_omega(p: int):
+    """An Eisenstein integer of norm divisible by p (p prime, p % 3 == 1):
+    solve b^2 - b + 1 = 0 mod p via b = (1 + sqrt(-3))/2, giving z = 1 + b*omega
+    with N(z) = 1 - b + b^2 = 0 mod p."""
+    s = sqrt_mod_prime((-3) % p, p)
+    if s is None:
+        return None
+    inv2 = pow(2, p - 2, p)
+    b = ((1 + s) * inv2) % p
+    return (1, b)
+
+
+def esos(p: int) -> tuple:
+    """Write a prime p = a^2 - a b + b^2 (Eisenstein norm), requiring p == 3 or
+    p % 3 == 1.  Returns an Eisenstein integer (a, b) of norm exactly p, via the
+    Z[omega] gcd of the seed with p.  Always succeeds (Z[omega] Euclidean)."""
+    if p == 3:
+        return (1, 2)                      # N(1 + 2w) = 1 - 2 + 4 = 3
+    seed = _seed_omega(p)
+    if seed is None:
+        raise ValueError(f"{p} is not 3 and not 1 mod 3; not of the form a^2-ab+b^2")
+    return e_gcd(seed, (p, 0))
+
+
+def x2_3y2(p: int) -> tuple:
+    """Write a prime p = x^2 + 3 y^2 (requires p == 3 or p % 3 == 1), with
+    x, y >= 0.  Obtain the Eisenstein rep p = c^2 - c d + d^2, then pick the unit
+    associate whose second coordinate is even (always possible: one of c, d, c-d
+    is even) and complete the square: p = (c - d/2)^2 + 3 (d/2)^2."""
+    a, b = esos(p)
+    for u in eisenstein_units():
+        c, d = e_mul((a, b), u)
+        if d % 2 == 0:
+            y = d // 2
+            x = c - y
+            return (abs(x), abs(y))
+    raise RuntimeError("no associate with even second coordinate (impossible)")
+
+
+def frob_traces_j0(p: int) -> list:
+    """The six candidate Frobenius traces for a j = 0 curve over F_p (p % 3 == 1,
+    ordinary): trace of the unit-associate u*pi is 2c - d for associate (c, d).
+    Returns the six traces sorted.  The actual trace of y^2 = x^3 + k is one of
+    these, selected by the sextic residue class of k."""
+    a, b = esos(p)
+    traces = set()
+    for u in eisenstein_units():
+        c, d = e_mul((a, b), u)
+        traces.add(2 * c - d)
+    return sorted(traces)
