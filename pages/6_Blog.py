@@ -291,6 +291,102 @@ are the *same ghost* — inversion, wearing three hats.
 """)
 
 
+# ── Post 3 — the two supersingular graphs (work in progress) ──────────────────
+def render_supersingular_graphs():
+    st.markdown("# Two supersingular graphs")
+    st.caption("Work in progress — the results and the picture are here; the "
+               "connecting prose is still being written. · July 2026")
+
+    st.warning(
+        "🚧 **Draft.** This post is scaffolding: it pins down the two graphs, the "
+        "map between them, and the results I want to prove. The exposition is "
+        "still going in, and a companion result may join it."
+    )
+
+    st.markdown(r"""
+Two different supersingular $\ell$-isogeny graphs show up on this site, and they
+are genuinely different graphs. This post is about how they are related.
+""")
+
+    st.markdown("### 1. The classical graph")
+    st.markdown(r"""
+This is the graph as it usually appears in the literature (and in isogeny-based
+cryptography). Work over the algebraic closure $\overline{\mathbb{F}}_p$:
+
+- **vertices** are supersingular curves up to $\overline{\mathbb{F}}_p$-isomorphism
+  — that is, **$j$-invariants** (all of which happen to lie in $\mathbb{F}_{p^2}$);
+- **edges** are $\ell$-isogenies, counted with multiplicity;
+- the graph is always **$(\ell+1)$-regular**.
+
+Here it is, live — the same widget that used to sit in the sidebar:
+""")
+    import ss_graph_page
+    ss_graph_page.render(show_header=False)
+
+    st.markdown("### 2. Our graph, over 𝔽ₚ")
+    st.markdown(r"""
+The Explorer draws a *different* graph: it allows only **isogenies defined over
+$\mathbb{F}_p$**, and it distinguishes curves up to **$\mathbb{F}_p$-isomorphism**,
+not merely by $j$-invariant. Two consequences:
+
+- **The vertices double.** A generic $j$-invariant splits into its **two quadratic
+  twists** — two $\mathbb{F}_p$-isomorphism classes, two vertices. (The exceptions
+  are $j = 0$ and $j = 1728$, whose extra automorphisms make them special; they
+  are the villains throughout.)
+- **The degree collapses.** For $\ell > 2$ — or whenever $p \equiv 1 \pmod 4$ —
+  the graph is still **regular**, but of degree $0$, $1$, or $2$: the
+  **number of square roots of $-p$ modulo $\ell$**, in place of $\ell + 1$.
+
+The one genuinely different case is $p \equiv 3 \pmod 4$ with $\ell = 2$, where
+the graph becomes a **disjoint union of volcanoes**. It is no longer regular, but
+it is completely predictable — degree $3$ at the surface, degree $1$ on the floor.
+(These are the volcano pictures on the [Explorer](/Explorer).)
+""")
+
+    st.markdown("### 3. The map between them")
+    st.markdown(r"""
+There is an obvious map from our graph to the classical one: **forget the twist**,
+sending an $\mathbb{F}_p$-isomorphism class to its $j$-invariant. What it does:
+
+- on **vertices** it is **$2$-to-$1$** (generically), so never injective;
+- it is **surjective on vertices only for a finite list of primes** — exactly the
+  primes $p$ dividing the order of the **Monster** (equivalently: the primes for
+  which every supersingular $j$ is already $\mathbb{F}_p$-rational);
+- it is **never surjective on edges**.
+""")
+
+    st.markdown("### 4. The theorem: degrees are preserved (away from 0 and 1728)")
+    st.markdown(r"""
+Here is the clean statement the post is built around:
+
+> **Set aside $j = 0$ and $j = 1728$. Then the comparison map preserves degrees**
+> between our graph and its image.
+
+*(Full statement and proof to be written up. The two excluded $j$'s are exactly
+where the extra automorphisms break the count — the same
+$e(j) = |\mathrm{Aut}(E)|/2$ weighting that makes the classical adjacency matrix
+fail to be symmetric at $0$ and $1728$.)*
+""")
+
+    st.markdown("### 5. A worked target: the twin j = 1728")
+    st.markdown(r"""
+The concrete result I want to land, as a first payoff. Suppose $p \equiv 3
+\pmod 4$ and $-p$ is a **square** modulo $\ell$ (with $\ell$ odd). Then:
+
+1. there are **two** $\mathbb{F}_p$-isomorphism classes with $j = 1728$;
+2. each of them carries **exactly two** $\ell$-isogenies defined over $\mathbb{F}_p$;
+3. the codomains of those two isogenies are **quadratic twists** of each other.
+
+*(Prose, proof, and a picture to come.)*
+""")
+
+    st.markdown("### More to come")
+    st.markdown(r"""
+There is a companion result I may fold in here or split into a sequel. Flagged so
+this reads as the living draft it is.
+""")
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 POSTS = [
     {
@@ -311,6 +407,17 @@ POSTS = [
                   "algorithm in the language of representation theory — and, "
                   "running alongside, particle physics.",
         "render": render_three_languages,
+        "draft": True,
+    },
+    {
+        "slug": "supersingular-graphs",
+        "title": "Two supersingular graphs",
+        "date": "July 2026",
+        "teaser": "Two supersingular ℓ-isogeny graphs live on this site — the "
+                  "classical one over the algebraic closure, and ours over 𝔽ₚ — "
+                  "with a map between them that is 2-to-1 on vertices yet preserves "
+                  "degrees away from j = 0 and 1728. (Work in progress.)",
+        "render": render_supersingular_graphs,
         "draft": True,
     },
 ]

@@ -44,8 +44,8 @@ st.markdown(
     "graphs, and lattices live.\n"
     "- **[Gallery](/Gallery)** — the pictures we've made, each with its "
     "story.\n"
-    "- **[…and more](/SS_Graph)** — the supersingular isogeny graph, for a "
-    "start."
+    "- **[Blog](/Blog)** — short stories from the making of the site, including "
+    "the supersingular isogeny graph and where it comes from."
 )
 
 # ── coverage ──────────────────────────────────────────────────────────────────
