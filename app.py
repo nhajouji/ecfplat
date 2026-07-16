@@ -14,5 +14,6 @@ pg = st.navigation([
     st.Page("pages/1_Explorer.py",   title="Explorer",   icon="🌋"),
     st.Page("pages/4_SS_Graph.py",   title="Supersingular Graph", icon="🕸️"),
     st.Page("pages/5_Gallery.py",    title="Gallery",    icon="🖼️"),
+    st.Page("pages/6_Blog.py",       title="Blog",       icon="📝"),
 ])
 pg.run()

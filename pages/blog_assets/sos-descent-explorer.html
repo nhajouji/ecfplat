@@ -1,0 +1,433 @@
+<title>The Shortest Vector &mdash; a sum of two squares</title>
+<style>
+  :root{
+    --paper:#f6f3ec; --panel:#efeae0; --ink:#1c1d29; --ink-soft:#565565;
+    --line:#d8d2c4; --plate:#3a6ea5; --plate-soft:#7ba0c6; --ochre:#c2952f;
+    --madder:#b23a2e; --lattice:#42506a; --grid:#e6e0d2;
+    --shadow:0 1px 2px rgba(20,20,35,.06),0 8px 30px rgba(20,20,35,.07);
+    --serif:Georgia,'Iowan Old Style','Times New Roman',serif;
+    --sans:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+    --mono:ui-monospace,'SF Mono',Menlo,'DejaVu Sans Mono',monospace;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --paper:#13141d; --panel:#1b1c28; --ink:#ecebf4; --ink-soft:#9b9ab0;
+      --line:#2b2c3b; --plate:#6ea0d8; --plate-soft:#3f5a7d; --ochre:#d7ab4a;
+      --madder:#e0655a; --lattice:#8f9dbc; --grid:#20222f;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.45);
+    }
+  }
+  :root[data-theme="light"]{
+    --paper:#f6f3ec; --panel:#efeae0; --ink:#1c1d29; --ink-soft:#565565;
+    --line:#d8d2c4; --plate:#3a6ea5; --plate-soft:#7ba0c6; --ochre:#c2952f;
+    --madder:#b23a2e; --lattice:#42506a; --grid:#e6e0d2;
+    --shadow:0 1px 2px rgba(20,20,35,.06),0 8px 30px rgba(20,20,35,.07);
+  }
+  :root[data-theme="dark"]{
+    --paper:#13141d; --panel:#1b1c28; --ink:#ecebf4; --ink-soft:#9b9ab0;
+    --line:#2b2c3b; --plate:#6ea0d8; --plate-soft:#3f5a7d; --ochre:#d7ab4a;
+    --madder:#e0655a; --lattice:#8f9dbc; --grid:#20222f;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 34px rgba(0,0,0,.45);
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);
+    line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:34px 22px 56px}
+
+  header{margin-bottom:22px}
+  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
+    text-transform:uppercase;color:var(--plate);margin:0 0 8px}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(26px,4vw,40px);
+    line-height:1.08;margin:0;text-wrap:balance;letter-spacing:-.01em}
+  h1 em{font-style:italic;color:var(--madder)}
+  .lede{max-width:60ch;color:var(--ink-soft);margin:12px 0 0;font-size:15.5px}
+  .lede code{font-family:var(--mono);color:var(--ink);font-size:.92em}
+
+  .stage{display:grid;grid-template-columns:1.55fr 1fr;gap:22px;margin-top:26px}
+  @media(max-width:840px){.stage{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow)}
+  .canvas-card{position:relative;padding:10px;overflow:hidden}
+  #stageWrap{position:relative;width:100%;aspect-ratio:1/1;border-radius:9px;overflow:hidden}
+  canvas{display:block;width:100%;height:100%}
+  .stamp{position:absolute;left:16px;top:14px;font-family:var(--mono);font-size:12px;
+    letter-spacing:.04em;color:var(--ink-soft);pointer-events:none}
+  .stamp b{color:var(--ink);font-weight:600}
+
+  .rail{display:flex;flex-direction:column;gap:16px}
+  .panel{padding:16px 16px 18px}
+  .panel h2{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;
+    text-transform:uppercase;color:var(--ink-soft);margin:0 0 12px;font-weight:600}
+
+  .pfield{display:flex;gap:8px;align-items:center}
+  .pfield input{flex:1;min-width:0;font-family:var(--mono);font-size:16px;color:var(--ink);
+    background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .pfield input:focus-visible{outline:2px solid var(--plate);outline-offset:1px}
+  .btn{font-family:var(--sans);font-size:13px;font-weight:550;color:var(--ink);
+    background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:9px 12px;
+    cursor:pointer;transition:border-color .15s,background .15s,transform .05s}
+  .btn:hover{border-color:var(--plate)}
+  .btn:active{transform:translateY(1px)}
+  .btn:focus-visible{outline:2px solid var(--plate);outline-offset:1px}
+  .msg{font-family:var(--mono);font-size:12px;color:var(--madder);min-height:16px;margin-top:9px}
+
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}
+  .chip{font-family:var(--mono);font-size:12.5px;color:var(--ink-soft);background:var(--paper);
+    border:1px solid var(--line);border-radius:20px;padding:5px 11px;cursor:pointer;
+    transition:border-color .15s,color .15s}
+  .chip:hover{border-color:var(--plate);color:var(--ink)}
+  .chip[aria-pressed="true"]{border-color:var(--plate);color:var(--plate);
+    box-shadow:inset 0 0 0 1px var(--plate)}
+  .chip small{color:var(--ochre);font-size:.85em;margin-left:2px}
+
+  .transport{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .transport .btn{padding:10px 0;font-size:15px;display:flex;align-items:center;justify-content:center}
+  .transport .btn.primary{background:var(--plate);color:#fff;border-color:var(--plate)}
+  .transport .btn.primary:hover{filter:brightness(1.06)}
+
+  .readout{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-family:var(--mono);
+    font-size:13.5px;font-variant-numeric:tabular-nums}
+  .readout dt{color:var(--ink-soft)}
+  .readout dd{margin:0;color:var(--ink);text-align:right;word-break:break-all}
+  .readout dd.big{color:var(--madder);font-weight:600}
+
+  .eqbox{margin-top:14px;padding:14px;border:1px dashed var(--line);border-radius:10px;
+    background:var(--paper);text-align:center;font-family:var(--mono);font-size:15px;
+    color:var(--ink-soft);min-height:26px;font-variant-numeric:tabular-nums;transition:border-color .3s}
+  .eqbox.solved{border-color:var(--madder);border-style:solid}
+  .eqbox .sol{font-family:var(--serif);font-size:19px;color:var(--ink)}
+  .eqbox .sol b{color:var(--madder)}
+
+  .stair{width:100%;height:96px;display:block;margin-top:4px}
+  .caption{font-family:var(--mono);font-size:11px;color:var(--ink-soft);margin-top:6px;letter-spacing:.02em}
+
+  footer{margin-top:30px;color:var(--ink-soft);font-size:13px;max-width:70ch}
+  footer code{font-family:var(--mono);color:var(--ink)}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-family:var(--mono);font-size:11.5px;color:var(--ink-soft)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:22px;height:0;border-top-width:2px;border-top-style:solid;display:inline-block}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Geometry of numbers &middot; Gaussian integers</p>
+    <h1>The shortest vector is the <em>answer</em>.</h1>
+    <p class="lede">Every prime <code>p &equiv; 1 (mod 4)</code> is a sum of two squares. Here is how to <em>find</em> them:
+      the numbers <code>(a,b)</code> with <code>a &equiv; r&middot;b (mod p)</code> form a lattice, and its shortest
+      nonzero vector <code>(a,b)</code> satisfies <code>a&sup2; + b&sup2; = p</code>. Watch the Euclidean
+      algorithm in <code>&#8484;[i]</code> descend to it &mdash; every step a nearest-lattice-point hop.</p>
+  </header>
+
+  <div class="stage">
+    <div class="card canvas-card">
+      <div id="stageWrap"><canvas id="scene"></canvas></div>
+      <div class="stamp">p = <b id="stampP">1009</b> &nbsp;&middot;&nbsp; step <b id="stampK">0</b>/<b id="stampN">0</b></div>
+    </div>
+
+    <div class="rail">
+      <div class="card panel">
+        <h2>Choose a prime</h2>
+        <div class="pfield">
+          <input id="pin" inputmode="numeric" value="1009" aria-label="prime, 1 mod 4" />
+          <button class="btn" id="randBtn" title="A random prime congruent to 1 mod 4">Random</button>
+        </div>
+        <div class="msg" id="msg"></div>
+        <div class="chips" id="chips"></div>
+      </div>
+
+      <div class="card panel">
+        <h2>Descent</h2>
+        <div class="transport">
+          <button class="btn" id="resetBtn" title="Reset" aria-label="Reset">&#9198;</button>
+          <button class="btn" id="backBtn" title="Step back" aria-label="Step back">&#9666;</button>
+          <button class="btn primary" id="playBtn" title="Play / pause" aria-label="Play or pause">&#9654;</button>
+          <button class="btn" id="stepBtn" title="Step forward" aria-label="Step forward">&#9656;</button>
+        </div>
+        <dl class="readout" style="margin-top:14px">
+          <dt>z<sub>k</sub></dt><dd id="rZ">1 + 469i</dd>
+          <dt>N(z<sub>k</sub>)</dt><dd id="rN">&mdash;</dd>
+          <dt>cofactor n<sub>k</sub></dt><dd id="rCof" class="big">&mdash;</dd>
+        </dl>
+        <div class="eqbox" id="eq">seed a Gaussian integer of norm n&middot;p</div>
+      </div>
+
+      <div class="card panel">
+        <h2>Cofactor n<sub>k</sub> = N &frasl; p &rarr; 1</h2>
+        <canvas id="stair" class="stair"></canvas>
+        <div class="caption">log scale &middot; the well-ordering descent</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw" style="border-color:var(--plate)"></i> circle |z| = &radic;p (the answer)</span>
+    <span><i class="sw" style="border-color:var(--plate-soft);border-top-style:dashed"></i> disc |z|&sup2; &lt; 2p</span>
+    <span><i class="sw" style="border-color:var(--madder)"></i> current remainder</span>
+    <span><i class="sw" style="border-color:var(--ochre)"></i> lattice &Lambda;</span>
+  </div>
+
+  <footer>
+    Because <code>&#8484;[i]</code> is norm-Euclidean, each step's remainder is strictly shorter, so the
+    descent always terminates &mdash; at the shortest vector, whose norm is exactly <code>p</code>. The same
+    idea runs on any curve with CM by a norm-Euclidean complex order.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const MINUS='\u2212', SQRT='\u221A', PLAYG='\u25B6', PAUSEG='\u275A\u275A';
+// ---------- number theory in BigInt ----------
+function modpow(b,e,m){b%=m;if(b<0n)b+=m;let r=1n;while(e>0n){if(e&1n)r=r*b%m;b=b*b%m;e>>=1n;}return r;}
+function isPrime(n){
+  if(n<2n)return false;
+  for(const p of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n]){if(n%p===0n)return n===p;}
+  let d=n-1n,s=0n;while((d&1n)===0n){d>>=1n;s++;}
+  for(const a of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n]){
+    let x=modpow(a,d,n);if(x===1n||x===n-1n)continue;
+    let ok=false;for(let i=1n;i<s;i++){x=x*x%n;if(x===n-1n){ok=true;break;}}
+    if(!ok)return false;
+  }
+  return true;
+}
+function tonelli(a,p){
+  a%=p;if(a<0n)a+=p;if(a===0n)return 0n;
+  if(p%4n===3n)return modpow(a,(p+1n)/4n,p);
+  let q=p-1n,s=0n;while((q&1n)===0n){q>>=1n;s++;}
+  let z=2n;while(modpow(z,(p-1n)/2n,p)!==p-1n)z++;
+  let m=s,c=modpow(z,q,p),t=modpow(a,q,p),r=modpow(a,(q+1n)/2n,p);
+  while(t!==1n){let i=0n,tt=t;while(tt!==1n){tt=tt*tt%p;i++;}
+    let b=modpow(c,1n<<(m-i-1n),p);m=i;c=b*b%p;t=t*c%p;r=r*b%p;}
+  return r;
+}
+function sqrtNeg1(p){let r=tonelli(p-1n,p);return r<p-r?r:p-r;}
+const gN=z=>z[0]*z[0]+z[1]*z[1];
+const gMul=(z,w)=>[z[0]*w[0]-z[1]*w[1], z[0]*w[1]+z[1]*w[0]];
+const gConj=z=>[z[0],-z[1]];
+function floorDiv(a,b){let q=a/b,r=a-q*b;if(r!==0n&&((r<0n)!==(b<0n)))q-=1n;return q;}
+function nint(a,n){return floorDiv(2n*a+n,2n*n);}
+function gRoundDiv(z,w){const n=gN(w),t=gMul(z,gConj(w));return [nint(t[0],n),nint(t[1],n)];}
+function gDescent(seed,p){
+  let z=seed,w=[p,0n];const path=[];
+  while(gN(w)!==0n){const q=gRoundDiv(z,w);const qw=gMul(q,w);const r=[z[0]-qw[0],z[1]-qw[1]];[z,w]=[w,r];if(gN(w)!==0n)path.push(w);}
+  return path;
+}
+function randomPrime1mod4(){
+  const lo=200n, span=1800000;
+  for(let t=0;t<20000;t++){
+    let n=lo+BigInt(Math.floor(Math.random()*span));
+    n=n-(n%4n)+1n; if(isPrime(n))return n;
+  }
+  return 1009n;
+}
+
+// ---------- state ----------
+let P=1009n, PATH=[], COF=[], K=0, playing=false, playTimer=null;
+const num=x=>Number(x);
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function loadPrime(p){
+  P=p; const r=sqrtNeg1(p); PATH=gDescent([1n,r],p);
+  COF=PATH.map(z=>Number(gN(z)/p));
+  K=0; stopPlay();
+  document.getElementById('stampP').textContent=p.toString();
+  document.getElementById('stampN').textContent=(PATH.length-1).toString();
+  document.getElementById('pin').value=p.toString();
+  markChips(); targetR=null; render();
+}
+function currentR(){
+  const z=PATH[K]; const zr=Math.hypot(num(z[0]),num(z[1]));
+  const disc=Math.sqrt(2*num(P));
+  return Math.max(zr,disc)*1.14+1;
+}
+
+// ---------- canvas ----------
+const scene=document.getElementById('scene'), sctx=scene.getContext('2d');
+const stair=document.getElementById('stair'), tctx=stair.getContext('2d');
+let W=0,H=0,DPR=1, viewR=100, targetR=null, raf=null, dirty=true;
+
+function sizeCanvas(cv,ctx){
+  const rect=cv.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);
+  cv.width=Math.max(1,Math.round(rect.width*DPR));cv.height=Math.max(1,Math.round(rect.height*DPR));
+  ctx.setTransform(DPR,0,0,DPR,0,0);return [rect.width,rect.height];
+}
+function refresh(){ dirty=true; if(!raf) raf=requestAnimationFrame(loop); }
+function loop(){
+  raf=null;
+  const tgt=targetR!==null?targetR:currentR();
+  if(targetR===null){viewR=tgt;targetR=tgt;}
+  const d=tgt-viewR;
+  if(Math.abs(d)>tgt*0.003 && !reduceMotion){ viewR+=d*0.18; dirty=true; raf=requestAnimationFrame(loop); }
+  else viewR=tgt;
+  if(dirty){ drawScene(); drawStair(); dirty=false; }
+}
+
+function drawScene(){
+  [W,H]=sizeCanvas(scene,sctx);
+  const cx=W/2, cy=H/2, R=viewR, s=(Math.min(W,H)*0.46)/R;
+  const X=x=>cx+num(x)*s, Y=y=>cy-num(y)*s;
+  sctx.clearRect(0,0,W,H);
+  sctx.fillStyle=css('--paper');sctx.fillRect(0,0,W,H);
+
+  const rp=Math.sqrt(num(P)), r2p=Math.sqrt(2*num(P));
+  const showDots=(2*R<4200);
+
+  if(s>7){
+    sctx.strokeStyle=css('--grid');sctx.lineWidth=1;
+    const nx=Math.ceil(R)+1;
+    sctx.beginPath();
+    for(let i=-nx;i<=nx;i++){sctx.moveTo(cx+i*s,0);sctx.lineTo(cx+i*s,H);sctx.moveTo(0,cy+i*s);sctx.lineTo(W,cy+i*s);}
+    sctx.stroke();
+  }
+
+  if(showDots){
+    const r=sqrtNeg1(P), Rl=Math.min(R,2600);
+    sctx.fillStyle=css('--ochre');
+    for(let b=-Math.ceil(Rl);b<=Math.ceil(Rl);b++){
+      const bb=BigInt(b);
+      let base=((r*bb)%P); if(base<0n)base+=P;
+      let a=base - P*BigInt(Math.floor((Number(base)+Rl)/num(P)));
+      for(; num(a)<=Rl; a+=P){
+        if(num(a)<-Rl)continue;
+        const px=X(a),py=Y(bb);
+        if(px<-4||px>W+4||py<-4||py>H+4)continue;
+        sctx.beginPath();sctx.arc(px,py,2.1,0,7);sctx.fill();
+      }
+    }
+  }
+
+  sctx.lineWidth=1.4; sctx.setLineDash([5,5]);
+  sctx.strokeStyle=css('--plate-soft');
+  sctx.beginPath();sctx.arc(cx,cy,r2p*s,0,7);sctx.stroke();
+  sctx.setLineDash([]);
+  sctx.strokeStyle=css('--plate');
+  sctx.beginPath();sctx.arc(cx,cy,rp*s,0,7);sctx.stroke();
+
+  if(showDots && rp*s<Math.min(W,H)*0.6){
+    const ans=PATH[PATH.length-1], rot=[-ans[1],ans[0]];
+    sctx.fillStyle=css('--madder');
+    for(const v of [ans,[-ans[0],-ans[1]],rot,[-rot[0],-rot[1]]]){
+      sctx.globalAlpha=(K===PATH.length-1)?0.4:0.16;
+      sctx.beginPath();sctx.arc(X(v[0]),Y(v[1]),3.2,0,7);sctx.fill();
+    }
+    sctx.globalAlpha=1;
+  }
+
+  sctx.strokeStyle=css('--lattice');sctx.lineWidth=1.1;sctx.globalAlpha=.5;
+  sctx.beginPath();
+  for(let i=0;i<=K;i++){const z=PATH[i];(i?sctx.lineTo:sctx.moveTo).call(sctx,X(z[0]),Y(z[1]));}
+  sctx.stroke();sctx.globalAlpha=1;
+  for(let i=0;i<K;i++){const z=PATH[i];sctx.fillStyle=css('--lattice');sctx.globalAlpha=.55;
+    sctx.beginPath();sctx.arc(X(z[0]),Y(z[1]),2.6,0,7);sctx.fill();}
+  sctx.globalAlpha=1;
+
+  const z=PATH[K], solved=(K===PATH.length-1);
+  sctx.strokeStyle=css('--madder');sctx.lineWidth=solved?3:2.2;
+  drawArrow(sctx,cx,cy,X(z[0]),Y(z[1]));
+  sctx.fillStyle=css('--madder');
+  sctx.beginPath();sctx.arc(X(z[0]),Y(z[1]),solved?6:4.6,0,7);sctx.fill();
+
+  sctx.fillStyle=css('--paper');sctx.strokeStyle=css('--ink');sctx.lineWidth=1.5;
+  sctx.beginPath();sctx.arc(cx,cy,4,0,7);sctx.fill();sctx.stroke();
+
+  sctx.fillStyle=css('--plate');sctx.font='12px '+css('--mono')+',monospace';
+  sctx.textAlign='left';
+  if(rp*s>16 && rp*s<Math.min(W,H)*0.62) sctx.fillText(SQRT+'p', cx+rp*s+5, cy-3);
+}
+function drawArrow(ctx,x0,y0,x1,y1){
+  ctx.beginPath();ctx.moveTo(x0,y0);ctx.lineTo(x1,y1);ctx.stroke();
+  const a=Math.atan2(y1-y0,x1-x0),L=8;
+  ctx.beginPath();ctx.moveTo(x1,y1);
+  ctx.lineTo(x1-L*Math.cos(a-0.4),y1-L*Math.sin(a-0.4));
+  ctx.lineTo(x1-L*Math.cos(a+0.4),y1-L*Math.sin(a+0.4));
+  ctx.closePath();ctx.fillStyle=ctx.strokeStyle;ctx.fill();
+}
+
+function drawStair(){
+  const [w,h]=sizeCanvas(stair,tctx);
+  tctx.clearRect(0,0,w,h);
+  if(COF.length<1)return;
+  const pad=6, x0=pad, x1=w-pad, y0=h-pad, y1=pad+4;
+  const n=COF.length, maxL=Math.max(1,Math.log(COF[0]||1));
+  const px=i=>x0+(x1-x0)*(n===1?0.5:i/(n-1));
+  const py=v=>y0-(y0-y1)*(Math.log(Math.max(1,v))/maxL);
+  tctx.strokeStyle=css('--line');tctx.lineWidth=1;tctx.setLineDash([3,3]);
+  tctx.beginPath();tctx.moveTo(x0,y0);tctx.lineTo(x1,y0);tctx.stroke();tctx.setLineDash([]);
+  tctx.strokeStyle=css('--plate');tctx.lineWidth=1.8;tctx.beginPath();
+  for(let i=0;i<=K;i++){(i?tctx.lineTo:tctx.moveTo).call(tctx,px(i),py(COF[i]));}
+  tctx.stroke();
+  for(let i=0;i<=K;i++){const solved=(i===n-1);
+    tctx.fillStyle=solved?css('--madder'):css('--ink');
+    tctx.beginPath();tctx.arc(px(i),py(COF[i]),solved?4:2.6,0,7);tctx.fill();}
+}
+
+// ---------- readout ----------
+function fmtG(z){const a=z[0],b=z[1];const bs=(b<0n?MINUS+' ':'+ ')+(b<0n?-b:b)+'i';return a+' '+bs;}
+function refreshReadout(){
+  const z=PATH[K], solved=(K===PATH.length-1);
+  document.getElementById('stampK').textContent=K.toString();
+  document.getElementById('rZ').textContent=fmtG(z);
+  document.getElementById('rN').textContent=gN(z).toString();
+  document.getElementById('rCof').textContent=(gN(z)/P).toString();
+  const eq=document.getElementById('eq');
+  if(solved){
+    let a=z[0]<0n?-z[0]:z[0], b=z[1]<0n?-z[1]:z[1]; if(a>b)[a,b]=[b,a];
+    eq.classList.add('solved');
+    eq.innerHTML='<span class="sol"><b>'+P+'</b> = '+a+'&sup2; + '+b+'&sup2;</span>';
+  } else {
+    eq.classList.remove('solved');
+    eq.innerHTML='N(z<sub>k</sub>) = '+(gN(z)/P)+' &middot; p &nbsp;&mdash;&nbsp; descending&hellip;';
+  }
+}
+function render(){ refreshReadout(); targetR=currentR(); refresh(); }
+
+// ---------- controls ----------
+function step(dir){ const last=PATH.length-1; K=Math.max(0,Math.min(last,K+dir)); render(); if(K===last)stopPlay(); }
+function startPlay(){ if(K>=PATH.length-1)K=0; playing=true; document.getElementById('playBtn').textContent=PAUSEG;
+  playTimer=setInterval(()=>{ if(K>=PATH.length-1){stopPlay();return;} step(1); }, 950); }
+function stopPlay(){ playing=false; document.getElementById('playBtn').textContent=PLAYG; if(playTimer){clearInterval(playTimer);playTimer=null;} }
+function togglePlay(){ playing?stopPlay():startPlay(); }
+
+document.getElementById('stepBtn').onclick=()=>{stopPlay();step(1);};
+document.getElementById('backBtn').onclick=()=>{stopPlay();step(-1);};
+document.getElementById('resetBtn').onclick=()=>{stopPlay();K=0;render();};
+document.getElementById('playBtn').onclick=togglePlay;
+document.getElementById('randBtn').onclick=()=>{loadPrime(randomPrime1mod4());};
+
+const pin=document.getElementById('pin'), msg=document.getElementById('msg');
+function tryLoad(str){
+  let v; try{v=BigInt(String(str).trim());}catch(e){msg.textContent='enter a whole number';return;}
+  if(v<5n){msg.textContent='need a prime p >= 5';return;}
+  if(v%4n!==1n){msg.textContent='p must be congruent to 1 (mod 4)';return;}
+  if(v>1000000000000n){msg.textContent='keep p below 10^12 for a legible picture';return;}
+  if(!isPrime(v)){msg.textContent=v+' is not prime';return;}
+  msg.textContent=''; loadPrime(v);
+}
+pin.addEventListener('keydown',e=>{if(e.key==='Enter')tryLoad(pin.value);});
+pin.addEventListener('change',()=>tryLoad(pin.value));
+
+const presets=[['5'],['13'],['101'],['1009'],['28657','Fib'],['1000037']];
+const chipWrap=document.getElementById('chips');
+presets.forEach(([v,tag])=>{
+  const c=document.createElement('button');c.className='chip';c.dataset.v=v;
+  c.setAttribute('aria-pressed','false');
+  c.innerHTML=v+(tag?' <small>'+tag+'</small>':'');
+  c.onclick=()=>tryLoad(v);chipWrap.appendChild(c);
+});
+function markChips(){[...chipWrap.children].forEach(c=>c.setAttribute('aria-pressed', c.dataset.v===P.toString()?'true':'false'));}
+
+window.addEventListener('keydown',e=>{
+  if(e.target && e.target.tagName==='INPUT')return;
+  if(e.key==='ArrowRight'){stopPlay();step(1);}
+  else if(e.key==='ArrowLeft'){stopPlay();step(-1);}
+  else if(e.key===' '){e.preventDefault();togglePlay();}
+});
+
+new ResizeObserver(()=>refresh()).observe(document.getElementById('stageWrap'));
+matchMedia('(prefers-color-scheme:dark)').addEventListener('change',()=>refresh());
+new MutationObserver(()=>refresh()).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+loadPrime(1009n);
+</script>
