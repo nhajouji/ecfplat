@@ -24,30 +24,92 @@ CREDIT_DEFAULT = "Nadir Hajouji & Steve Trettel"
 
 ICM = [
     {"slug": "icm-a1", "title": "Trace 1 over 𝔽₅",
+     "eqn": "y² = x³ + 3x + 2 &nbsp;(mod 5)",
      "blurb": "The isogeny class (a, p) = (1, 5): a single curve with 5 "
               "rational points and CM by discriminant −19.",
+     "idcard": {"cap": "isogeny class (1, 5)", "fd": "a1",
+                "fd_cap": "the CM point — on the wall Re = ½",
+                "rows": [("Frobenius π", "(1 + √−19)/2"),
+                         ("⇒ implies", "𝔽₅ · 5 points · trace 1"),
+                         ("endomorphisms", "ℤ[(1+√−19)/2] · h = 1"),
+                         ("j (char 0)", "−884736 = (−96)³ → 4 (mod 5)")]},
+     "seed": ["CM by ℚ(√−19); class number 1 — a single lattice, no hidden "
+              "siblings.",
+              "Frobenius root is a free choice: either of (1 ± √−19)/2.",
+              "Lift j = −884736 = (−96)³; Weber's γ₂ = ∛j is the integer −96."],
      "links": [("open in the Explorer", "/Explorer?a=1&p=5"),
                ("disc −19", "/Explorer?d=-19")]},
     {"slug": "icm-a2", "title": "Trace 2 over 𝔽₅ — the column",
+     "eqn": ("<div>y² = x³ + x <span class='ab'>(above)</span></div>"
+             "<div>y² = x³ + x + 2 <span class='ab'>(below)</span></div>"
+             "<div class='modline'>(mod 5)</div>"),
      "blurb": "Two curves joined by a 2-isogeny: j = 1728 above (disc −4), "
               "its descendant below (disc −16). Hung vertically so ascending "
               "and descending mean what they say.",
+     "idcard": {"cap": "isogeny class (2, 5)", "fd": "a2",
+                "fd_cap": "i (above) & 2i (below)",
+                "rows": [("Frobenius π", "1 + 2i"),
+                         ("⇒ implies", "𝔽₅ · 4 points · trace 2"),
+                         ("above", "ℤ[i] (−4) · j = 1728 = 12³ → 3", "two"),
+                         ("below", "ℤ[2i] (−16) · j = 287496 = 66³ → 1", "two b")]},
+     "seed": ["Two curves, not two lifts: the Frobenius order (disc −16) is "
+              "non-maximal — a 2-isogeny volcano with the maximal-order curve "
+              "(disc −4, j = 1728) on top and its descendant (disc −16) below.",
+              "Frobenius 1 + 2i is an associate of the trace-4 curve's 2 − i:  "
+              "1 + 2i = i·(2 − i)."],
      "links": [("open in the Explorer", "/Explorer?a=2&p=5"),
                ("disc −16", "/Explorer?d=-16")]},
     {"slug": "icm-a3", "title": "Trace 3 over 𝔽₅",
+     "eqn": "y² = x³ + 4x + 2 &nbsp;(mod 5)",
      "blurb": "One curve, three rational points, CM by discriminant −11.",
+     "idcard": {"cap": "isogeny class (3, 5)", "fd": "a3",
+                "fd_cap": "the CM point — on the wall Re = ½",
+                "rows": [("Frobenius π", "(3 + √−11)/2"),
+                         ("⇒ implies", "𝔽₅ · 3 points · trace 3"),
+                         ("endomorphisms", "ℤ[(1+√−11)/2] · h = 1"),
+                         ("j (char 0)", "−32768 = (−32)³ → 2 (mod 5)")]},
+     "seed": ["CM by ℚ(√−11); class number 1.",
+              "Three rational points (trace 3).",
+              "Lift j = −32768 = (−32)³; γ₂ = ∛j = −32."],
      "links": [("open in the Explorer", "/Explorer?a=3&p=5"),
                ("disc −11", "/Explorer?d=-11")]},
     {"slug": "icm-a4", "title": "Trace 4 over 𝔽₅",
+     "eqn": "y² = x³ + 2x &nbsp;(mod 5)",
      "blurb": "j = 1728 again — the ℤ[i] lattice — now with trace 4 and just "
               "two rational points.",
+     "idcard": {"cap": "isogeny class (4, 5)", "fd": "a4",
+                "fd_cap": "the point i  (j = 1728)",
+                "rows": [("Frobenius π", "2 − i"),
+                         ("⇒ implies", "𝔽₅ · 2 points · trace 4"),
+                         ("endomorphisms", "ℤ[i] (−4) · h = 1"),
+                         ("j (char 0)", "1728 = 12³ → 3 (mod 5)")]},
+     "seed": ["j = 1728: the ℤ[i] curve, with extra automorphisms (units ±1, "
+              "±i).",
+              "Frobenius 2 − i is an associate of the trace-2 curve's 1 + 2i:  "
+              "2 − i = −i·(1 + 2i).",
+              "Just two rational points — the leanest class on the wall."],
      "links": [("open in the Explorer", "/Explorer?a=4&p=5"),
                ("disc −4", "/Explorer?d=-4")]},
     {"slug": "icm-a0", "title": "Trace 0 over 𝔽₅ — supersingular",
+     "eqn": "y² = x³ + 1 &nbsp;(mod 5)",
      "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, with j = 0 "
               "and no ordinary CM lift — the one exceptional class over 𝔽₅. Made "
               "as a lenticular print that flips between the untwisted torus and "
               "its twisted form as you move past it.",
+     "idcard": {"cap": "supersingular class (0, 5)", "fd": "a0",
+                "fd_cap": "two CM points = the two lifts",
+                "rows": [("Frobenius π", "±√−5 &nbsp;<span class='note'>(two "
+                          "orientations)</span>"),
+                         ("⇒ implies", "𝔽₅ · 6 points · trace 0"),
+                         ("endomorphisms", "order disc −20 · h = 2"),
+                         ("j (char 0)", "632000 ± 282880√5 → 0 (mod 5)")]},
+     "seed": ["The only supersingular class over 𝔽₅ (trace 0).",
+              "CM order disc −20 = ℚ(√−5) has class number 2 — two lifts, "
+              "j = 632000 ± 282880√5, conjugate over ℚ.",
+              "The two roots ±√−5 are the two orientations = the two lifts = "
+              "the flip of the lenticular.",
+              "Both reduce mod 5 to j ≡ 0: two faces in char 0, one "
+              "supersingular curve in char 5 (Deuring lifting)."],
      "links": [("open in the Explorer", "/Explorer?a=0&p=5"),
                ("disc −20", "/Explorer?d=-20")]},
     {"slug": "icm-pcomplex", "title": "X₀(11) over ℂ",
@@ -211,6 +273,10 @@ def wall_view():
         "Click any picture; more at "
         "[elliptic-curves.art](https://elliptic-curves.art/)."
     )
+    if "draft" in st.query_params:   # NH's private editing overlay (?draft=1)
+        todo = [e for e in ICM if not e.get("desc")]
+        links = " · ".join(f"[{e['title']}](?pic={e['slug']}&draft=1)" for e in todo)
+        st.info(f"**DRAFT MODE** — {len(todo)} ICM page(s) still need prose: {links}")
     st.markdown(_GRID_CSS, unsafe_allow_html=True)
     for title, sub, entries in GROUPS:
         st.markdown(f"### {title}")
@@ -219,10 +285,68 @@ def wall_view():
                     unsafe_allow_html=True)
 
 
+_DETAIL_CSS = """
+<style>
+.pg-eqn{font-family:Palatino,'Palatino Linotype',Georgia,serif;font-weight:600;
+        font-size:1.7rem;line-height:1.3;margin:.2rem 0 .1rem}
+.pg-eqn .ab{color:#8b93a0;font-size:.92rem;font-weight:400}
+.pg-eqn .modline{color:#8b93a0;font-size:1.05rem;margin-top:.1rem}
+.pg-sub{color:#8b93a0;font-size:.95rem;margin-bottom:.3rem}
+.gc-draft{display:inline-block;background:rgba(233,170,70,.16);color:#e9b45a;
+        border:1px solid rgba(233,170,70,.4);border-radius:20px;padding:2px 11px;
+        font-size:.72rem;letter-spacing:.04em;font-weight:600;margin:.3rem 0}
+.gc-seed{color:#c7ccd4;font-size:.92rem;line-height:1.5;margin:.2rem 0 .4rem}
+.gc-seed ul{margin:.3rem 0 0;padding-left:1.1rem}.gc-seed li{margin:.34rem 0}
+.gc-card{margin:14px 0;background:rgba(128,138,148,.06);max-width:560px;
+        border:1px solid rgba(128,138,148,.28);border-radius:13px;padding:15px 18px}
+.gc-cap{font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;
+        color:#7f8894;margin-bottom:10px}
+.gc-row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;
+        border-top:1px solid rgba(128,138,148,.14);font-size:.92rem}
+.gc-row:first-of-type{border-top:none}
+.gc-k{color:#8b93a0}.gc-v{text-align:right;font-family:Palatino,Georgia,serif}
+.gc-v .note{color:#7f8894;font-size:.8rem;font-family:-apple-system,sans-serif}
+.gc-row.two .gc-k{color:#8fd0ff}.gc-row.two.b .gc-k{color:#c9a0ff}
+.gc-row.gc-pi .gc-v{color:#f0d9a8;font-size:1.02rem}
+.gc-row.gc-j .gc-v{color:#f0d9a8}
+.gc-fd{display:flex;gap:14px;align-items:center;margin-top:12px}
+.gc-fd img{height:132px;background:rgba(255,255,255,.015);border-radius:8px}
+.gc-fd span{font-size:.82rem;color:#8b93a0}
+.gc-exp{margin-top:9px;font-size:.9rem}
+</style>
+"""
+
+
+def _idcard_html(e: dict) -> str:
+    c = e["idcard"]
+    rows = ""
+    for row in c["rows"]:
+        lab, val = row[0], row[1]
+        cls = row[2] if len(row) > 2 else ""
+        if lab.startswith("Frobenius"):
+            cls += " gc-pi"
+        elif lab.startswith("j ("):
+            cls += " gc-j"
+        rows += (f'<div class="gc-row {cls}"><span class="gc-k">{lab}</span>'
+                 f'<span class="gc-v">{val}</span></div>')
+    fd = base64.b64encode((IMG / "fd" / f'{c["fd"]}.png').read_bytes()).decode()
+    links = " · ".join(f'<a href="{href}">{lbl}</a>' for lbl, href in e["links"])
+    return (f'<div class="gc-card"><div class="gc-cap">ID · {c["cap"]}</div>{rows}'
+            f'<div class="gc-fd"><img src="data:image/png;base64,{fd}">'
+            f'<span>{c["fd_cap"]}</span></div>'
+            f'<div class="gc-exp">→ {links}</div></div>')
+
+
 def detail_view(slug: str):
     e = ALL[slug]
+    draft = "draft" in st.query_params
     st.markdown("[← back to the Gallery](?)")
-    st.subheader(e["title"])
+    st.markdown(_DETAIL_CSS, unsafe_allow_html=True)
+    if e.get("eqn"):
+        st.markdown(f'<div class="pg-eqn">{e["eqn"]}</div>'
+                    f'<div class="pg-sub">{e["title"]}</div>', unsafe_allow_html=True)
+    else:
+        st.subheader(e["title"])
     gif = IMG / "full" / f"{slug}.gif"
     jpg = IMG / "full" / f"{slug}.jpg"
     if gif.exists():   # animated (e.g. the lenticular flip) — embed so it animates
@@ -238,7 +362,17 @@ def detail_view(slug: str):
     st.markdown(e["blurb"])
     if e.get("desc"):
         st.markdown(e["desc"])
-    if e["links"]:
+    # draft scaffolding — visible only with ?draft, never to the public / at the ICM
+    if draft and not e.get("desc"):
+        st.markdown('<span class="gc-draft">DRAFT · prose to be written by NH</span>',
+                    unsafe_allow_html=True)
+        if e.get("seed"):
+            lis = "".join(f"<li>{s}</li>" for s in e["seed"])
+            st.markdown(f'<div class="gc-seed">Seed material:<ul>{lis}</ul></div>',
+                        unsafe_allow_html=True)
+    if e.get("idcard"):
+        st.markdown(_idcard_html(e), unsafe_allow_html=True)
+    elif e["links"]:
         st.markdown(" · ".join(f"[{lbl}]({href})" for lbl, href in e["links"]))
     st.caption(f"Render: {e.get('credit', CREDIT_DEFAULT)}")
 
