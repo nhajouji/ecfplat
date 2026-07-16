@@ -43,6 +43,12 @@ ICM = [
               "two rational points.",
      "links": [("open in the Explorer", "/Explorer?a=4&p=5"),
                ("disc −4", "/Explorer?d=-4")]},
+    {"slug": "icm-a0", "title": "Trace 0 over 𝔽₅ — supersingular",
+     "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, with j = 0 "
+              "and no ordinary CM lift. Rendered as a lenticular print — render "
+              "coming soon.",
+     "links": [("open in the Explorer", "/Explorer?a=0&p=5"),
+               ("disc −20", "/Explorer?d=-20")]},
     {"slug": "icm-pcomplex", "title": "X₀(11) over ℂ",
      "blurb": "The complex points of X₀(11) form a torus; the real locus is "
               "traced in green, the marked point in red.",
@@ -209,7 +215,14 @@ def detail_view(slug: str):
 
 
 # ── router ────────────────────────────────────────────────────────────────────
+# ?pic=<slug> is the canonical detail link; ?g=<id> is the short link printed on
+# the ICM gallery QR cards (pycode/shortlinks.py), resolved here to a slug.
 _pic = st.query_params.get("pic")
+if not _pic:
+    _g = st.query_params.get("g")
+    if _g:
+        from shortlinks import resolve
+        _pic = resolve(_g)
 if _pic in ALL:
     detail_view(_pic)
 else:
