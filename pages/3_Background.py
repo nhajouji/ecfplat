@@ -2118,3 +2118,27 @@ with tab_algo:
         "carried out for 117,155 ordinary classes with $4 \\leq p \\leq 8192$ "
         "(99.86%), plus every supersingular class in that range."
     )
+
+
+# ── References & further reading ──────────────────────────────────────────────
+st.header("References & Further Reading")
+
+st.markdown(
+    "**The pictures.** The visualization method behind this whole site — drawing "
+    "$E(\\mathbb{F}_{p^n})$ as the fixed points $\\mathrm{Fix}(\\alpha^n)$ on a CM "
+    "torus, then embedding that torus in $\\mathbb{R}^3$ as a flat torus in $S^3$ "
+    "(Pinkall's construction) via the Hopf fibration — is written up in:"
+)
+st.markdown(
+    "> N. Hajouji and S. Trettel, *Elliptic Curves and the Hopf Fibration*, "
+    "**Bridges 2025**. &nbsp; "
+    "[arXiv:2505.09627](https://arxiv.org/abs/2505.09627) &nbsp;·&nbsp; "
+    "[PDF](https://arxiv.org/pdf/2505.09627) &nbsp;·&nbsp; "
+    "gallery of renders at "
+    "[elliptic-curves.art](https://www.elliptic-curves.art/)."
+)
+st.caption(
+    "The companion rendering code (TypeScript / WebGL, path-traced) lives at "
+    "[github.com/stevejtrettel/elliptic-curve-viz](https://github.com/stevejtrettel/elliptic-curve-viz); "
+    "it consumes the same curve ↔ lattice data computed here."
+)
