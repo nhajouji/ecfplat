@@ -3,9 +3,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 
 import streamlit as st
+import streamlit.components.v1 as components
+
+import hero_viz
 
 LOGO = Path(__file__).parent / "ec_logo.jpg"
-HERO = Path(__file__).parent / "gallery_img" / "full" / "FrontCover.jpg"
 
 title_col, logo_col = st.columns([3, 1])
 with title_col:
@@ -24,28 +26,27 @@ st.caption("Created by Nadir Hajouji and Steve Trettel")
 
 st.divider()
 
-# ── the picture this site is about ────────────────────────────────────────────
-st.markdown("### The picture this site is about")
-st.image(
-    str(HERO),
-    caption="Two elliptic curves over finite fields — y² = x³ + 3x (mod 5) "
-            "with its 640 points over 𝔽₆₂₅, and y² = x³ + 3 (mod 7) with its "
-            "2379 points over 𝔽₂₄₀₁ — lifted to characteristic zero and "
-            "drawn on tori in ℝ³.",
-    width="stretch",
+# ── hero: Frobenius flow ──────────────────────────────────────────────────────
+st.markdown("### Visualizing Elliptic Curves via Frobenius")
+components.html(hero_viz.frobenius_hero_html(level=2, speed=0.05, height=400), height=404)
+st.caption(
+    "The 𝔽₂₅ points of $y^2 = x^3 + 3x$ over $\\mathbb{F}_5$, drawn on the CM torus "
+    "in its multiplicative *galaxy* model and set in motion by Frobenius, "
+    "$z \\mapsto \\alpha z$ with $\\alpha = -2+i$. The picture is built from "
+    "*lifts* of Frobenius; the motion you see is Frobenius itself."
 )
 
 st.markdown(
-    "- **[Background](/Background)** — how a picture like this *is* the "
-    "classical theory of elliptic curves over $\\mathbb{F}_p$, one "
-    "interactive lesson at a time.\n"
-    "- **[Explorer](/Explorer)** — the precomputed curve ↔ lattice "
-    "equivalences behind it: open any isogeny class and see its curves, "
-    "graphs, and lattices live.\n"
-    "- **[Gallery](/Gallery)** — the pictures we've made, each with its "
-    "story.\n"
-    "- **[Blog](/Blog)** — short stories from the making of the site, including "
-    "the supersingular isogeny graph and where it comes from."
+    "This website is about **visualizing elliptic curves in new ways** — and about "
+    "the classical theory those pictures turn out to encode. From the sidebar:"
+)
+st.markdown(
+    "- **[Background](/Background)** — the theory of elliptic curves over "
+    "$\\mathbb{F}_p$, taught one interactive picture at a time.\n"
+    "- **[Explorer](/Explorer)** — open any isogeny class and read off its curves, "
+    "isogeny graphs, and lattices, live.\n"
+    "- **[Gallery](/Gallery)** — the pictures we've made, each with its story.\n"
+    "- **[Blog](/Blog)** — short stories from the making of the site."
 )
 
 # ── coverage ──────────────────────────────────────────────────────────────────
