@@ -1565,6 +1565,52 @@ with tab_ell:
 
     st.divider()
 
+    st.markdown("#### Frobenius, set in motion")
+    st.markdown(
+        "The point of the lattice picture was never the still frame — it was that "
+        "we know **exactly how Frobenius moves the points**. On the torus "
+        "$\\mathbb{C}/\\Lambda$ Frobenius is simply multiplication by $\\alpha$, and "
+        "we can watch it happen. Below, the same curve $y^2 = x^3 + 3x$ over "
+        "$\\mathbb{F}_5$ — with $\\Lambda = \\mathbb{Z}[i]$ and $\\alpha = -2 + i$ — "
+        "carries its $\\mathbb{F}_5$, $\\mathbb{F}_{25}$ and $\\mathbb{F}_{125}$ "
+        "points at once. The animation interpolates Frobenius continuously along "
+        "the path $z(\\varphi) = \\alpha^{\\varphi} z$: every point spirals out "
+        "(scaling by $|\\alpha|^{\\varphi} = 5^{\\varphi/2}$) and turns (by "
+        "$\\varphi\\arg\\alpha \\approx 153^{\\circ}$), wrapping around the torus — "
+        "which is drawn **centred on $0$**, so the whole motion reads as a rotation "
+        "about the middle of the frame. At $\\varphi = 1$ each point has landed "
+        "exactly on its Frobenius image $\\alpha z$, so the entire set maps to "
+        "itself and the loop closes seamlessly."
+    )
+    st.markdown(
+        "Each point wears a fixed colour from a continuous wheel — its **angle "
+        "about $0$** — a faint dot marks where it rests, and a fading trail shows "
+        "the spiral it has just swept. Because Frobenius is multiplication by the "
+        "*fixed* $\\alpha$, it turns **every** colour by the same $\\arg\\alpha$: "
+        "the entire wheel rotates rigidly each beat. That uniform turn is the "
+        "geometric signature of complex multiplication — contrast the "
+        "multiplicative group, where $x \\mapsto x^p$ *multiplies* each angle and "
+        "the colours shear apart. Each colour **rides its own Frobenius orbit**, "
+        "one hop per beat, returning home after a number of beats equal to the "
+        "field degree — $1$ for the $\\mathbb{F}_5$ points (fixed), $2$ for "
+        "$\\mathbb{F}_{25}$, $3$ for $\\mathbb{F}_{125}$ — so the whole picture "
+        "repeats seamlessly after $\\mathrm{lcm}$ of the degrees ($6$ beats here). "
+        "Click any point to ring it and watch it walk its orbit. This is the "
+        "geometry the classical picture cannot show: Frobenius acts *trivially* on "
+        "the $\\mathbb{F}_p$-points of the affine curve, so there is nothing to "
+        "watch — here it is the whole show."
+    )
+    st.markdown(
+        "The **galaxy** toggle redraws the very same flow in the multiplicative "
+        "model $\\mathbb{C}^{\\times}/q^{\\mathbb{Z}}$, via $w = e^{2\\pi i z}$: the "
+        "fundamental domain becomes an annulus, and the straight-and-spiral paths "
+        "upstairs unroll into the logarithmic-spiral arms of a little galaxy. Same "
+        "points, same Frobenius — a different window onto the torus."
+    )
+    components.html(basics_viz.frobenius_flow_html(), height=660, scrolling=False)
+
+    st.divider()
+
     st.markdown("#### Explore the lattice picture")
     st.markdown(
         "The applet above is pinned to the four $j = 1728$ twists over "

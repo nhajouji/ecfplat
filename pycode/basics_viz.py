@@ -1887,3 +1887,271 @@ document.getElementById("t25").addEventListener("click",e=>{
 render();
 </script>
 """
+
+
+
+
+def frobenius_flow_html() -> str:
+    """S3 animation: the continuous Frobenius flow, torus and galaxy views.
+
+    Pinned to y^2 = x^3 + 3x over F_5 -- lattice Lambda = Z[i], Frobenius the
+    lift z -> alpha*z with alpha = -2 + i (|alpha| = sqrt 5, arg alpha ~ 153.4
+    deg). The extension points E(F_5^n) = ker(alpha^n - 1) are drawn together
+    in one picture. The flow interpolates Frobenius continuously,
+    z(phi) = alpha^phi * z: every point spirals (scale |alpha|^phi, rotate
+    phi*arg alpha) and at phi = 1 lands exactly on alpha*z, so the whole set
+    maps to itself and the loop closes seamlessly.
+
+    Two renderings share the one flow:
+      - TORUS: the fundamental cell of C/Lambda, drawn *centred on 0* so
+        Frobenius reads as a rotation-and-scaling about the middle of the frame.
+      - GALAXY: the multiplicative model C*/q^Z via w = exp(2 pi i z), on a
+        rebased basis (tau' = 0.4 + 0.2 i, |q| ~ 0.285) so the annulus is
+        legible; straight/spiral paths upstairs become log-spiral arcs.
+
+    Each point keeps a fixed colour taken from a continuous wheel (hue = its
+    angle about 0 on the centred torus), a faint shadow marks where it started,
+    and a fading spiral trail shows the path it has taken this beat. Because
+    Frobenius is multiplication by the fixed alpha, it rotates *every* colour by
+    the same arg alpha -- the geometric signature of CM. Click a point to follow
+    one Frobenius orbit: a white marker walks it, returning after (degree) beats.
+    Starts paused."""
+    return _HEAD + r"""
+<div class="panel">
+  <div class="modebar" style="flex-wrap:wrap;align-items:center;gap:8px;">
+    <button class="seg" id="ffplay">&#9654; play</button>
+    <span style="color:var(--muted);font-size:.9rem;margin-left:8px;">view</span>
+    <button class="seg vwbtn on" data-v="torus">torus</button>
+    <button class="seg vwbtn" data-v="galaxy">galaxy</button>
+    <span style="color:var(--muted);font-size:.9rem;margin-left:8px;">up to</span>
+    <button class="seg lvbtn" data-l="1">&#120125;&#8325;</button>
+    <button class="seg lvbtn on" data-l="2">&#120125;&#8322;&#8325;</button>
+    <button class="seg lvbtn" data-l="3">&#120125;&#8321;&#8322;&#8325;</button>
+    <span style="color:var(--muted);font-size:.9rem;margin-left:8px;">speed</span>
+    <input type="range" id="ffspeed" min="1" max="8" value="6" style="width:96px;align-self:center;">
+  </div>
+  <div class="stage" style="grid-template-columns:1fr;">
+    <div class="cell">
+      <div class="cap">𝔼(𝔽₅ⁿ) under the Frobenius flow z ↦ αᵠ·z, α = −2+i &nbsp;·&nbsp; colour = angle about 0 &nbsp;·&nbsp; <b>click a point</b> to follow its orbit</div>
+      <canvas id="ffc" width="460" height="460" style="max-width:440px;margin:0 auto;"></canvas>
+    </div>
+  </div>
+  <div id="ffout" class="info" style="margin-top:10px;"></div>
+  <div class="hint" style="margin-top:4px;">faint dot = where each point rests (φ = 0); trail = the spiral it has swept this beat; at φ = 1 every point has reached its Frobenius image αz, landing on the resting spot of another — its colour arg α ≈ 153° behind, the same turn for all points</div>
+</div>
+<script>
+"use strict";
+const cv=document.getElementById("ffc"), ctx=cv.getContext("2d");
+const out=document.getElementById("ffout");
+const MUT="#9aa4ad";
+const P=5, ALPHA=[-2,1];                        // Frobenius multiplier alpha = -2 + i
+const TAU0=[0,1];                               // tau0 = i  (Lambda = Z + i Z)
+const THETA=Math.atan2(ALPHA[1],ALPHA[0]);      // arg alpha ~ 2.678 rad
+const RHO=Math.hypot(ALPHA[0],ALPHA[1]);        // |alpha| = sqrt 5
+// galaxy (rebased) basis: tau' = 0.4 + 0.2 i, denominator c*tau0 + d = -2 + i
+const TAUP=[0.4,0.2], DEN=[-2,1], QABS=Math.exp(-2*Math.PI*TAUP[1]);
+const amul=(z,w)=>[z[0]*w[0]-z[1]*w[1], z[0]*w[1]+z[1]*w[0]];
+const apow=phi=>[Math.pow(RHO,phi)*Math.cos(THETA*phi), Math.pow(RHO,phi)*Math.sin(THETA*phi)];
+const r01=x=>x-Math.floor(x), r05=x=>x-Math.round(x);   // reduce to [0,1) / [-.5,.5)
+
+// ---- point set: union of ker(alpha^n - 1), n = 1..level -------------------
+let level=2, pts=[], deg=[], hue=[], perm=[], PERIOD=1, baseTab=[[]];
+function fixedPts(b){
+  const br=b[0], bi=b[1], N=br*br+bi*bi, seen=new Set(), a=[];
+  for(let u=0;u<N;u++)for(let v=0;v<N;v++){
+    const x=((u*br+v*bi)%N+N)%N, y=((v*br-u*bi)%N+N)%N, key=x+","+y;
+    if(!seen.has(key)){ seen.add(key); a.push([x/N,y/N]); }
+  }
+  return a;
+}
+const keyOf=q=>Math.round(q[0]*720000)+","+Math.round(q[1]*720000);
+function build(){
+  pts=[]; deg=[]; hue=[]; const idx=new Map();
+  let an=[1,0];
+  for(let n=1;n<=level;n++){
+    an=amul(an,ALPHA);
+    for(const q of fixedPts([an[0]-1,an[1]])){
+      const k=keyOf(q);
+      if(!idx.has(k)){ idx.set(k,pts.length); pts.push(q); deg.push(n); }
+    }
+  }
+  // continuous colour wheel: hue = angle of the resting point about 0 (centred cell)
+  hue=pts.map(q=>{ const uc=r05(q[0]), vc=r05(q[1]);
+    return (uc===0&&vc===0)?-1 : (Math.atan2(vc,uc)*180/Math.PI+360)%360; });  // -1 = identity
+  // Frobenius as an index permutation z -> alpha*z
+  perm=pts.map(q=>{ const w=amul(ALPHA,q); return idx.get(keyOf([r01(w[0]),r01(w[1])])); });
+  // loop period = lcm of the field degrees present: Frobenius^PERIOD = identity,
+  // so after PERIOD beats every point (and its colour) is home -> a seamless loop.
+  const glcm=(x,y)=>{const g=(a,b)=>b?g(b,a%b):a; return x/g(x,y)*y;};
+  PERIOD=[...new Set(deg)].reduce((a,d)=>glcm(a,d),1);
+  // baseTab[n][i] = the point that dot i sits on at beat n as it walks its orbit
+  baseTab=[pts.map((_,i)=>i)];
+  for(let n=1;n<PERIOD;n++) baseTab.push(baseTab[n-1].map(j=>perm[j]));
+  sel=null; orbit=[]; orbitSet=new Set();
+}
+
+// ---- projections: cover coords z (in basis 1, tau0=i) -> screen -----------
+const W=cv.width, H=cv.height, CX=W/2, CY=H/2, MG=40;
+const S=W-2*MG, R=W/2-MG;                        // torus half-cell scale / galaxy radius
+// each projection returns [X, Y, cellA, cellB]: the integer cell tells the
+// trail loop exactly when a segment crosses a wrap boundary (skip it).
+function toTorus(z){ const ca=Math.round(z[0]), cb=Math.round(z[1]);
+  return [CX + (z[0]-ca)*S, CY - (z[1]-cb)*S, ca, cb]; }
+function toGalaxy(z){
+  const [zr,zi]=z, [dr,di]=DEN, n2=dr*dr+di*di;   // z' = z / (c tau0 + d)
+  const wr=(zr*dr+zi*di)/n2, wi=(zi*dr-zr*di)/n2;
+  const vs=wi/TAUP[1], vp=r01(vs), up=r01(wr - vs*TAUP[0]);   // reduce each (1, tau') coord independently
+  const rr=R*Math.exp(-2*Math.PI*vp*TAUP[1]), th=2*Math.PI*(up+vp*TAUP[0]);
+  return [CX + rr*Math.cos(th), CY - rr*Math.sin(th), 0, 0];
+}
+let view="torus";
+const project=z=> view==="torus" ? toTorus(z) : toGalaxy(z);
+const fill=(i,l,a)=> hue[i]<0 ? `rgba(235,235,235,${a})` : `hsla(${hue[i]},68%,${l}%,${a})`;
+
+// ---- strip coords for continuous (unwrapped) trails -----------------------
+// (u, v): fractional coords in the fundamental domain BEFORE reduction. Trails
+// are drawn relative to the reduced head, so a point that leaves one edge keeps
+// going (spiralling into the galaxy core / out past the rim) instead of resetting.
+function stripOf(z){
+  if(view==="torus") return [z[0], z[1]];
+  const [zr,zi]=z, [dr,di]=DEN, n2=dr*dr+di*di;   // z' = z / (c tau0 + d)
+  const wr=(zr*dr+zi*di)/n2, wi=(zi*dr-zr*di)/n2, vs=wi/TAUP[1];
+  return [wr - vs*TAUP[0], vs];
+}
+function headRed(u,v){                              // reduce so it coincides with the dot
+  if(view==="torus") return [r05(u), r05(v)];
+  return [r01(u), r01(v)];
+}
+function stripToScreen(u,v){
+  if(view==="torus") return [CX + u*S, CY - v*S];
+  const rr=R*Math.exp(-2*Math.PI*v*TAUP[1]), th=2*Math.PI*(u+v*TAUP[0]);
+  return [CX + rr*Math.cos(th), CY - rr*Math.sin(th)];
+}
+
+// ---- frames ---------------------------------------------------------------
+function frame(){
+  ctx.strokeStyle="rgba(255,255,255,0.11)"; ctx.lineWidth=1;
+  if(view==="torus"){
+    for(const [dx,dy] of [[-1,0],[1,0],[0,-1],[0,1]])
+      ctx.strokeRect(CX+(dx-0.5)*S, CY-(dy+0.5)*S, S, S);
+    ctx.strokeStyle="rgba(255,255,255,0.28)"; ctx.lineWidth=1.4;
+    ctx.strokeRect(CX-0.5*S, CY-0.5*S, S, S);
+  } else {
+    ctx.beginPath(); ctx.arc(CX,CY,R,0,7); ctx.stroke();          // |w| = 1
+    ctx.beginPath(); ctx.arc(CX,CY,R*QABS,0,7); ctx.stroke();     // |w| = |q|
+    ctx.beginPath();                                              // spiral edge u' = 0
+    for(let vv=0;vv<=1.0001;vv+=0.004){
+      const rr=R*Math.exp(-2*Math.PI*vv*TAUP[1]), th=2*Math.PI*vv*TAUP[0];
+      const x=CX+rr*Math.cos(th), y=CY-rr*Math.sin(th);
+      vv?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    }
+    ctx.stroke();
+  }
+}
+
+// ---- animation ------------------------------------------------------------
+let tau=0, playing=false, last=null, speed=0.06, sel=null, orbit=[], orbitSet=new Set();
+const TRAILMAX=52, TRAILSTEP=0.010, TRAILSTEPS=22;  // comet tail capped by SCREEN length, so fast points don't balloon
+function render(){
+  const phi=tau-Math.floor(tau), beat=Math.floor(tau);
+  const bt=baseTab[((beat%PERIOD)+PERIOD)%PERIOD];   // each dot's orbit position this beat
+  const af=apow(phi);
+  ctx.clearRect(0,0,W,H);
+  frame();
+  // shadows: resting positions (phi = 0)
+  for(let i=0;i<pts.length;i++){
+    const s=project(pts[i]);
+    ctx.beginPath(); ctx.arc(s[0],s[1],3.4,0,7); ctx.fillStyle=fill(i,52,0.30); ctx.fill();
+  }
+  // trails: walk backward from the head (the dot) along the flow, drawn as a
+  // continuous displacement from the reduced head -- so the tail crosses a
+  // domain edge without resetting -- and stopped once it has run TRAILMAX
+  // pixels, so a fast point's tail is no longer than a slow one's. Fades to 0.
+  if(playing || phi>0.002){
+    for(let i=0;i<pts.length;i++){
+      const base=pts[bt[i]];                                // walk this dot's orbit
+      const zh=amul(apow(phi),base), sh=stripOf(zh);        // head, unreduced strip
+      const hr=headRed(sh[0],sh[1]), head=stripToScreen(hr[0],hr[1]);  // = the dot
+      const path=[head]; let acc=0, prev=head;
+      for(let k=1;k<=TRAILSTEPS && acc<TRAILMAX;k++){
+        const ss=stripOf(amul(apow(phi-k*TRAILSTEP),base));
+        const cur=stripToScreen(hr[0]+(ss[0]-sh[0]), hr[1]+(ss[1]-sh[1]));
+        acc+=Math.hypot(cur[0]-prev[0],cur[1]-prev[1]); path.push(cur); prev=cur;
+      }
+      for(let k=1;k<path.length;k++){
+        const f=1-(k-1)/path.length;                        // head bright -> tail gone
+        ctx.beginPath(); ctx.moveTo(path[k-1][0],path[k-1][1]); ctx.lineTo(path[k][0],path[k][1]);
+        ctx.lineWidth=0.6+1.7*f; ctx.strokeStyle=fill(i,62,0.5*f*f); ctx.stroke();
+      }
+    }
+  }
+  // dots: current flowed position (each dot walks its Frobenius orbit)
+  const cur=[];
+  for(let i=0;i<pts.length;i++){
+    const s=project(amul(af,pts[bt[i]])); cur.push(s);
+    const inOrb=orbitSet.has(i), isId=hue[i]<0;
+    ctx.beginPath(); ctx.arc(s[0],s[1], isId?6:4.6, 0,7); ctx.fillStyle=fill(i,58,0.98); ctx.fill();
+    if(inOrb){ ctx.lineWidth=2; ctx.strokeStyle="#fff"; ctx.stroke(); }
+    else if(isId){ ctx.lineWidth=1.4; ctx.strokeStyle="rgba(0,0,0,0.5)"; ctx.stroke(); }
+  }
+  if(sel!==null){                                 // the selected dot itself walks its orbit
+    const s=cur[sel];
+    ctx.beginPath(); ctx.arc(s[0],s[1],9,0,7); ctx.lineWidth=2.4; ctx.strokeStyle="#fff"; ctx.stroke();
+  }
+  info(phi);
+}
+function info(phi){
+  let s=`α = −2+i &nbsp;·&nbsp; |α| = √5, arg α ≈ 153.4° &nbsp;·&nbsp; ${view} view &nbsp;·&nbsp; ${pts.length} points &nbsp;·&nbsp; loops every ${PERIOD} beat${PERIOD>1?"s":""} = LCM of the degrees`;
+  if(sel!==null){
+    const L=orbit.length;
+    s+=`<br><span style="color:#fff">selected a degree-${deg[sel]} point — it walks a Frobenius orbit of length ${L}`
+      +(L===1?" (an 𝔽₅ point: Frobenius fixes it)":`, returning home after ${L} beats`)+"</span>";
+  } else {
+    s+=`<br><span style="color:var(--muted)">each colour rides its Frobenius orbit and returns after (its degree) beats; the whole picture repeats every ${PERIOD}. Click a point to trace one orbit.</span>`;
+  }
+  out.innerHTML=s;
+}
+
+// ---- interaction ----------------------------------------------------------
+cv.addEventListener("pointerdown",e=>{
+  const b=cv.getBoundingClientRect();
+  const mx=(e.clientX-b.left)*W/b.width, my=(e.clientY-b.top)*H/b.height;
+  const beat=Math.floor(tau), bt=baseTab[((beat%PERIOD)+PERIOD)%PERIOD];
+  const af=apow(tau-beat);
+  let best=null,bd=16*16;
+  for(let i=0;i<pts.length;i++){
+    const s=project(amul(af,pts[bt[i]])), dx=s[0]-mx, dy=s[1]-my;
+    if(dx*dx+dy*dy<bd){ bd=dx*dx+dy*dy; best=i; }
+  }
+  if(best!==null){
+    sel=best; orbit=[]; orbitSet=new Set(); let k=best;
+    do{ orbit.push(k); orbitSet.add(k); k=perm[k]; }while(k!==best && orbit.length<600);
+    if(!playing) render();
+  }
+});
+document.getElementById("ffplay").addEventListener("click",e=>{
+  playing=!playing; e.target.innerHTML=playing?"&#10073;&#10073; pause":"&#9654; play";
+  if(playing){ last=null; requestAnimationFrame(loop); }
+});
+document.querySelectorAll(".vwbtn").forEach(bt=>bt.addEventListener("click",()=>{
+  view=bt.dataset.v;
+  document.querySelectorAll(".vwbtn").forEach(z=>z.classList.toggle("on",z===bt));
+  if(!playing) render();
+}));
+document.querySelectorAll(".lvbtn").forEach(bt=>bt.addEventListener("click",()=>{
+  level=+bt.dataset.l;
+  document.querySelectorAll(".lvbtn").forEach(z=>z.classList.toggle("on",z===bt));
+  build(); if(!playing) render();
+}));
+document.getElementById("ffspeed").addEventListener("input",e=>{ speed=+e.target.value/100; });
+
+function loop(ms){
+  if(last===null) last=ms;
+  tau+=(ms-last)/1000*speed; last=ms;
+  if(tau>=PERIOD) tau-=PERIOD;          // seamless: Frobenius^PERIOD = identity
+  render();
+  if(playing) requestAnimationFrame(loop);
+}
+build(); render();
+</script>
+"""
