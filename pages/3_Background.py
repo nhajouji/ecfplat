@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 import slide_viz
 import modular_viz
 import basics_viz
+import hopf_viz
 
 
 # ── Chapter 3 (Modular Curves) helpers ────────────────────────────────────────
@@ -1667,6 +1668,25 @@ with tab_hopf:
         "the aesthetics live — every render in the Gallery is one such "
         "choice."
     )
+
+    st.markdown("#### A lift you can spin")
+    st.markdown(
+        "Here is exactly that recipe, carried out and made live. The curve has "
+        "complex multiplication by $\\mathrm{disc} = -8$ over $\\mathbb{F}_{11}$ "
+        "(trace $6$, so $\\#E(\\mathbb{F}_{11}) = 6$); its **$108$ points over "
+        "$\\mathbb{F}_{11^2}$** are drawn on the Pinkall torus its lattice bounds. "
+        "**Drag to orbit** (it also turns on its own)."
+    )
+    components.html(hopf_viz.hopf_torus_html("hopf_disc8_k2.json", height=460), height=468)
+    st.caption(
+        "Red = the $6$ points already defined over $\\mathbb{F}_{11}$ (the ones "
+        "Frobenius fixes); gold = the new points that appear over "
+        "$\\mathbb{F}_{11^2}$. The 3-D geometry is computed by the exact pipeline "
+        "above — the flat-torus points $\\mathrm{Fix}(\\alpha^n)$, rolled up through "
+        "the Hopf construction and stereographically projected — using S. Trettel's "
+        "[elliptic-curve-viz](https://github.com/stevejtrettel/elliptic-curve-viz)."
+    )
+
     st.image(str(Path(__file__).parent / "gallery_img" / "full" / "HopfTori.jpg"),
              caption="Curves on S² and the flat tori they bound in S³.",
              width="stretch")
