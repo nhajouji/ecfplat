@@ -1,0 +1,105 @@
+<!doctype html><html><head><meta charset=utf-8><style>
+html,body{margin:0;height:100%;background:#0d0f11;overflow:hidden}
+canvas{display:block;width:100vw;height:100vh}
+#err{position:fixed;top:0;left:0;color:#f66;font:12px monospace;white-space:pre;padding:8px;z-index:9}
+</style></head><body>
+<canvas id=c></canvas><pre id=err></pre>
+<script id=frag type=x-shader>#version 300 es
+precision highp float;
+out vec4 fragColor;
+uniform vec3 iResolution;
+uniform float iTime;
+
+// ===================== FROBENIUS FLOW (galaxy) =========================
+// Curve y^2 = x^3 + 3x over F_5.  Lattice Lambda = Z[i].  Frobenius lifts to
+// multiplication by alpha = -2 + i on the torus C/Lambda.  The points are
+// E(F_125) = ker(alpha^3 - 1); the flow is z -> alpha^phi * z.
+#define N 130
+#define VIEW_GALAXY 1
+
+const float PI   = 3.14159265;
+const vec2  ALPHA= vec2(-2.0, 1.0);
+const float ARGA = 2.6779451;               // arg(alpha)
+const float ABSA = 2.2360680;               // |alpha| = sqrt 5
+const vec2  INVB = vec2(-3.0, -11.0)/130.0; // 1 / (alpha^3 - 1)
+const vec2  TAUP = vec2(0.4, 0.2);          // rebased basis tau'
+const float QABS = 0.2846096;               // |q| = exp(-2 pi Im tau')
+
+vec2 cmul(vec2 a, vec2 b){ return vec2(a.x*b.x - a.y*b.y, a.x*b.y + a.y*b.x); }
+vec2 apow(float p){ float r = pow(ABSA, p), t = ARGA*p; return r*vec2(cos(t), sin(t)); }
+vec2 rnd(vec2 v){ return floor(v + 0.5); }
+
+vec3 hue(float ang){                        // angle (rad) -> rgb colour wheel
+  float h = fract(ang/(2.0*PI));
+  vec3 p = abs(fract(h + vec3(0.0, 2.0/3.0, 1.0/3.0))*6.0 - 3.0);
+  return mix(vec3(0.5), clamp(p - 1.0, 0.0, 1.0), 0.85);
+}
+
+// flow field at torus point z (basis 1,i), phase phi -> brightness
+float field(vec2 z, float phi){
+  float glow = 0.0;
+  for(int k=0;k<N;k++){
+    vec2 g = fract(float(k)*INVB);           // rest point  k/beta
+    vec2 prev = cmul(apow(phi), g);          // head = flowed position alpha^phi * g
+    prev -= rnd(prev - z);                    // pick the image nearest this pixel
+    glow += 1.5 * smoothstep(0.016, 0.0, length(z - prev));   // the dot
+    for(int j=1;j<=12;j++){                    // comet tail: short, continuous segments
+      vec2 cur = cmul(apow(phi - float(j)*0.0045), g);
+      cur -= rnd(cur - prev);                 // keep the chain continuous with prev
+      vec2 pa = z - prev, ba = cur - prev;    // distance from z to segment [prev,cur]
+      float d = length(pa - ba*clamp(dot(pa, ba)/dot(ba, ba), 0.0, 1.0));
+      float f = 1.0 - float(j)/13.0;
+      glow += f*f * 0.7 * smoothstep(0.011, 0.0, d);
+      prev = cur;
+    }
+  }
+  return min(glow, 1.6);
+}
+
+void mainImage(out vec4 O, in vec2 fragCoord){
+  vec2 uv = (fragCoord - 0.5*iResolution.xy)/iResolution.y;  // y in [-.5,.5]
+  float phi = fract(iTime*0.08);
+  vec3 col = vec3(0.055, 0.06, 0.067);
+#if VIEW_GALAXY
+  float R = length(uv), TH = atan(uv.y, uv.x), RAD = 0.46;
+  float rn = R/RAD;
+  if(rn <= 1.0 && rn >= QABS){
+    float vp = -log(rn)/(2.0*PI*TAUP.y);     // radius  -> vp
+    float up = TH/(2.0*PI) - vp*TAUP.x;      // angle   -> up
+    vec2  zp = vec2(up + vp*TAUP.x, vp*TAUP.y);  // z' = up*1 + vp*tau'
+    col += hue(TH) * field(cmul(ALPHA, zp), phi);  // untransport z = alpha*z'; colour by angle
+  }
+  col += vec3(0.10)*smoothstep(0.003, 0.0, abs(rn - 1.0));
+#else
+  vec2 z = uv/0.46;
+  if(max(abs(z.x), abs(z.y)) < 0.62) col += hue(atan(z.y, z.x)) * field(z, phi);
+#endif
+  O = vec4(col, 1.0);
+}
+void main(){ mainImage(fragColor, gl_FragCoord.xy); }
+</script>
+<script>
+const cv=document.getElementById('c'), gl=cv.getContext('webgl2');
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))document.getElementById('err').textContent=gl.getShaderInfoLog(o);return o;}
+const vs=`#version 300 es
+in vec2 p; void main(){ gl_Position=vec4(p,0.,1.); }`;
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,vs));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,document.getElementById('frag').textContent));
+gl.linkProgram(pr); gl.useProgram(pr);
+const b=gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER,b);
+gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,3,-1,-1,3]),gl.STATIC_DRAW);
+const lp=gl.getAttribLocation(pr,'p'); gl.enableVertexAttribArray(lp);
+gl.vertexAttribPointer(lp,2,gl.FLOAT,false,0,0);
+const uR=gl.getUniformLocation(pr,'iResolution'), uT=gl.getUniformLocation(pr,'iTime');
+function frame(t){
+  const w=cv.clientWidth, h=cv.clientHeight;
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.uniform3f(uR,cv.width,cv.height,1); gl.uniform1f(uT,t/1000);
+  gl.drawArrays(gl.TRIANGLES,0,3);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>

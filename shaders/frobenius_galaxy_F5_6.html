@@ -1,0 +1,106 @@
+<!doctype html><html><head><meta charset=utf-8><title>Frobenius flow · F_5^6</title><style>
+html,body{margin:0;height:100%;background:#0e1013;overflow:hidden}
+canvas{display:block;width:100vw;height:100vh}
+#hud{position:fixed;left:10px;bottom:10px;color:#8b93a0;font:12px/1.5 system-ui;pointer-events:none}
+#err{position:fixed;top:8px;left:8px;color:#f66;font:12px monospace;white-space:pre}
+</style></head><body>
+<canvas id=c></canvas><div id=hud></div><pre id=err></pre>
+<script>
+// ===================== POINT SET (built on the CPU) =====================
+// Curve y^2 = x^3 + 3x over F_5, alpha = -2 + i, Lambda = Z[i].
+// Points = E(F_5^6) = ker(alpha^6 - 1); each carries its field degree (1|2|3|6).
+const ALPHA=[-2,1];
+const amul=(a,b)=>[a[0]*b[0]-a[1]*b[1], a[0]*b[1]+a[1]*b[0]];
+const apowInt=n=>{let r=[1,0];for(let i=0;i<n;i++)r=amul(r,ALPHA);return r;};
+const B6=[apowInt(6)[0]-1, apowInt(6)[1]];              // alpha^6 - 1 = (-118,-44)
+const N6=B6[0]*B6[0]+B6[1]*B6[1];                       // 15860
+const CR=B6[0], CI=-B6[1];                             // conj(beta6) = (br, -bi)
+const BETA=[1,2,3].map(d=>{const a=apowInt(d);return [a[0]-1,a[1]];});
+const fr=x=>x-Math.floor(x);
+function degOf(u,v){                                    // smallest d|6 with (alpha^d-1)g in Z[i]
+  for(let i=0;i<3;i++){const b=BETA[i];
+    const rx=b[0]*u-b[1]*v, ry=b[0]*v+b[1]*u;
+    if(Math.abs(rx-Math.round(rx))<1e-6 && Math.abs(ry-Math.round(ry))<1e-6) return i+1;
+  }
+  return 6;
+}
+const G=[], DEG=[]; const seen=new Set();               // box + dedup enumeration
+for(let x=-130;x<=130;x++)for(let y=-130;y<=130;y++){
+  const u=fr((x*CR - y*CI)/N6), v=fr((x*CI + y*CR)/N6);
+  const key=Math.round(u*N6)+','+Math.round(v*N6);
+  if(!seen.has(key)){ seen.add(key); G.push(u,v); DEG.push(degOf(u,v)); }
+}
+const NP=DEG.length;
+const cnt={1:0,2:0,3:0,6:0}; DEG.forEach(d=>cnt[d]++);
+document.getElementById('hud').textContent =
+  `E(F_5^6) = ${NP} points   ·   deg1 F5:${cnt[1]}  deg2 F25:${cnt[2]}  deg3 F125:${cnt[3]}  deg6:${cnt[6]}`;
+
+// ===================== WEBGL =====================
+const cv=document.getElementById('c'), gl=cv.getContext('webgl2',{alpha:false});
+function sh(t,s){const o=gl.createShader(t);gl.shaderSource(o,s);gl.compileShader(o);
+  if(!gl.getShaderParameter(o,gl.COMPILE_STATUS))document.getElementById('err').textContent+=gl.getShaderInfoLog(o);return o;}
+
+const VERT=`#version 300 es
+in vec2 g;            // rest point (u,v) on the torus
+in float deg;         // field degree 1|2|3|6
+uniform vec2 uApow;   // alpha^phi  (same for every point this frame)
+uniform vec2 uRes;
+uniform float uDpr;
+out vec3 vCol; out float vA;
+const float PI=3.14159265;
+vec2 cmul(vec2 a, vec2 b){ return vec2(a.x*b.x-a.y*b.y, a.x*b.y+a.y*b.x); }
+vec3 hue(float a){ float h=fract(a/(2.0*PI));
+  vec3 p=abs(fract(h+vec3(0.,2./3.,1./3.))*6.0-3.0); return mix(vec3(.5),clamp(p-1.,0.,1.),.85); }
+void main(){
+  vec2 q  = cmul(uApow, g);                    // Frobenius flow: alpha^phi * g
+  vec2 zp = cmul(q, vec2(-2.0,-1.0)/5.0);      // transport z' = q / alpha
+  float Rt=0.4, It=0.2;                         // rebased tau'
+  float vs=zp.y/It, vp=fract(vs), up=fract(zp.x - vs*Rt);
+  float rad=0.46*exp(-2.0*PI*vp*It), th=2.0*PI*(up+vp*Rt);   // galaxy: log-polar
+  vec2 scr=rad*vec2(cos(th),sin(th));
+  gl_Position=vec4(scr.x*2.0*uRes.y/uRes.x, scr.y*2.0, 0.0, 1.0);
+  // simpler points (smaller subfield) are bigger
+  float sz = deg<1.5?16.0 : deg<2.5?12.5 : deg<3.5?9.0 : 3.4;
+  gl_PointSize = sz*uDpr;
+  vCol = hue(th);
+  vA   = deg<3.5 ? 1.0 : 0.55;                   // subfield points a touch brighter
+}`;
+
+const FRAG=`#version 300 es
+precision highp float;
+in vec3 vCol; in float vA; out vec4 o;
+void main(){
+  float d=length(gl_PointCoord-0.5);            // round soft sprite
+  float a=smoothstep(0.5,0.30,d)*vA;
+  if(a<=0.003) discard;
+  o=vec4(vCol, a);
+}`;
+
+const pr=gl.createProgram();
+gl.attachShader(pr,sh(gl.VERTEX_SHADER,VERT));
+gl.attachShader(pr,sh(gl.FRAGMENT_SHADER,FRAG));
+gl.linkProgram(pr); gl.useProgram(pr);
+
+function buf(data,loc,size){const b=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,b);
+  gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,0,0);}
+buf(new Float32Array(G), gl.getAttribLocation(pr,'g'), 2);
+buf(new Float32Array(DEG), gl.getAttribLocation(pr,'deg'), 1);
+
+const uApow=gl.getUniformLocation(pr,'uApow'), uRes=gl.getUniformLocation(pr,'uRes'), uDpr=gl.getUniformLocation(pr,'uDpr');
+gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE);   // additive
+
+const ARGA=Math.atan2(1,-2), ABSA=Math.sqrt(5), SPEED=0.06, dpr=Math.min(devicePixelRatio||1,2);
+function frame(ms){
+  const w=Math.round(cv.clientWidth*dpr), h=Math.round(cv.clientHeight*dpr);
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.clearColor(0.055,0.06,0.067,1); gl.clear(gl.COLOR_BUFFER_BIT);
+  const phi=(ms*0.001*SPEED)%1.0, r=Math.pow(ABSA,phi), t=ARGA*phi;
+  gl.uniform2f(uApow, r*Math.cos(t), r*Math.sin(t));
+  gl.uniform2f(uRes, cv.width, cv.height); gl.uniform1f(uDpr, dpr);
+  gl.drawArrays(gl.POINTS, 0, NP);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>
