@@ -27,6 +27,9 @@ ICM = [
      "eqn": "y² = x³ + 3x + 2 &nbsp;(mod 5)",
      "blurb": "The isogeny class (a, p) = (1, 5): a single curve with 5 "
               "rational points and CM by discriminant −19.",
+     "desc": (
+        r"Exactly $p$ points: $\#E(\mathbb{F}_5) = 5$. The anomalous class — CM "
+        r"by $\mathbb{Q}(\sqrt{-19})$, $j = (-96)^3$."),
      "idcard": {"cap": "isogeny class (1, 5)", "fd": "a1",
                 "fd_cap": "the CM point — on the wall Re = ½",
                 "rows": [("Frobenius π", "(1 + √−19)/2"),
@@ -47,11 +50,8 @@ ICM = [
               "its descendant below (disc −16). Hung vertically so ascending "
               "and descending mean what they say.",
      "desc": (
-        r"This picture shows the two curves with cardinality $4$ over "
-        r"$\mathbb{F}_5$. Although the two curves share the same cardinality, we "
-        r"can tell them apart using their $2$-torsion subgroups. The arrangement "
-        r"of the curves is meant to evoke the simple, but nontrivial, volcano "
-        r"structure of this isogeny class."),
+        r"Two curves, four points each over $\mathbb{F}_5$ — the same count, told "
+        r"apart only by their $2$-torsion. Stacked to trace the volcano."),
      "idcard": {"cap": "isogeny class (2, 5)", "fd": "a2",
                 "fd_cap": "i (above) & 2i (below)",
                 "rows": [("Frobenius π", "1 + 2i"),
@@ -68,6 +68,10 @@ ICM = [
     {"slug": "icm-a3", "title": "Trace 3 over 𝔽₅",
      "eqn": "y² = x³ + 4x + 2 &nbsp;(mod 5)",
      "blurb": "One curve, three rational points, CM by discriminant −11.",
+     "desc": (
+        r"Three points over $\mathbb{F}_5$. Discriminant $-11$, class number "
+        r"one: a single lattice, nothing to choose — the quiet opposite of the "
+        r"six lifts down the wall."),
      "idcard": {"cap": "isogeny class (3, 5)", "fd": "a3",
                 "fd_cap": "the CM point — on the wall Re = ½",
                 "rows": [("Frobenius π", "(3 + √−11)/2"),
@@ -107,11 +111,9 @@ ICM = [
               "one exceptional class over 𝔽₅, made as a lenticular print that "
               "flips between the two lifts as you move past it.",
      "desc": (
-        r"This picture depicts the supersingular isogeny class over $\mathbb{F}_5$. "
-        r"There is only one supersingular $j$-invariant over $\mathbb{F}_5$, but "
-        r"there are two $\mathbb{F}_5$-isomorphism classes that realize it, and two "
-        r"CM lattices we can use as ambient spaces. We used a lenticular print to "
-        r"show both lifts of Frobenius in one picture."),
+        r"One supersingular $j$-invariant over $\mathbb{F}_5$ — but two curves "
+        r"realize it, and two lattices lift it. A lenticular print, so both lifts "
+        r"of Frobenius share one frame."),
      "idcard": {"cap": "supersingular class (0, 5)", "fd": "a0",
                 "fd_cap": "two CM points = the two lifts",
                 "rows": [("Frobenius π", "±√−5 &nbsp;<span class='note'>(two "
