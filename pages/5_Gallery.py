@@ -46,6 +46,12 @@ ICM = [
      "blurb": "Two curves joined by a 2-isogeny: j = 1728 above (disc −4), "
               "its descendant below (disc −16). Hung vertically so ascending "
               "and descending mean what they say.",
+     "desc": (
+        r"This picture shows the two curves with cardinality $4$ over "
+        r"$\mathbb{F}_5$. Although the two curves share the same cardinality, we "
+        r"can tell them apart using their $2$-torsion subgroups. The arrangement "
+        r"of the curves is meant to evoke the simple, but nontrivial, volcano "
+        r"structure of this isogeny class."),
      "idcard": {"cap": "isogeny class (2, 5)", "fd": "a2",
                 "fd_cap": "i (above) & 2i (below)",
                 "rows": [("Frobenius π", "1 + 2i"),
@@ -77,6 +83,10 @@ ICM = [
      "eqn": "y² = x³ + 2x &nbsp;(mod 5)",
      "blurb": "j = 1728 again — the ℤ[i] lattice — now with trace 4 and just "
               "two rational points.",
+     "desc": (
+        r"This is the curve $y^2 = x^3 + 2x \pmod 5$ — the quadratic twist of the "
+        r"'square curve' $y^2 = x^3 + 3x$ from the Bridges pieces. Both are the "
+        r"$j = 1728$ curve with complex multiplication by $\mathbb{Z}[i]$."),
      "idcard": {"cap": "isogeny class (4, 5)", "fd": "a4",
                 "fd_cap": "the point i  (j = 1728)",
                 "rows": [("Frobenius π", "2 − i"),
@@ -92,10 +102,15 @@ ICM = [
                ("disc −4", "/Explorer?d=-4")]},
     {"slug": "icm-a0", "title": "Trace 0 over 𝔽₅ — supersingular",
      "eqn": "y² = x³ + 1 &nbsp;(mod 5)",
-     "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, with j = 0 "
-              "and no ordinary CM lift — the one exceptional class over 𝔽₅. Made "
-              "as a lenticular print that flips between the untwisted torus and "
-              "its twisted form as you move past it.",
+     "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, j = 0 — the "
+              "one exceptional class over 𝔽₅, made as a lenticular print that "
+              "flips between the two lifts as you move past it.",
+     "desc": (
+        r"This picture depicts the supersingular isogeny class over $\mathbb{F}_5$. "
+        r"There is only one supersingular $j$-invariant over $\mathbb{F}_5$, but "
+        r"there are two $\mathbb{F}_5$-isomorphism classes that realize it, and two "
+        r"CM lattices we can use as ambient spaces. We used a lenticular print to "
+        r"show both lifts of Frobenius in one picture."),
      "idcard": {"cap": "supersingular class (0, 5)", "fd": "a0",
                 "fd_cap": "two CM points = the two lifts",
                 "rows": [("Frobenius π", "±√−5 &nbsp;<span class='note'>(two "
@@ -119,12 +134,22 @@ ICM = [
     {"slug": "icm-p23", "title": "X₀(11) mod 23",
      "blurb": "Reduced mod 23 the curve has trace −1 and discriminant −91 — "
               "class number 2, so Frobenius has two lifts.",
+     "desc": (
+        r"There are two possible lifts for $X_0(11) \pmod{23}$, and they look "
+        r"very different."),
      "links": [("open in the Explorer", "/Explorer?a=-1&p=23"),
                ("disc −91", "/Explorer?d=-91")]},
     {"slug": "icm-p101", "title": "X₀(11) mod 101",
-     "blurb": "Trace 2, discriminant −400, one hundred rational points; the "
-              "eight lattice classes of this discriminant spread over three "
-              "levels of the volcano.",
+     "blurb": "Reduced mod 101, X₀(11) is ordinary; the piece shows the curve "
+              "whose endomorphism ring is ℤ[2i], with its single CM lift "
+              "ℂ/(ℤ ⊕ 2iℤ).",
+     "desc": (
+        r"The reduction $X_0(11) \pmod{101}$ is an ordinary curve with "
+        r"endomorphism ring isomorphic to $\mathbb{Z}[2i]$. This means there is "
+        r"only one possibility for the CM lift — the elliptic curve "
+        r"$\mathbb{C}/(\mathbb{Z}\oplus 2i\,\mathbb{Z})$. Note that this same CM "
+        r"lift is used in the picture for $(a,p)=(2,5)$ in the other section, "
+        r"drawn with a different conformal model in $\mathbb{R}^3$."),
      "links": [("open in the Explorer", "/Explorer?a=2&p=101"),
                ("disc −400", "/Explorer?d=-400")]},
     {"slug": "icm-p107", "title": "X₀(11) mod 107 — the six lifts",
@@ -132,6 +157,12 @@ ICM = [
               "six lattices, six lifts, one curve. The class group is cyclic "
               "and the arrangement encodes it — the tori sit like the 6th "
               "roots of unity.",
+     "desc": (
+        r"There are $6$ possible CM lifts for $X_0(11) \pmod{107}$, "
+        r"corresponding to the $6$ ideal classes in the class group of "
+        r"$\mathrm{End}(X_0(11) \bmod 107) \cong \mathbb{Z}[\sqrt{-26}]$. The "
+        r"arrangement of the CM lifts is meant to reflect the structure of the "
+        r"underlying class group."),
      "links": [("open in the Explorer", "/Explorer?a=18&p=107"),
                ("disc −104", "/Explorer?d=-104")]},
     {"slug": "icm-x05", "title": "X₀(5) as a real surface",
@@ -139,6 +170,14 @@ ICM = [
               "real elliptic curve. Four fibers are highlighted: the two "
               "lattices with CM by √−5, and the pair X₁(11) ⇄ X₀(11), whose "
               "degree-5 map is itself a point of X₀(5).",
+     "desc": (
+        r"A picture depicting some of the real fibers on the universal curve "
+        r"over a portion of $X_0(5)$. Two of the fibers represent the isogeny "
+        r"$X_1(11)\to X_0(11)$ (the subject of our *One equation, many fields* "
+        r"section), and the two solid-colored fibers represent the lifts of "
+        r"Frobenius of the supersingular curve over $\mathbb{F}_5$ — the curves "
+        r"in the lenticular print in the *One field, many equations* section. "
+        r"This piece unifies the two sections of the gallery."),
      "links": [("the supersingular class (0, 5)", "/Explorer?a=0&p=5"),
                ("disc −20", "/Explorer?d=-20"),
                ("modular curves in the Background", "/Background")]},
@@ -218,11 +257,26 @@ BRIDGES = [
      "links": [("how the embedding works — Background §3", "/Background")]},
 ]
 
+def _pick(*slugs):
+    d = {e["slug"]: e for e in ICM}
+    return [d[s] for s in slugs]
+
+
 GROUPS = [
-    ("From the ICM gallery",
-     "One wall for a single prime — every isogeny class over 𝔽₅ — and one "
-     "wall for a single equation, X₀(11), across many characteristics.",
-     ICM),
+    ("One field, many equations",
+     r"The pieces here are the isogeny classes over $\mathbb{F}_5$. We use the "
+     r"Deuring–Pinkall construction to draw each curve inside a CM lift of the "
+     r"elliptic curve over $\mathbb{F}_5$; the points shown are those defined "
+     r"over $\mathbb{F}_{5^6}$.",
+     _pick("icm-a0", "icm-a1", "icm-a2", "icm-a3", "icm-a4")),
+    ("One equation, many fields",
+     r"The well-known (elliptic) modular curve $X_0(11)$ from different "
+     r"perspectives — some pieces depict the reductions $X_0(11) \bmod p$, "
+     r"others the characteristic-zero object itself.",
+     _pick("icm-pcomplex", "icm-p23", "icm-p101", "icm-p107", "icm-starscape")),
+    ("A bridge between the two walls",
+     "A single piece that ties the two sections together.",
+     _pick("icm-x05")),
     ("From the Bridges paper",
      "The renders of [*Elliptic Curves and the Hopf Fibration*]"
      "(https://arxiv.org/abs/2505.09627) (Bridges 2025).",
