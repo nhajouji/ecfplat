@@ -84,9 +84,10 @@ ICM = [
      "blurb": "j = 1728 again — the ℤ[i] lattice — now with trace 4 and just "
               "two rational points.",
      "desc": (
-        r"This is the curve $y^2 = x^3 + 2x \pmod 5$ — the quadratic twist of the "
-        r"'square curve' $y^2 = x^3 + 3x$ from the Bridges pieces. Both are the "
-        r"$j = 1728$ curve with complex multiplication by $\mathbb{Z}[i]$."),
+        r"$j = 1728$ — the Gaussian lattice $\mathbb{Z}[i]$. Here "
+        r"$y^2 = x^3 + 2x$; on the Bridges wall, $y^2 = x^3 + 3x$. Different "
+        r"equations, one picture: quadratic twists, indistinguishable over "
+        r"$\mathbb{F}_{5^6}$."),
      "idcard": {"cap": "isogeny class (4, 5)", "fd": "a4",
                 "fd_cap": "the point i  (j = 1728)",
                 "rows": [("Frobenius π", "2 − i"),
@@ -257,30 +258,30 @@ BRIDGES = [
      "links": [("how the embedding works — Background §3", "/Background")]},
 ]
 
-def _pick(*slugs):
-    d = {e["slug"]: e for e in ICM}
-    return [d[s] for s in slugs]
-
-
-GROUPS = [
-    ("One field, many equations",
-     r"The pieces here are the isogeny classes over $\mathbb{F}_5$. We use the "
-     r"Deuring–Pinkall construction to draw each curve inside a CM lift of the "
-     r"elliptic curve over $\mathbb{F}_5$; the points shown are those defined "
-     r"over $\mathbb{F}_{5^6}$.",
-     _pick("icm-a0", "icm-a1", "icm-a2", "icm-a3", "icm-a4")),
-    ("One equation, many fields",
-     r"The well-known (elliptic) modular curve $X_0(11)$ from different "
-     r"perspectives — some pieces depict the reductions $X_0(11) \bmod p$, "
-     r"others the characteristic-zero object itself.",
-     _pick("icm-pcomplex", "icm-p23", "icm-p101", "icm-p107", "icm-starscape")),
-    ("A bridge between the two walls",
-     "A single piece that ties the two sections together.",
-     _pick("icm-x05")),
-    ("From the Bridges paper",
-     "The renders of [*Elliptic Curves and the Hopf Fibration*]"
-     "(https://arxiv.org/abs/2505.09627) (Bridges 2025).",
-     BRIDGES),
+GALLERIES = [
+    {"header": "From the ICM gallery",
+     "intro": r"Two walls — $\mathbb{F}_5$ held fixed while the equation varies, "
+              r"and $X_0(11)$ held fixed while the field varies — bridged by a "
+              r"single surface:",
+     "lead": ["icm-x05"],
+     "sections": [
+        ("One field, many equations",
+         r"The pieces here are the isogeny classes over $\mathbb{F}_5$. We use "
+         r"the Deuring–Pinkall construction to draw each curve inside a CM lift "
+         r"of the elliptic curve over $\mathbb{F}_5$; the points shown are those "
+         r"defined over $\mathbb{F}_{5^6}$.",
+         ["icm-a0", "icm-a1", "icm-a2", "icm-a3", "icm-a4"]),
+        ("One equation, many fields",
+         r"The well-known (elliptic) modular curve $X_0(11)$ from different "
+         r"perspectives — some pieces depict the reductions $X_0(11) \bmod p$, "
+         r"others the characteristic-zero object itself.",
+         ["icm-pcomplex", "icm-p23", "icm-p101", "icm-p107", "icm-starscape"]),
+     ]},
+    {"header": "From the Bridges paper",
+     "intro": "The renders of [*Elliptic Curves and the Hopf Fibration*]"
+              "(https://arxiv.org/abs/2505.09627) (Bridges 2025).",
+     "lead": [],
+     "sections": [(None, None, [e["slug"] for e in BRIDGES])]},
 ]
 
 ALL = {e["slug"]: e for e in ICM + BRIDGES}
@@ -332,11 +333,18 @@ def wall_view():
         links = " · ".join(f"[{e['title']}](?pic={e['slug']}&draft=1)" for e in todo)
         st.info(f"**DRAFT MODE** — {len(todo)} ICM page(s) still need prose: {links}")
     st.markdown(_GRID_CSS, unsafe_allow_html=True)
-    for title, sub, entries in GROUPS:
-        st.markdown(f"### {title}")
-        st.markdown(sub)
-        st.markdown(_grid_html(tuple(e["slug"] for e in entries)),
-                    unsafe_allow_html=True)
+    for g in GALLERIES:
+        st.markdown(f"## {g['header']}")
+        if g.get("intro"):
+            st.markdown(g["intro"])
+        if g.get("lead"):
+            st.markdown(_grid_html(tuple(g["lead"])), unsafe_allow_html=True)
+        for title, sub, slugs in g["sections"]:
+            if title:
+                st.markdown(f"### {title}")
+            if sub:
+                st.markdown(sub)
+            st.markdown(_grid_html(tuple(slugs)), unsafe_allow_html=True)
 
 
 _DETAIL_CSS = """
