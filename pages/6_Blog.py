@@ -15,92 +15,139 @@ IMG = Path(__file__).parent / "blog_img"
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-def _img(name, caption):
-    st.image(str(IMG / name), caption=caption, width="stretch")
+def _img(name, caption, frac=None):
+    """Render a figure. frac=None fills the column; frac in (0,1) shows it at
+    that fraction of the width, centered."""
+    if frac is None:
+        st.image(str(IMG / name), caption=caption, width="stretch")
+    else:
+        pad = (1.0 - frac) / 2.0
+        cols = st.columns([pad, frac, pad])
+        with cols[1]:
+            st.image(str(IMG / name), caption=caption, width="stretch")
 
 
 # ── Post 1 — sum of two squares ───────────────────────────────────────────────
 def render_sum_of_squares():
     st.markdown("# Minkowski and Frobenius")
-    st.caption("How a 350-year-old theorem of Fermat — plus a little geometry of "
-               "numbers — says something concrete about the Bitcoin curve. · July 2026")
+    st.caption("Revisiting Fermat's two-squares theorem as a problem in Minkowski's "
+               "geometry of numbers — and following it all the way to the trace of "
+               "Frobenius on the Bitcoin curve. · July 2026")
 
     st.markdown(r"""
-Someone once asked, on a Bitcoin forum, what the curve **secp256k1** *looks like*.
-It's a fair question with an awkward answer: the curve lives over a field with
-about $10^{77}$ elements, so there is no honest picture to draw. But we can ask a
-better question — **what can we learn about it using down-to-earth, visualizable
-methods?**
+We're going to revisit a well-known fact, first proven by Fermat and reproven by
+countless others since: if $p$ is a prime with $p \equiv 1 \pmod 4$, then $p$ can
+be written as a sum of two integer squares,
+""")
+    st.latex(r"p = a^2 + b^2")
+    st.markdown(r"""
+A natural follow-up question is: given such a $p$, how do we actually **find** $a$
+and $b$? This is not an open problem — far from it — so finding *an* answer is not
+hard. What I wanted to do is see how far I could get on this problem using only
+geometry and pictures.
 
-secp256k1 is $y^2 = x^3 + 7$, which has $j$-invariant $0$, and its prime $p$ is
-$\equiv 1 \pmod 3$, so the curve is *ordinary*. To pin down its arithmetic (the
-number of points, the trace of Frobenius) it turns out we need to write
-
-$$p = x^2 + 3y^2.$$
-
-That has a friendlier cousin that everyone can picture, and it's where I want to
-start: for a prime $p \equiv 1 \pmod 4$, **Fermat** tells us
-
-$$p = a^2 + b^2.$$
-
-Fermat's theorem promises the two squares *exist*. The interesting question is
-sharper: given $p$, how do you **find** $a$ and $b$? And it turns out the whole
-thing is secretly a problem about a lattice.
+There's also a reason to care beyond the theorem's charm, and it's the reason
+*Frobenius* is in the title. Those two numbers are not merely a curiosity: they
+pin down the **trace of Frobenius** — and hence the exact number of points — of
+the elliptic curves with $j$-invariant $1728$ over $\mathbb{F}_p$. Writing $p$ as
+a sum of two squares is secretly a statement about counting points on curves, and
+by the end we'll ride the very same idea all the way to the curve behind Bitcoin.
 """)
 
-    st.markdown("### The answer is a shortest vector")
+    st.markdown("### Turning it into geometry")
     st.markdown(r"""
-Fix an integer $r$ with $r^2 \equiv -1 \pmod p$ (this exists exactly when
-$p \equiv 1 \pmod 4$). Now look at the lattice
+Fix an integer $r$ with $r^2 \equiv -1 \pmod p$. Such an $r$ exists precisely
+because $p \equiv 1 \pmod 4$, and it is cheap to compute. Consider the lattice
+""")
+    st.latex(r"\Lambda = \{(a,b)\in\mathbb{Z}^2 : a \equiv r\,b \pmod p\}")
+    st.markdown(r"""
+Two easy observations do all the work. First, $\Lambda$ is *coarse*: it has
+covolume $p$ — one lattice point for every $p$ cells of the integer grid. Second,
+every point of $\Lambda$ satisfies
+""")
+    st.latex(r"a^2 + b^2 \equiv b^2(r^2 + 1) \equiv 0 \pmod p")
+    st.markdown(r"""
+so the norm $a^2 + b^2$ of any lattice point is a multiple of $p$. Now suppose we
+manage to find a nonzero point that is genuinely **short** — short enough that
+$a^2 + b^2 < 2p$. Its norm is then a positive multiple of $p$ lying below $2p$,
+and there is only one of those: $a^2 + b^2 = p$. That single short vector *is* the
+representation we were after.
 
-$$\Lambda = \{(a,b)\in\mathbb{Z}^2 : a \equiv r\,b \pmod p\}.$$
-
-Two things are true and easy to check: $\Lambda$ has one point per $p$ cells of
-the integer grid (covolume $p$), and **every** point of $\Lambda$ has
-$a^2 + b^2 \equiv 0 \pmod p$. So if we can find a *short enough* nonzero point —
-one with $a^2 + b^2 < 2p$ — then its norm is a positive multiple of $p$ below
-$2p$, which leaves only one option: $a^2 + b^2 = p$.
-
-Minkowski's theorem guarantees such a short point exists. But I don't want to
-just know it exists — I want to **find it**. The problem has become purely
-geometric: *find the shortest nonzero vector of $\Lambda$.*
+Minkowski's theorem — the founding result of the geometry of numbers — guarantees
+that a short-enough point exists: any centrally symmetric convex region of area
+greater than $4p$ must contain a nonzero lattice point, and a disc just past that
+threshold has radius-squared $\approx 1.27\,p$, comfortably under $2p$. But
+existence is not what I'm after. I know the lattice explicitly — I want to *walk
+to* a short vector.
 """)
     _img("gauss_minkowski.png",
-         "The lattice Λ (index p in ℤ[i]) with the disc a²+b² < 2p. Its shortest "
-         "vector is the sum-of-two-squares answer; here 113 = (−8)² + 7².")
+         "The lattice Λ (index p in ℤ[i]) with the disc a²+b² < 2p. A short enough "
+         "nonzero point has norm exactly p; here 113 = (−8)² + 7².", frac=0.62)
 
-    st.markdown("### Finding it: a descent you can watch")
+    st.markdown("### Two ways to make a vector shorter")
     st.markdown(r"""
-Here is the trick. Read the pair $(a,b)$ as a **Gaussian integer** $a + bi$, and
-run the **Euclidean algorithm in $\mathbb{Z}[i]$**. Every step is a single,
-completely visual move: *find the nearest multiple of the current divisor* — the
-nearest point of a rotated, scaled copy of the square lattice — and take the
-remainder, which is strictly shorter. The "how many times $p$" left over (the
-cofactor $N/p$) strictly decreases, so by plain well-ordering the process must
-stop — and it stops exactly at the shortest vector, whose norm is $p$.
+Here is the plan, and it is the well-ordering principle in disguise. Start from
+any convenient nonzero point of $\Lambda$ — say
+""")
+    st.latex(r"z_1 = (1, r), \qquad \text{with norm } 1 + r^2 = n_1 \cdot p")
+    st.markdown(r"""
+for some integer $n_1 > 1$. Its norm is $n_1$ copies of $p$; we want to grind
+$n_1$ down to $1$. If we have **any** move that takes a non-minimal point of
+$\Lambda$ and returns a strictly shorter one, then — because norms are positive
+integers and cannot decrease forever — repeating it must land us on a shortest
+vector, whose norm can only be $p$. So the whole problem collapses to a single
+question: *how do you make a known lattice vector shorter?* I know two good
+answers.
 
-Pick a prime below and step through it yourself. Watch the red vector spiral in
+**One — stay in the integers.** There is an elementary, small-number move. Run the
+ordinary Euclidean algorithm on the pair $(p, r)$, watching the remainders shrink;
+the first remainder that drops below $\sqrt p$, together with the one right after
+it, are exactly your $a$ and $b$. Nothing ever leaves the integers. This is
+Serret's nineteenth-century trick, and it is really just the continued-fraction
+expansion of $p/r$ read at the halfway point.
+
+**Two — go complex.** Read the pair $(a,b)$ as a **Gaussian integer** $a + b\,i$.
+Now each shortening step is a single, completely visual move: find the *nearest
+multiple* of the current divisor — the nearest point of a rotated, rescaled copy
+of the square lattice — and take the remainder, which is strictly shorter. That is
+precisely the **Euclidean algorithm in $\mathbb{Z}[i]$**, and it's the version you
+can *watch*. Pick a prime below and step through it: the red vector spirals in
 onto the circle $|z| = \sqrt p$, where it lands on the answer.
 """)
     components.html(blog_viz.sos_descent_html(), height=820, scrolling=True)
-
-    st.markdown("### Why it never gets stuck — and the payoff for secp256k1")
     st.markdown(r"""
-The descent can't stall, and the reason is a small piece of magic: $\mathbb{Z}[i]$
-is **norm-Euclidean**, so every division genuinely produces a shorter remainder.
-More broadly, *this trick works for exactly those curves whose complex
-multiplication is by a norm-Euclidean order.*
+Either move solves the problem, and the reason the complex one can never get stuck
+is a small piece of magic: $\mathbb{Z}[i]$ is **norm-Euclidean**, so every
+division genuinely leaves a shorter remainder. The cofactor $n_k = (a^2+b^2)/p$
+falls strictly at every step until it reaches $1$ — well-ordering, made literal.
+""")
 
-For the Bitcoin curve, $j = 0$, the relevant order isn't the Gaussian integers
-but the **Eisenstein integers** $\mathbb{Z}[\omega]$ — the hexagonal lattice —
-which is also norm-Euclidean. The same descent finds $p = x^2 + 3y^2$, and from
-that single representation the **six candidate traces of Frobenius** of
-$y^2 = x^3 + 7$ fall out (rotate by the six units of $\mathbb{Z}[\omega]$). On the
-actual 256-bit secp256k1 prime this runs in about a millisecond.
+    st.markdown("### The curve behind it: j = 0 and secp256k1")
+    st.markdown(r"""
+Now for the promised payoff. The sum-of-two-squares story is the $j = 1728$ story:
+the two squares are the real and imaginary parts of a Gaussian integer of norm
+$p$, and that Gaussian integer *is* the Frobenius endomorphism of the curve. Stated
+that way, the method obviously generalizes — it works for any elliptic curve whose
+complex multiplication is by a **norm-Euclidean** order. We just change the
+lattice.
+
+The Bitcoin curve **secp256k1** is $y^2 = x^3 + 7$, which has $j$-invariant $0$.
+Its prime is $\equiv 1 \pmod 3$, so the curve is ordinary, and its complex
+multiplication is by the **Eisenstein integers** $\mathbb{Z}[\omega]$ — the
+hexagonal lattice, also norm-Euclidean. The same descent, run on the hexagon,
+produces
+""")
+    st.latex(r"p = x^2 + 3y^2")
+    st.markdown(r"""
+and from that single representation the **six candidate traces of Frobenius** of
+$y^2 = x^3 + 7$ fall out at once (multiply by the six units of
+$\mathbb{Z}[\omega]$). On the actual 256-bit secp256k1 prime the whole computation
+takes about a millisecond. We cannot draw the curve — but we can hold its point
+count in our hands.
 """)
     _img("eisenstein_minkowski.png",
          "The j = 0 story: the hexagonal Eisenstein lattice. Its six shortest "
-         "vectors give p = x² + 3y² and the six candidate Frobenius traces.")
+         "vectors give p = x² + 3y² and the six candidate Frobenius traces.", frac=0.62)
 
     st.markdown("### When is it slowest? (a Fibonacci surprise)")
     st.markdown(r"""
@@ -124,13 +171,18 @@ fraction beats the ordinary one.
 
     st.markdown("### The bottom line")
     st.markdown(r"""
-The naive ways to find $a, b$ — searching pairs, or counting points — cost about
-$p$ operations, which for a 256-bit prime is hopeless. The lattice descent costs
-a number of steps polynomial in the *number of digits* of $p$: milliseconds, not
-millennia. (Number theorists will recognize this as **Cornacchia's algorithm**,
-rederived here as pure geometry of numbers.) So we can't draw secp256k1 — but we
-can hold its arithmetic in our hands, and every step of getting there is a
-picture.
+It's worth appreciating what the geometry bought us. The naive ways to find
+$a, b$ — searching over pairs, or counting points on the curve directly — cost on
+the order of $p$ operations, which for a 256-bit prime is hopeless. The lattice
+descent instead costs a number of steps polynomial in the *number of digits* of
+$p$: milliseconds, not millennia. (Number theorists will recognize the end result
+as **Cornacchia's algorithm** — here rederived as nothing but geometry of
+numbers.)
+
+So this was never about proving something new; Fermat's theorem was settled long
+ago. It was about a question of *method* — how far a picture can take you — and
+the answer turned out to be: all the way. Every step, from the lattice to the
+Bitcoin curve, is something you can watch.
 """)
 
 
