@@ -121,7 +121,7 @@ ICM = [
                          ("⇒ implies", "𝔽₅ · 6 points · trace 0"),
                          ("endomorphisms", "order disc −20 · h = 2"),
                          ("j (char 0)", "632000 ± 282880√5 → 0 (mod 5)")]},
-     "seed": ["The only supersingular class over 𝔽₅ (trace 0).",
+     "seed": ["The only supersingular curve over 𝔽₅ (trace 0).",
               "CM order disc −20 = ℚ(√−5) has class number 2 — two lifts, "
               "j = 632000 ± 282880√5, conjugate over ℚ.",
               "The two roots ±√−5 are the two orientations = the two lifts = "
@@ -156,9 +156,9 @@ ICM = [
      "links": [("open in the Explorer", "/Explorer?a=2&p=101"),
                ("disc −400", "/Explorer?d=-400")]},
     {"slug": "icm-p107", "title": "X₀(11) mod 107 — the six lifts",
-     "blurb": "Mod 107 the Frobenius order is ℤ[√−26], with class number 6: "
-              "six lattices, six lifts, one curve. The class group is cyclic "
-              "and the arrangement encodes it — the tori sit like the 6th "
+     "blurb": "Mod 107, the endomorphism ring is ℤ[√−26], which has class number 6: "
+              "Any ideal in this class group can be used to visualize the curve. "
+              "The arrangement encodes the class group structure — the tori sit like the 6th "
               "roots of unity.",
      "desc": (
         r"There are $6$ possible CM lifts for $X_0(11) \pmod{107}$, "
