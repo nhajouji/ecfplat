@@ -37,8 +37,7 @@ st.caption(
 )
 
 st.markdown(
-    "This website is about **visualizing elliptic curves in new ways** — and about "
-    "the classical theory those pictures turn out to encode. From the sidebar:"
+    "This website is about **visualizing elliptic curves in new ways**. "
 )
 st.markdown(
     "- **[Background](/Background)** — the theory of elliptic curves over "
