@@ -108,8 +108,8 @@ ICM = [
     {"slug": "icm-a0", "title": "Trace 0 over 𝔽₅ — supersingular",
      "eqn": "y² = x³ + 1 &nbsp;(mod 5)",
      "blurb": "The supersingular class (a, p) = (0, 5): y² = x³ + 1, j = 0 — the "
-              "one exceptional class over 𝔽₅, made as a lenticular print that "
-              "flips between the two lifts as you move past it.",
+              "one supersingular curve over 𝔽₅, made as a lenticular print that "
+              "flips between two possible lifts as you move past it.",
      "desc": (
         r"One supersingular $j$-invariant over $\mathbb{F}_5$ — but two curves "
         r"realize it, and two lattices lift it. A lenticular print, so both lifts "
@@ -262,9 +262,9 @@ BRIDGES = [
 
 GALLERIES = [
     {"header": "From the ICM gallery",
-     "intro": r"Two walls — $\mathbb{F}_5$ held fixed while the equation varies, "
-              r"and $X_0(11)$ held fixed while the field varies — bridged by a "
-              r"single surface:",
+     "intro": r"The gallery has 2 sections — one depicting elliptic curves over $\mathbb{F}_5$"
+              r"and one depicting $X_0(11)$ over different fields. "
+              r"This picture connects the two halves of the gallery:",
      "lead": ["icm-x05"],
      "sections": [
         ("One field, many equations",
