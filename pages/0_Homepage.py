@@ -40,12 +40,11 @@ st.markdown(
     "This website is about **visualizing elliptic curves in new ways**. "
 )
 st.markdown(
-    "- **[Background](/Background)** — the theory of elliptic curves over "
-    "$\\mathbb{F}_p$, taught one interactive picture at a time.\n"
-    "- **[Explorer](/Explorer)** — open any isogeny class and read off its curves, "
-    "isogeny graphs, and lattices, live.\n"
-    "- **[Gallery](/Gallery)** — the pictures we've made, each with its story.\n"
-    "- **[Blog](/Blog)** — short stories from the making of the site."
+    "- **[Background](/Background)** — learn what the pictures mean.\n"
+    "- **[Explorer](/Explorer)** — look up an elliptic curve or isogeny class.\n"
+    "- **[Gallery](/Gallery)** — the fruit of our labor.\n"
+    "- **[Blog](/Blog)** — random thoughts, stories, and analogies that came out "
+    "of this project."
 )
 
 # ── coverage ──────────────────────────────────────────────────────────────────

@@ -70,7 +70,7 @@ ICM = [
      "blurb": "One curve, three rational points, CM by discriminant −11.",
      "desc": (
         r"Three points over $\mathbb{F}_5$. Discriminant $-11$, class number "
-        r"one: a single lattice, nothing to choose — the quiet opposite of the "
+        r"one: a single CM lift, nothing to choose — the quiet opposite of the "
         r"six lifts down the wall."),
      "idcard": {"cap": "isogeny class (3, 5)", "fd": "a3",
                 "fd_cap": "the CM point — on the wall Re = ½",
@@ -111,9 +111,8 @@ ICM = [
               "one supersingular curve over 𝔽₅, made as a lenticular print that "
               "flips between two possible lifts as you move past it.",
      "desc": (
-        r"One supersingular $j$-invariant over $\mathbb{F}_5$ — but two curves "
-        r"realize it, and two lattices lift it. A lenticular print, so both lifts "
-        r"of Frobenius share one frame."),
+        r"$j = 0$: one supersingular elliptic curve, two CM lifts. A lenticular "
+        r"print holds both — the two lifts of Frobenius in a single frame."),
      "idcard": {"cap": "supersingular class (0, 5)", "fd": "a0",
                 "fd_cap": "two CM points = the two lifts",
                 "rows": [("Frobenius π", "±√−5 &nbsp;<span class='note'>(two "
@@ -171,7 +170,7 @@ ICM = [
     {"slug": "icm-x05", "title": "X₀(5) as a real surface",
      "blurb": "A slice of the universal curve over X₁(5) — every thread a "
               "real elliptic curve. Four fibers are highlighted: the two "
-              "lattices with CM by √−5, and the pair X₁(11) ⇄ X₀(11), whose "
+              "curves with CM by √−5, and the pair X₁(11) ⇄ X₀(11), whose "
               "degree-5 map is itself a point of X₀(5).",
      "desc": (
         r"A picture depicting some of the real fibers on the universal curve "
@@ -262,7 +261,7 @@ BRIDGES = [
 
 GALLERIES = [
     {"header": "From the ICM gallery",
-     "intro": r"The gallery has 2 sections — one depicting elliptic curves over $\mathbb{F}_5$"
+     "intro": r"The gallery has 2 sections — one depicting elliptic curves over $\mathbb{F}_5$ "
               r"and one depicting $X_0(11)$ over different fields. "
               r"This picture connects the two halves of the gallery:",
      "lead": ["icm-x05"],
