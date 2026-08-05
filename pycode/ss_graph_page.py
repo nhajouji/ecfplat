@@ -28,11 +28,19 @@ def _compute(p: int, l: int):
     return graph, explorer_viz.ss_graph_descriptor(graph)
 
 
-def _qp_int(key, default):
+def _qp_int(key, default, lo=None, hi=None):
+    """Read an int query param. Callers feeding a number_input's ``value=``
+    must pass lo/hi: Streamlit raises if a default falls outside the widget's
+    range, and the traceback lands on the public page."""
     try:
-        return int(st.query_params[key])
+        val = int(st.query_params[key])
     except (KeyError, ValueError):
         return default
+    if lo is not None:
+        val = max(val, lo)
+    if hi is not None:
+        val = min(val, hi)
+    return val
 
 
 def render(show_header: bool = True):
@@ -51,7 +59,7 @@ def render(show_header: bool = True):
     c_p, c_l, c_sp = st.columns([1, 1, 2])
     with c_p:
         p_raw = st.number_input("p (prime)", min_value=P_MIN, max_value=P_CAP,
-                                value=_qp_int("p", 101), step=2)
+                                value=_qp_int("p", 101, P_MIN, P_CAP), step=2)
     with c_l:
         l_options = [l for l in available_ls() if l != int(p_raw)]
         l_qp = _qp_int("l", 2)
