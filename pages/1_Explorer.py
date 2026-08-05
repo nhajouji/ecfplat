@@ -26,6 +26,14 @@ import explorer_viz
 STORE_P_MAX = 8191          # curve tables cover 99.86% of classes to here
                             # (the rest render structure-only, gracefully)
 
+D_MIN = -4 * P_MAX          # a² - 4p = d·m² forces |d| <= 4p < 4·P_MAX, so no
+                            # prime in range realizes anything beyond this.
+                            # Enforced *before* QFIsogenyClass, whose cost is
+                            # unbounded in |d| (17 s at 10^6, minutes at 10^7)
+                            # and would otherwise stall every session on the
+                            # instance — the volcano guard below only caps the
+                            # drawing, which is far too late.
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 @st.cache_resource(max_entries=24, show_spinner=False)
@@ -211,8 +219,11 @@ def entry_view():
 
     with col_d:
         st.subheader("Start from a discriminant")
-        d_raw = st.number_input("discriminant d", max_value=-3, value=-368, step=1,
-                                help="A negative discriminant: d ≡ 0 or 1 (mod 4).")
+        d_raw = st.number_input("discriminant d", min_value=D_MIN, max_value=-3,
+                                value=-368, step=1,
+                                help=f"A negative discriminant: d ≡ 0 or 1 "
+                                     f"(mod 4), down to {D_MIN:,} — the "
+                                     f"largest |d| any p < {P_MAX} realizes.")
         d = int(d_raw)
         if not _valid_disc(d):
             st.caption(f"{d} ≡ {d % 4} (mod 4) isn't a discriminant — "
@@ -236,6 +247,11 @@ def disc_view(d: int):
     _crumbs(("⌂ Explorer", "?"), (f"discriminant {d}", None))
     if not _valid_disc(d):
         st.error(f"{d} is not a negative discriminant (need d < 0, d ≡ 0 or 1 mod 4).")
+        return
+    if d < D_MIN:
+        st.error(f"|d| is capped at {-D_MIN:,} here. No prime $p < {P_MAX}$ "
+                 f"realizes a discriminant that large — $a^2 - 4p = d\\,m^2$ "
+                 f"forces $|d| \\leq 4p$ — so there would be nothing to show.")
         return
     cls = _load_qf_class(d)
     n = len(cls.qfs_all)
