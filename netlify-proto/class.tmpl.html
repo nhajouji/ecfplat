@@ -34,6 +34,18 @@
 </div>
 
 <script>
+// Selection bus. The volcano and the CM-points picture draw the same lattice
+// classes in the same order (both index cls.qfs_ordered), so an index means
+// the same object in both — hovering one can highlight the other. This is the
+// thing Streamlit's per-applet iframes made impossible.
+window.ecfBus = (() => {
+  const subs = {};
+  return {
+    on(name, fn) { subs[name] = fn; },
+    emit(from, i) { for (const k in subs) if (k !== from) subs[k](i); },
+  };
+})();
+
 (async () => {
   const qs = new URLSearchParams(location.search);
   const p = qs.get("p"), a = qs.get("a");

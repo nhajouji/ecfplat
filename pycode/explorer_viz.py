@@ -124,6 +124,11 @@ let curL=DATA.ls[0];
 const layouts={};                 // l -> computed layout
 let view={k:1, tx:0, ty:0};       // world -> canvas transform
 let hoverI=-1, selI=-1;
+// index highlighted from *outside* this widget (the CM-points picture or the
+// table showing the same lattice classes). window.ecfBus only exists on the
+// static site, where the widgets share a page; under Streamlit each widget is
+// a sandboxed iframe, so every ?. below short-circuits and nothing changes.
+let extHi=-1;
 
 const vval=(l,n)=>{let v=0; while(n%l===0){n/=l; v++;} return v;};
 
@@ -257,7 +262,7 @@ function draw(){
     const [x,y]=W2C(L.pos[i]);
     ctx.fillStyle=LVL_COLORS[Math.min(L.lev[i], LVL_COLORS.length-1)];
     ctx.beginPath(); ctx.arc(x,y,rN,0,7); ctx.fill();
-    if(i===selI||i===hoverI){
+    if(i===selI||i===hoverI||i===extHi){
       ctx.strokeStyle=i===selI?RED:INK; ctx.lineWidth=2.4;
       ctx.beginPath(); ctx.arc(x,y,rN+3.2,0,7); ctx.stroke();
     }
@@ -342,8 +347,12 @@ cv.addEventListener("pointermove",ev=>{
     if(moved){ view.tx+=x-px0; view.ty+=y-py0; px0=x; py0=y; draw(); }
   } else {
     const h=hitTest(x,y);
-    if(h!==hoverI){ hoverI=h; cv.style.cursor=h>=0?"pointer":"grab"; draw(); refreshInfo(); }
+    if(h!==hoverI){ hoverI=h; cv.style.cursor=h>=0?"pointer":"grab"; draw(); refreshInfo();
+                    window.ecfBus?.emit("graph", h); }
   }
+});
+cv.addEventListener("pointerleave",()=>{
+  if(hoverI!==-1){ hoverI=-1; draw(); refreshInfo(); window.ecfBus?.emit("graph", -1); }
 });
 cv.addEventListener("pointerup",ev=>{
   cv.style.cursor="grab";
@@ -377,6 +386,8 @@ DATA.ls.forEach(l=>{
   });
   lbar.appendChild(b);
 });
+
+window.ecfBus?.on("graph", i => { if(i!==extHi){ extHi=i; draw(); } });
 
 fitView(); draw(); refreshInfo(); refreshLegend();
 })();
@@ -506,6 +517,7 @@ const ACCENT="#4da3d8", GOLD="#e0b64f", RED="#ef6f6f", INK="#d7d9dc", MUT="#9aa4
 const cv=document.getElementById("fdc"), ctx=cv.getContext("2d");
 const info=document.getElementById("fdInfo");
 let mode="disc", hover=-1;
+let extHi=-1;                     // highlighted from the volcano — see isogeny_graph_html
 
 // screen positions per mode
 function screenPts(){
@@ -525,6 +537,10 @@ function screenPts(){
 }
 
 function drawFrame(){
+  // textBaseline is sticky on the context and the label pass below sets it to
+  // "bottom", so without this the frame captions sit differently on the first
+  // draw than on every redraw after it.
+  ctx.textBaseline="alphabetic";
   ctx.strokeStyle="rgba(255,255,255,0.22)"; ctx.lineWidth=1.4;
   if(mode==="disc"){
     const cx=cv.width/2, cy=cv.height/2, R=Math.min(cx,cy)-28;
@@ -560,7 +576,7 @@ function draw(){
   drawFrame();
   const sp=screenPts();
   DATA.pts.forEach((p,i)=>{
-    const [x,y]=sp[i], on=i===hover;
+    const [x,y]=sp[i], on=(i===hover||i===extHi);
     ctx.fillStyle=p.color||ACCENT;
     ctx.beginPath(); ctx.arc(x,y,on?8:5.5,0,7); ctx.fill();
     if(on){ ctx.strokeStyle=RED; ctx.lineWidth=2.2;
@@ -582,9 +598,10 @@ function hit(px,py){
 cv.addEventListener("pointermove",ev=>{
   const [x,y]=evPos(ev); const h=hit(x,y);
   if(h!==hover){ hover=h; cv.style.cursor=h>=0&&DATA.linkBase?"pointer":"default"; draw();
-    info.innerHTML=h>=0?DATA.pts[h].sub:"&nbsp;"; }
+    info.innerHTML=h>=0?DATA.pts[h].sub:"&nbsp;"; window.ecfBus?.emit("fd", h); }
 });
-cv.addEventListener("pointerleave",()=>{hover=-1;draw();info.innerHTML="&nbsp;";});
+cv.addEventListener("pointerleave",()=>{hover=-1;draw();info.innerHTML="&nbsp;";
+  window.ecfBus?.emit("fd", -1);});
 cv.addEventListener("pointerdown",ev=>{
   if(!DATA.linkBase) return;
   const [x,y]=evPos(ev); const h=hit(x,y);
@@ -593,6 +610,7 @@ cv.addEventListener("pointerdown",ev=>{
 const segD=document.getElementById("fdSegDisc"), segS=document.getElementById("fdSegStd");
 segD.addEventListener("click",()=>{mode="disc"; segD.classList.add("on"); segS.classList.remove("on"); hover=-1; draw();});
 segS.addEventListener("click",()=>{mode="std";  segS.classList.add("on"); segD.classList.remove("on"); hover=-1; draw();});
+window.ecfBus?.on("fd", i => { if(i!==extHi){ extHi=i; draw(); } });
 draw();
 })();
 </script>
