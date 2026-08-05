@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Explorer — static prototype</title>
+<style>
+  html, body { background:#0e1013; color:#d7d9dc; margin:0;
+               font-family:-apple-system,"Avenir Next",Helvetica,Arial,sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:32px 18px 60px; }
+  a { color:#4da3d8; }
+  h1 { font-size:1.9rem; margin:.2em 0 .5em; }
+  h2 { font-size:1rem; margin:1.8em 0 .6em; color:#c8ccd1; }
+  p { line-height:1.7; color:#c2c7cd; }
+  .note { background:#1b2027; border:1px solid #2b3138; border-radius:8px;
+          padding:12px 16px; font-size:.9rem; color:#9aa4ad; margin:1.4em 0; }
+  .grid { display:flex; flex-wrap:wrap; gap:7px; margin-bottom:.6em; }
+  .grid a { background:#1b2027; border:1px solid #2b3138; border-radius:7px;
+            padding:5px 11px; text-decoration:none; font-size:.9rem; }
+  .grid a:hover { border-color:#4da3d8; }
+  code { background:#1b2027; border-radius:4px; padding:1px 5px; font-size:.9em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Explorer — static prototype</h1>
+  <p>The same class view the live site serves from Streamlit, rendered with no
+     server at all. Every page here is a plain file: the drawing code is the
+     Explorer's own canvas applets, and the mathematics arrived as JSON that was
+     computed once, at build time.</p>
+  <div class="note">Prototype scope: only the primes below were built. The real
+     port would ship one shard per prime up to 8191 — 1,026 files, about 190&nbsp;MB
+     gzipped in total.</div>
+  <div id="index"></div>
+</div>
+<script>
+(async () => {
+  const el = document.getElementById("index");
+  const idx = await (await fetch("data/index.json")).json();
+  el.innerHTML = Object.keys(idx).map(Number).sort((x, y) => x - y).map(p =>
+    `<h2>p = ${p} <span style="color:#9aa4ad;font-weight:400">` +
+    `— ${idx[p].length} isogeny classes</span></h2><div class="grid">` +
+    idx[p].map(a => `<a href="class.html?a=${a}&p=${p}">a = ${a}</a>`).join("") +
+    `</div>`).join("");
+})();
+</script>
+</body>
+</html>

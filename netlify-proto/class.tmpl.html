@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Isogeny class — Explorer</title>
+<style>
+  html, body { background:#0e1013; color:#d7d9dc; margin:0;
+               font-family:-apple-system,"Avenir Next",Helvetica,Arial,sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:28px 18px 60px; }
+  a { color:#4da3d8; }
+  h1 { font-size:1.9rem; margin:.2em 0 .35em; font-weight:700; }
+  h2 { font-size:1.05rem; margin:2em 0 .7em; font-weight:600; color:#c8ccd1; }
+  .crumbs { font-size:.85rem; color:#9aa4ad; margin-bottom:1.2em; }
+  .facts { color:#c2c7cd; line-height:1.75; margin-bottom:.4em; }
+  .facts b { color:#e0b64f; font-weight:600; }
+  .note { background:#1b2027; border:1px solid #2b3138; border-radius:8px;
+          padding:10px 14px; font-size:.9rem; color:#9aa4ad; margin:1em 0; }
+  .err { color:#ef6f6f; }
+  var { font-style:italic; font-family:Georgia,"Times New Roman",serif; }
+  sup { font-size:.72em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumbs" id="crumbs"></div>
+  <div id="head"></div>
+  <div id="body" hidden>
+    <h2>The &#8467;-isogeny graph</h2>
+    __GRAPH_APPLET__
+    <h2>The lattice classes as CM points</h2>
+    __FD_APPLET__
+  </div>
+</div>
+
+<script>
+(async () => {
+  const qs = new URLSearchParams(location.search);
+  const p = qs.get("p"), a = qs.get("a");
+  const head = document.getElementById("head");
+  const crumbs = document.getElementById("crumbs");
+
+  if (p === null || a === null) {
+    crumbs.innerHTML = '<a href="./">&#8962; Explorer</a>';
+    head.innerHTML = '<p class="err">Give a trace and a prime, e.g. ' +
+                     '<a href="?a=6&p=101">?a=6&amp;p=101</a>.</p>';
+    return;
+  }
+
+  let shard;
+  try {
+    const res = await fetch(`data/${encodeURIComponent(p)}.json`);
+    if (!res.ok) throw new Error(res.status);
+    shard = await res.json();
+  } catch (e) {
+    crumbs.innerHTML = '<a href="./">&#8962; Explorer</a>';
+    head.innerHTML = `<p class="err">No data shipped for p = ${p}. ` +
+                     `This prototype only builds a few primes — see ` +
+                     `<a href="./">the index</a>.</p>`;
+    return;
+  }
+
+  const c = shard[a];
+  if (!c) {
+    crumbs.innerHTML = '<a href="./">&#8962; Explorer</a>';
+    head.innerHTML = `<p class="err">(a, p) = (${a}, ${p}) is not an ` +
+                     `admissible class — need a&sup2; &lt; 4p and p &#8740; a.</p>`;
+    return;
+  }
+
+  crumbs.innerHTML = `<a href="./">&#8962; Explorer</a> &rsaquo; ` +
+                     `disc ${c.d} &rsaquo; (a, p) = (${c.a}, ${c.p})`;
+  const chi = c.chi.replace("x^2", "<var>x</var><sup>2</sup>")
+                   .replace(/x(?![\^p])/g, "<var>x</var>");
+  head.innerHTML =
+    `<h1>Isogeny class (a, p) = (${c.a}, ${c.p})</h1>` +
+    `<p class="facts">&chi;(<var>x</var>) = ${chi} &nbsp;·&nbsp; ` +
+    `#E(<b>F</b><sub>${c.p}</sub>) = ${c.N} &nbsp;·&nbsp; ` +
+    `disc ${c.d} (field disc ${c.fieldDisc}, cond ${c.cond}) &nbsp;·&nbsp; ` +
+    `<b>${c.n}</b> curves` +
+    (c.supersingular ? " &nbsp;·&nbsp; supersingular" : "") + `</p>` +
+    (c.hasCurves ? "" :
+      `<div class="note">One of the few classes (0.14%) whose curve tables ` +
+      `are still being computed, so this shows the lattice side only — the ` +
+      `graph structure is exact.</div>`);
+
+  document.getElementById("body").hidden = false;
+  window.initGraph(c.graph);
+  window.initFD(c.fd);
+})();
+</script>
+</body>
+</html>
