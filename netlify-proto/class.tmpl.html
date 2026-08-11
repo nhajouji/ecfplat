@@ -19,6 +19,26 @@
   .err { color:#ef6f6f; }
   var { font-style:italic; font-family:Georgia,"Times New Roman",serif; }
   sup { font-size:.72em; }
+
+  .tbl-bar { display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+             margin-bottom:10px; font-size:.88rem; color:#9aa4ad; }
+  .tbl-bar select { background:#22262b; color:#d7d9dc; border:1px solid #33383e;
+                    border-radius:7px; padding:5px 9px; font-size:.88rem; }
+  .tbl-bar label { display:flex; gap:6px; align-items:center; cursor:pointer; }
+  .tbl-scroll { overflow-x:auto; border:1px solid #2b2f34; border-radius:10px; }
+  table { border-collapse:collapse; width:100%; font-size:.86rem; }
+  th, td { padding:7px 12px; text-align:left; white-space:nowrap;
+           border-bottom:1px solid #23272c; }
+  th { color:#9aa4ad; font-weight:600; background:#17191c; position:sticky; top:0; }
+  tbody tr { cursor:default; }
+  /* .lit is set when another view reports the selection; :hover covers the row
+     you are actually pointing at, which never receives its own emit. Both must
+     look identical or the link looks one-way. */
+  tbody tr.lit, tbody tr:hover { background:#26303a; }
+  tbody tr.lit td:first-child, tbody tr:hover td:first-child { box-shadow:inset 3px 0 0 #ef6f6f; }
+  .legend { font-size:.86rem; color:#9aa4ad; line-height:1.65; margin-top:1em; }
+  .legend b { color:#c2c7cd; }
+  .dl { margin-top:1.4em; font-size:.88rem; }
 </style>
 </head>
 <body>
@@ -30,6 +50,26 @@
     __GRAPH_APPLET__
     <h2>The lattice classes as CM points</h2>
     __FD_APPLET__
+    <div id="tablewrap" hidden>
+      <h2>All curves in the class</h2>
+      <div class="tbl-bar">
+        <span>endomorphism ring
+          <select id="ringFilter"></select>
+        </span>
+        <label><input type="checkbox" id="allCols"> show every column</label>
+      </div>
+      <div class="tbl-scroll"><table id="tbl"></table></div>
+      <p class="legend">Each row pairs an isomorphism class of <b>CM lattices</b>
+        with an isomorphism class of <b>elliptic curves over F<sub>p</sub></b>;
+        the two sides are matched by an equivalence of categories.
+        <b>lattice (a, b, c)</b> is the reduced binary quadratic form
+        <var>ax</var><sup>2</sup> + <var>bxy</var> + <var>cy</var><sup>2</sup>
+        pinning down the lattice class, and <b>curve (f, g)</b> the short
+        Weierstrass model <var>y</var><sup>2</sup> = <var>x</var><sup>3</sup> +
+        <var>fx</var> + <var>g</var>. Rows sharing a lattice class are quadratic
+        twists of one another.</p>
+      <p class="dl"><a id="dl" download>&#8595; download this class as JSON</a></p>
+    </div>
   </div>
 </div>
 
@@ -99,7 +139,66 @@ window.ecfBus = (() => {
   document.getElementById("body").hidden = false;
   window.initGraph(c.graph);
   window.initFD(c.fd);
+  if (c.table) initTable(c.table);
+
+  const blob = new Blob([JSON.stringify(c, null, 2)], {type: "application/json"});
+  const dl = document.getElementById("dl");
+  dl.href = URL.createObjectURL(blob);
+  dl.download = `class-p${c.p}-a${c.a}.json`;
 })();
+
+// ── the table, as the third view onto the same lattice classes ──────────────
+const BASE_COLS = [
+  ["j",   "j-invariant",        r => r.j],
+  ["fg",  "curve (f, g)",       r => `(${r.fg.join(", ")})`],
+  ["qf",  "lattice (a, b, c)",  r => `(${r.qf.join(", ")})`],
+  ["ed",  "End-ring disc",      r => r.ed],
+  ["ec",  "End-ring conductor", r => r.ec],
+  ["tau", "τ",             r => r.tau],
+];
+const EXTRA_COLS = [
+  ["sig",  "signature",           r => r.sig],
+  ["cc",   "index [End(E) : ℤ[φ]]", r => r.cc],
+  ["frob", "Frobenius matrix",    r => r.frob],
+];
+
+function initTable(t) {
+  const wrap = document.getElementById("tablewrap");
+  const tbl = document.getElementById("tbl");
+  const ring = document.getElementById("ringFilter");
+  const allCols = document.getElementById("allCols");
+  wrap.hidden = false;
+
+  ring.innerHTML = `<option value="all">all</option>` +
+    t.discs.map(d => `<option value="${d}">${d}</option>`).join("");
+
+  function render() {
+    const cols = allCols.checked ? BASE_COLS.concat(EXTRA_COLS) : BASE_COLS;
+    const rows = ring.value === "all"
+      ? t.rows : t.rows.filter(r => String(r.ed) === ring.value);
+    tbl.innerHTML =
+      `<thead><tr>${cols.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead>` +
+      `<tbody>${rows.map(r =>
+        `<tr data-idx="${r.idx}">${cols.map(c =>
+          `<td>${c[2](r)}</td>`).join("")}</tr>`).join("")}</tbody>`;
+    tbl.querySelectorAll("tbody tr").forEach(tr => {
+      tr.addEventListener("mouseenter",
+        () => window.ecfBus.emit("table", +tr.dataset.idx));
+      tr.addEventListener("mouseleave",
+        () => window.ecfBus.emit("table", -1));
+    });
+  }
+
+  // several rows can share a lattice class, so light every match
+  window.ecfBus.on("table", i => {
+    tbl.querySelectorAll("tbody tr").forEach(tr =>
+      tr.classList.toggle("lit", i >= 0 && +tr.dataset.idx === i));
+  });
+
+  ring.addEventListener("change", render);
+  allCols.addEventListener("change", render);
+  render();
+}
 </script>
 </body>
 </html>

@@ -108,6 +108,36 @@ def fd_points(cls, p: int):
     return pts
 
 
+def table_rows(cls):
+    """One row per curve, tagged with the index of its lattice class.
+
+    Several curves can share a lattice class (quadratic twists), so `idx` is
+    not unique across rows — it is the join key onto qfs_ordered, which is what
+    the volcano and the CM points index. That is what lets the table take part
+    in the shared selection.
+    """
+    if cls.js_to_qf is None:
+        return None
+    idx_of = {qf: i for i, qf in enumerate(cls.qfs_ordered)}
+    rows = []
+    for _, r in cls.ecqf_df().iterrows():
+        qf = tuple(r["qf_coefs"])
+        rows.append({
+            "idx": idx_of[qf],
+            "sig": str(r["ec_invs"]),
+            "j": int(r["j_inv"]),
+            "fg": [int(v) for v in r["EC_coefs"]],
+            "qf": [int(v) for v in qf],
+            "ed": int(r["endo_disc"]),
+            "ec": int(r["endo_cond"]),
+            "cc": int(r["endo_cocond"]),
+            "frob": str(r["frobmat"]),
+            "tau": str(r["tau_s"]),
+        })
+    return {"rows": rows,
+            "discs": sorted({r["ed"] for r in rows})}
+
+
 def class_payload(a: int, p: int, templates: dict):
     cls = ECQFIsogenyClass(a, p)
     n = len(cls.qfs_all)
@@ -134,7 +164,7 @@ def class_payload(a: int, p: int, templates: dict):
         "fieldDisc": cls.field_disc, "cond": cls.cond, "n": n,
         "supersingular": a == 0,
         "hasCurves": cls.js_to_qf is not None,
-        "graph": g_data, "fd": f_data,
+        "graph": g_data, "fd": f_data, "table": table_rows(cls),
     }
 
 
