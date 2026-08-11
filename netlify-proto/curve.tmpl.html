@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Curve — Explorer</title>
+<style>
+  html, body { background:#0e1013; color:#d7d9dc; margin:0;
+               font-family:-apple-system,"Avenir Next",Helvetica,Arial,sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:28px 18px 60px; }
+  a { color:#4da3d8; }
+  h1 { font-size:1.8rem; margin:.2em 0 .35em; font-weight:700; }
+  h2 { font-size:1.05rem; margin:2em 0 .7em; font-weight:600; color:#c8ccd1; }
+  .crumbs { font-size:.85rem; color:#9aa4ad; margin-bottom:1.2em; }
+  .err { color:#ef6f6f; }
+  var { font-style:italic; font-family:Georgia,"Times New Roman",serif; }
+  sup { font-size:.72em; }
+  dl { display:grid; grid-template-columns:max-content 1fr; gap:9px 22px;
+       margin:0; font-size:.94rem; }
+  dt { color:#9aa4ad; }
+  dd { margin:0; color:#d7d9dc; }
+  .twins { margin-top:1.4em; font-size:.9rem; color:#9aa4ad; }
+  .dl { margin-top:1.6em; font-size:.88rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="crumbs" id="crumbs"></div>
+  <div id="head"></div>
+  <div id="body" hidden>
+    <h2>The curve as ℂ/Λ, with E(𝔽<sub>p</sub>) = Fix(α)</h2>
+    __TORUS_APPLET__
+    <div class="twins" id="twins"></div>
+    <p class="dl"><a id="dl" download>&#8595; download this curve as JSON</a></p>
+  </div>
+</div>
+
+<script>
+(async () => {
+  const qs = new URLSearchParams(location.search);
+  const p = qs.get("p"), j = qs.get("j");
+  const head = document.getElementById("head"), crumbs = document.getElementById("crumbs");
+  const fail = msg => { crumbs.innerHTML = '<a href="./">&#8962; Explorer</a>';
+                        head.innerHTML = `<p class="err">${msg}</p>`; };
+
+  if (p === null || j === null)
+    return fail('Give a prime and a j-invariant, e.g. <a href="?p=101&j=30">?p=101&amp;j=30</a>.');
+
+  let shard;
+  try {
+    const res = await fetch(`data/${encodeURIComponent(p)}.json`);
+    if (!res.ok) throw new Error(res.status);
+    shard = await res.json();
+  } catch (e) {
+    return fail(`No data shipped for p = ${p}. This prototype builds only a few
+                 primes — see <a href="./">the index</a>.`);
+  }
+
+  // j determines the curve, so find the class holding it. 127 classes at most
+  // for the primes built here; the real site would ship a j -> a index.
+  let c = null, cls = null;
+  for (const a of Object.keys(shard)) {
+    if (shard[a].curves && shard[a].curves[j]) { c = shard[a].curves[j]; cls = shard[a]; break; }
+  }
+  if (!c) return fail(`No curve with j = ${j} over F<sub>${p}</sub> in the shipped data.`);
+
+  const classHref = `class.html?a=${c.a}&p=${c.p}`;
+  crumbs.innerHTML =
+    `<a href="./">&#8962; Explorer</a> &rsaquo; ` +
+    `<a href="${classHref}">(a, p) = (${c.a}, ${c.p})</a> &rsaquo; j = ${c.j}`;
+
+  const eq = c.model
+    ? `<var>y</var><sup>2</sup> = <var>x</var><sup>3</sup> + ${c.model[0]}<var>x</var> + ${c.model[1]}`
+    : "—";
+  head.innerHTML =
+    `<h1>j = ${c.j} over 𝔽<sub>${c.p}</sub></h1>` +
+    `<dl>` +
+    `<dt>Weierstrass model</dt><dd>${eq}</dd>` +
+    `<dt>lattice (a, b, c)</dt><dd>(${c.qf.join(", ")})</dd>` +
+    `<dt>endomorphism ring</dt><dd>disc ${c.endoDisc}, conductor ${c.endoCond}</dd>` +
+    `<dt>τ</dt><dd>${c.tau}</dd>` +
+    `<dt>Frobenius matrix</dt><dd>${c.frob}</dd>` +
+    `<dt>#E(𝔽<sub>${c.p}</sub>)</dt><dd>${cls.N}</dd>` +
+    `</dl>`;
+
+  document.getElementById("twins").innerHTML = c.twins.length
+    ? `Sharing this lattice class (quadratic twists): ` + c.twins.map(t =>
+        `<a href="curve.html?p=${c.p}&j=${t}">j = ${t}</a>`).join(", ") + "."
+    : "";
+
+  document.getElementById("body").hidden = false;
+  window.initTorus(c.torus);
+
+  const dl = document.getElementById("dl");
+  dl.href = URL.createObjectURL(new Blob([JSON.stringify(c, null, 2)],
+                                         {type: "application/json"}));
+  dl.download = `curve-p${c.p}-j${c.j}.json`;
+})();
+</script>
+</body>
+</html>

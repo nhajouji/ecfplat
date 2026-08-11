@@ -108,6 +108,22 @@ def fd_points(cls, p: int):
     return pts
 
 
+def node_js(cls):
+    """j-invariants per lattice class, indexed like qfs_ordered.
+
+    A lattice class can carry several curves (quadratic twists), so this is a
+    list per node. The first is the canonical address for that node's link.
+    """
+    out = [[] for _ in cls.qfs_ordered]
+    if cls.js_to_qf is None:
+        return out
+    idx_of = {qf: i for i, qf in enumerate(cls.qfs_ordered)}
+    for jsig, qf in cls.js_to_qf.items():
+        j = jsig[0] if isinstance(jsig, tuple) else jsig
+        out[idx_of[qf]].append(int(j))
+    return [sorted(v) for v in out]
+
+
 def table_rows(cls):
     """One row per curve, tagged with the index of its lattice class.
 
@@ -138,19 +154,66 @@ def table_rows(cls):
             "discs": sorted({r["ed"] for r in rows})}
 
 
+FD_POINTS_GUARD = 2000       # mirrors GUARDS["fd_points"] in the app
+
+
+def curve_payloads(cls, a: int, p: int, templates: dict):
+    """One entry per j-invariant — the address the static site uses.
+
+    The torus applet takes (qf, a, p, frobmat, n_points) and derives the points
+    in the browser, so each entry costs ~0.1 KB regardless of #E(F_p). Curve
+    data therefore rides along in the per-prime shard instead of needing files
+    of its own.
+    """
+    if cls.js_to_qf is None:
+        return {}
+    idx_of = {qf: i for i, qf in enumerate(cls.qfs_ordered)}
+    js_of = node_js(cls)
+    N = p + 1 - a
+    n_pts = N if N <= FD_POINTS_GUARD else 0
+    out = {}
+    for jsig, qf in cls.js_to_qf.items():
+        j = int(jsig[0] if isinstance(jsig, tuple) else jsig)
+        frm = cls.qf_to_frob_mats[qf]
+        tmpl, data = split_applet(
+            explorer_viz.curve_torus_html(qf, a, p, frm.vec, n_pts), "initTorus")
+        templates.setdefault("torus", tmpl)
+        model = cls.js_to_models.get(jsig)
+        idx = idx_of[qf]
+        out[str(j)] = {
+            "j": j, "idx": idx, "a": a, "p": p,
+            "qf": [int(v) for v in qf],
+            "model": [centered(int(v), p) for v in model] if model else None,
+            "endoDisc": int(cls.endo_disc_dict[qf]),
+            "endoCond": int(cls.endo_cond_dict[qf]),
+            "tau": abc_to_tau_str(qf),
+            "frob": str(frm.vec),
+            # other curves on the same lattice class — quadratic twists
+            "twins": [v for v in js_of[idx] if v != j],
+            "torus": data,
+        }
+    return out
+
+
 def class_payload(a: int, p: int, templates: dict):
     cls = ECQFIsogenyClass(a, p)
     n = len(cls.qfs_all)
     if n > GUARD_NODES:
         return None
     d = a * a - 4 * p
-    link_base = f"?a={a}&p={p}"
+
+    # Address curves by j-invariant, not by position in qfs_ordered: the
+    # position is an implementation detail and would silently repoint every
+    # saved link if the ordering ever changed. Nodes with no curve tables get
+    # no link rather than a broken one.
+    js = node_js(cls)
+    hrefs = [f"curve.html?p={p}&j={v[0]}" if v else None for v in js]
 
     graph_html = explorer_viz.isogeny_graph_html(
         {l: class_graph_descriptor(cls, l) for l in ls_for(cls)},
-        link_base=link_base, height_px=740)
+        node_hrefs=hrefs, height_px=740)
     fd_html = explorer_viz.fd_points_html(fd_points(cls, p),
-                                          link_base=link_base, height_px=560)
+                                          node_hrefs=hrefs, height_px=560)
 
     g_tmpl, g_data = split_applet(graph_html, "initGraph")
     f_tmpl, f_data = split_applet(fd_html, "initFD")
@@ -165,6 +228,7 @@ def class_payload(a: int, p: int, templates: dict):
         "supersingular": a == 0,
         "hasCurves": cls.js_to_qf is not None,
         "graph": g_data, "fd": f_data, "table": table_rows(cls),
+        "curves": curve_payloads(cls, a, p, templates),
     }
 
 
@@ -198,8 +262,15 @@ def build(primes):
         (ROOT / "class.tmpl.html").read_text()
         .replace("__GRAPH_APPLET__", templates["graph"])
         .replace("__FD_APPLET__", templates["fd"]))
+    (OUT / "curve.html").write_text(
+        (ROOT / "curve.tmpl.html").read_text()
+        .replace("__TORUS_APPLET__", templates.get("torus", "")))
     (OUT / "index.html").write_text((ROOT / "index.tmpl.html").read_text())
-    (OUT / "_redirects").write_text("/Explorer  /class.html  200\n")
+    # pretty URLs are a host concern; these are what the design doc specifies
+    (OUT / "_redirects").write_text(
+        "/explorer/c/:p/:a       /class.html?p=:p&a=:a       200\n"
+        "/explorer/c/:p/:a/j:j   /curve.html?p=:p&j=:j       200\n"
+        "/Explorer               /class.html                 200\n")
     print(f"\nbuilt -> {OUT}")
 
 

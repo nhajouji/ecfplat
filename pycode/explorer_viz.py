@@ -78,12 +78,16 @@ function classCount(d){      // total lattice classes across conductor levels
 
 def isogeny_graph_html(descs: dict, link_base: str = None,
                        link_label: str = "open curve view →",
-                       height_px: int = 560) -> str:
+                       height_px: int = 560,
+                       node_hrefs: list = None) -> str:
     """Canvas l-isogeny-graph widget.
 
     descs: {l: class_graph_descriptor(cls, l)} — one entry per offered prime;
     pills switch between them. link_base: query-param prefix for the selected
     node's drill-down link (e.g. "?a=6&p=101&view=curve"); None hides it.
+    node_hrefs: explicit href per node, indexed like the descriptor's nodes,
+    overriding link_base — use it when the drill-down target is not
+    "&node=<index>" (the static site addresses curves by j-invariant).
     """
     if not descs:
         raise ValueError("need at least one descriptor")
@@ -92,6 +96,11 @@ def isogeny_graph_html(descs: dict, link_base: str = None,
         "ls": ls,
         "descs": {str(l): descs[l] for l in ls},
         "linkBase": link_base,
+        # One href per node, indexed like desc.nodes. Lets a caller address
+        # curves however it likes — the static site keys them by j-invariant,
+        # which survives the data being regenerated, whereas the linkBase
+        # fallback's "&node=i" is a position in qfs_ordered and does not.
+        "hrefs": node_hrefs,
         "linkLabel": link_label,
         "H": height_px,
     }
@@ -129,6 +138,14 @@ let hoverI=-1, selI=-1;
 // static site, where the widgets share a page; under Streamlit each widget is
 // a sandboxed iframe, so every ?. below short-circuits and nothing changes.
 let extHi=-1;
+
+// explicit per-node href if the caller supplied one, else the legacy
+// "&node=<index>" form built from linkBase; null when neither is available.
+const nodeHref=i=>{
+  if(i==null) return null;
+  if(DATA.hrefs) return DATA.hrefs[i] ?? null;
+  return DATA.linkBase!=null ? DATA.linkBase+"&node="+i : null;
+};
 
 const vval=(l,n)=>{let v=0; while(n%l===0){n/=l; v++;} return v;};
 
@@ -294,9 +311,10 @@ function nodeReadout(nd, i){
     s+=" · j = "+nd.curves.map(k=>k.j).join(", ");
     if(c.model&&c.model.length===2) s+=" · y² = x³ + "+c.model[0]+"x + "+c.model[1];
   }
-  if(DATA.linkBase!=null && i!=null)
+  const href=nodeHref(i);
+  if(href!=null)
     s+=' &nbsp;<a style="color:'+ACCENT+';cursor:pointer;" onclick="navParent(&quot;'
-      +DATA.linkBase+"&node="+i+'&quot;)">'+DATA.linkLabel+"</a>";
+      +href+'&quot;)">'+DATA.linkLabel+"</a>";
   return s;
 }
 
@@ -489,7 +507,8 @@ draw();
    .replace("__H__", str(height_px))
 
 
-def fd_points_html(points: list, link_base: str = None, height_px: int = 440) -> str:
+def fd_points_html(points: list, link_base: str = None, height_px: int = 440,
+                   node_hrefs: list = None) -> str:
     """The class's CM points in the fundamental domain — canvas scatter.
 
     points: [{'x','y','color','label','sub'}] — τ coordinates, the shared
@@ -497,7 +516,8 @@ def fd_points_html(points: list, link_base: str = None, height_px: int = 440) ->
     Two views toggled by segs: the standard FD strip and the unit-disc image
     under τ ↦ −1/τ (always bounded; the trivial class lands at the origin).
     Clicking a point drills straight into the curve view via link_base."""
-    payload = {"pts": points, "linkBase": link_base, "H": height_px}
+    payload = {"pts": points, "linkBase": link_base, "hrefs": node_hrefs,
+               "H": height_px}
     return '<meta charset="utf-8">' + _HEAD + """
 <div class="panel" style="max-width:640px;">
   <div class="modebar">
@@ -518,6 +538,12 @@ const cv=document.getElementById("fdc"), ctx=cv.getContext("2d");
 const info=document.getElementById("fdInfo");
 let mode="disc", hover=-1;
 let extHi=-1;                     // highlighted from the volcano — see isogeny_graph_html
+const ptHref=i=>{
+  if(i==null||i<0) return null;
+  if(DATA.hrefs) return DATA.hrefs[i] ?? null;
+  return DATA.linkBase!=null ? DATA.linkBase+"&node="+i : null;
+};
+const clickable=()=>!!(DATA.hrefs||DATA.linkBase);
 
 // screen positions per mode
 function screenPts(){
@@ -597,15 +623,16 @@ function hit(px,py){
 }
 cv.addEventListener("pointermove",ev=>{
   const [x,y]=evPos(ev); const h=hit(x,y);
-  if(h!==hover){ hover=h; cv.style.cursor=h>=0&&DATA.linkBase?"pointer":"default"; draw();
+  if(h!==hover){ hover=h; cv.style.cursor=h>=0&&clickable()?"pointer":"default"; draw();
     info.innerHTML=h>=0?DATA.pts[h].sub:"&nbsp;"; window.ecfBus?.emit("fd", h); }
 });
 cv.addEventListener("pointerleave",()=>{hover=-1;draw();info.innerHTML="&nbsp;";
   window.ecfBus?.emit("fd", -1);});
 cv.addEventListener("pointerdown",ev=>{
-  if(!DATA.linkBase) return;
+  if(!clickable()) return;
   const [x,y]=evPos(ev); const h=hit(x,y);
-  if(h>=0) navParent(DATA.linkBase+"&node="+h);
+  const href=ptHref(h);
+  if(href!=null) navParent(href);
 });
 const segD=document.getElementById("fdSegDisc"), segS=document.getElementById("fdSegStd");
 segD.addEventListener("click",()=>{mode="disc"; segD.classList.add("on"); segS.classList.remove("on"); hover=-1; draw();});
@@ -616,7 +643,8 @@ draw();
 </script>
 """.replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS) \
    .replace("__H__", str(height_px)) \
-   .replace("__CLICKHINT__", " · click to open the curve" if link_base else "")
+   .replace("__CLICKHINT__",
+            " · click to open the curve" if (link_base or node_hrefs) else "")
 
 
 def curve_torus_html(qf, a: int, p: int, frobmat, n_points: int,
