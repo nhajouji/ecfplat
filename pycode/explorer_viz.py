@@ -413,7 +413,7 @@ fitView(); draw(); refreshInfo(); refreshLegend();
 """.replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS).replace("__H__", str(height_px))
 
 
-def hasse_picker_html(p: int, store_p_max: int = 1021, height_px: int = 300) -> str:
+def hasse_picker_html(p: int, store_p_max: int = 8191, height_px: int = 300) -> str:
     """The clickable Hasse interval for a fixed prime p.
 
     One stem per admissible trace a (a^2 < 4p, p ∤ a, plus a = 0 for the
@@ -682,7 +682,6 @@ def curve_torus_html(qf, a: int, p: int, frobmat, n_points: int,
 <script>
 (() => {
 "use strict";
-__NAV_JS__
 const DATA = __DATA__;
 const ACCENT="#4da3d8", GOLD="#e0b64f", RED="#ef6f6f", INK="#d7d9dc", MUT="#9aa4ad";
 const mod=(x,n)=>((x%n)+n)%n;
@@ -774,7 +773,7 @@ document.getElementById("ctInfo").innerHTML=
   +" · τ ≈ "+tx.toFixed(3)+" + "+ty.toFixed(3)+"i · |α| = √"+p;
 })();
 </script>
-""".replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS).replace("__H__", str(height_px))
+""".replace("__DATA__", json.dumps(payload)).replace("__H__", str(height_px))
 
 
 def ss_graph_descriptor(graph) -> dict:
@@ -846,7 +845,6 @@ def ss_graph_html(desc: dict, height_px: int = 620) -> str:
 <script>
 (() => {
 "use strict";
-__NAV_JS__
 const DATA = __DATA__;
 const ACCENT="#4da3d8", GOLD="#e0b64f", RED="#ef6f6f", INK="#d7d9dc", MUT="#9aa4ad";
 const EDGE="#565b61", EDGE_DIM="#3a3e43", FIX_E="#3f7fa8", SWAP_E="#c9974a", PAIRL="#7a6a8f";
@@ -1024,5 +1022,4 @@ document.getElementById("sgFit").addEventListener("click",()=>{fitView(); draw()
 fitView(); draw(); refreshInfo();
 })();
 </script>
-""".replace("__DATA__", json.dumps(payload)).replace("__NAV_JS__", _NAV_JS) \
-   .replace("__H__", str(height_px))
+""".replace("__DATA__", json.dumps(payload)).replace("__H__", str(height_px))
