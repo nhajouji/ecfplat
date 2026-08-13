@@ -2,8 +2,8 @@
 Populate / update data/ecqf_ss_pcbij_velu_4_1024.json -- the supersingular
 signature<->lattice bijection computed FROM SCRATCH with the Velu pipeline
 (ecqf_bij.ecqf_full_bijection_ss).  This is the live supersingular data the rest of
-the code loads (ecqf_tools.ecqf_ss_1K_pc, ecfp.ss_precomputed_dictionary); it
-replaced the project's original Sage-computed tables.
+the code loads (ecqf_tools.ecqf_ss_1K_pc); it replaced the project's original
+Sage-computed tables.
 
 Format: {str(p): {"(j, s)": [a, b, c]}}, j-invariant j in F_p and signature
 s = +-1, value a reduced binary quadratic form.
@@ -30,7 +30,6 @@ from ecqf_bij import ecqf_full_bijection_ss, _DATA_DIR
 from qfs import qf_mod_gamma
 
 DEFAULT_PATH = _DATA_DIR / 'ecqf_ss_pcbij_velu_4_1024.json'
-LISTFORM_PATH = _DATA_DIR / 'ssfp_pc_bij_velu.json'
 
 
         ######################
@@ -174,16 +173,6 @@ def bijection_entry(p):
     return {str(sig): list(qf_mod_gamma(qf)) for sig, qf in bij.items()}
 
 
-def write_list_form(src=DEFAULT_PATH, dst=LISTFORM_PATH):
-    """Derive the list-form file [[[j, s], [a, b, c]], ...] from the dict-form bijection
-    file, so the two stay consistent."""
-    data = load(src)
-    out = {p: [[list(ast.literal_eval(k)), v] for k, v in entry.items()]
-           for p, entry in data.items()}
-    save(out, dst)
-    return out
-
-
 def populate(pmin=5, pmax=1024, path=DEFAULT_PATH, force=False, save_every=20,
              verbose=True, validate=False):
     """Fill the bijection cache over [pmin, pmax], skipping present primes.
@@ -220,7 +209,6 @@ def populate(pmin=5, pmax=1024, path=DEFAULT_PATH, force=False, save_every=20,
         if done and done % save_every == 0:
             save(data, path)
     save(data, path)
-    write_list_form(path)                          # keep the list-form file in sync
     if verbose:
         print(f'done={done} skipped={skipped} failed={failed} total={len(data)} -> {path}')
         for p, msg in failures:
