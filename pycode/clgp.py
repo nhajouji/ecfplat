@@ -51,8 +51,8 @@ def _xgcd(a: int, b: int) -> tuple[int, int, int]:
 
 def _compose_raw(qf1: tuple, qf2: tuple) -> tuple[int, int, int]:
     """Cohen Alg. 5.4.7 with no input validation (same-disc primitive forms
-    assumed): the hot path for the group machinery, mirroring the
-    _qf_reduce / qf_to_fun_dom split in qfs.py."""
+    assumed): the hot path for the group machinery, mirroring qfs._qf_reduce's
+    validation-free style."""
     a1, b1, c1 = qf1
     a2, b2, c2 = qf2
     d = b1 * b1 - 4 * a1 * c1

@@ -536,17 +536,6 @@ render();
 """
 
 
-# Endomorphism points on X_0(l): CM points where the l-isogeny is an endo
-# (j(tau)=j(l tau) -- the Fricke-fixed / same-j locus). Precomputed with
-# qfs.qf_x0_endos over |D| <= 80, as [re, im, disc] on the Gamma_0(l) tiling.
-_X0_ENDOS = {
-  "2": [[0.5,0.5,-4],[0.375,0.3307,-7],[0.25,0.6614,-7],[0.0,0.7071,-8]],
-  "3": [[0.5,0.2887,-3],[0.3333,0.4714,-8],[-0.3333,0.4714,-8],[0.1667,0.5528,-11],[-0.1667,0.5528,-11],[0.0,0.5774,-12]],
-  "5": [[0.4,0.2,-4],[-0.4,0.2,-4],[0.3,0.3317,-11],[-0.3,0.3317,-11],[0.2,0.4,-16],[-0.2,0.4,-16],[0.1,0.4359,-19],[-0.1,0.4359,-19],[0.0,0.4472,-20],[0.3333,0.1491,-20]],
-  "7": [[0.3571,0.1237,-3],[-0.3571,0.1237,-3],[0.25,0.0945,-7],[0.2857,0.2474,-12],[-0.2857,0.2474,-12],[0.2143,0.3113,-19],[-0.2143,0.3113,-19],[0.1429,0.3499,-24],[-0.1429,0.3499,-24],[0.2857,0.1166,-24],[-0.2857,0.1166,-24],[0.0714,0.3712,-27],[-0.0714,0.3712,-27],[0.0,0.378,-28]]
-}
-
-
 def x0_fricke_html() -> str:
     """§8.2 applet: the j-maps and the Fricke involution.
 
@@ -554,8 +543,7 @@ def x0_fricke_html() -> str:
     with a draggable point tau, its Fricke image w(tau) = -1/(l tau) reduced back
     into the tiling, and the interior real locus of j (dashed). Right: the two
     lattices of the isogeny E -> E' -- domain Lambda = <1,tau> and the index-l
-    superlattice Lambda' in a second colour. (_X0_ENDOS is kept for the later
-    algebraic before/after comparison; not drawn here.)
+    superlattice Lambda' in a second colour.
     """
     return _HEAD + r"""
 <div class="panel">
