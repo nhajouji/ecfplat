@@ -24,7 +24,6 @@ pipeline uses the GPU table for p >= min_p; the numpy path remains the
 fallback and the source of truth (results are identical).
 """
 
-import numpy as np
 
 
 def _pick_device():

@@ -27,9 +27,8 @@ from ecqf_tools import ecqf_ord_1K_pc
 from qfs import qf_disc, get_qfs_strict
 from modularpolynomials import hilb_polys_dict, _jc, modular_prime_pool
 from nt import primeQ, discfac, primefact
-from ecqf_bij import get_ancestor_data_ord, ssprimes
+from ecqf_bij import get_ancestor_data_ord
 
-ATKIN_SET = frozenset(ssprimes)     # the 15 primes with an Atkin modular polynomial
 
 def modular_set() -> frozenset:
     """Primes usable by the j-side vertical scan: Atkin format OR a classical
@@ -296,15 +295,6 @@ def find_aps(d: int, N: int, pmin: int = 1024) -> list[tuple]:
     return sorted(out)
 
 
-def crt_prime_candidates(d: int, pmin: int = 1024, pmax: int = 8192,
-                         disc_floor: int = -4096) -> list[tuple]:
-    """Legacy enumeration [(p, a, D)] kept for compatibility; use find_aps."""
-    return [(p, a, d * m * m) for p, a, m in find_aps(d, pmax, pmin)
-            if d * m * m >= disc_floor]
-
-
-                # Criterion 2: can we identify the curves? #
-
 def _elimination_candidates(a: int, p: int, d: int) -> list[int]:
     """The discs a curve could have once its modular conductor-part matches d's:
     d0 * (A*k)^2 with A = the modular part of cond(d) (primes with an available
@@ -534,7 +524,3 @@ def hilbert_poly_search(d: int, N: int, pmin: int = 1024, data: dict = None,
     return hilbert_via_crt(d, data)
 
 
-def extend_disc(d: int, data: dict = None, pmax: int = 8192, save: bool = True,
-                verbose: bool = True) -> dict:
-    """Legacy entry point: harvest whatever primes <= pmax allow, certified or not."""
-    return hilbert_poly_search(d, pmax, data=data, save=save, verbose=verbose, partial=True)

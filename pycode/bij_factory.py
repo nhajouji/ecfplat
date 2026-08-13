@@ -29,7 +29,7 @@ import time
 from pathlib import Path
 
 from nt import primesBetween, discfac, primefact
-from ecqf_bij import disc_rigid_lset_search, ssprimes
+from ecqf_bij import disc_rigid_lset_search
 from modularpolynomials import modular_prime_pool
 from hilbert_crt import modular_set
 import rigid_cache

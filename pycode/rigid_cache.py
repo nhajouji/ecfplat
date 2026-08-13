@@ -39,10 +39,10 @@ import os
 import json
 import datetime
 
-from qfs import class_group_id, get_qfs_strict, qf_isogs_hor, qf_isog_cycle
+from qfs import class_group_id
 from graph_tools import compute_bijection_zn
 from modularpolynomials import small_bij_check, modular_prime_pool
-from ecqf_bij import (disc_rigid_lset_search, qf_isog_data, ssprimes,
+from ecqf_bij import (disc_rigid_lset_search, qf_isog_data,
                       ecqf_full_bijection_ord, canonicalize_qf_labelling)
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
@@ -157,18 +157,6 @@ def get_disc_entry(d, cache=None, path=DEFAULT_CACHE, compute_if_missing=True,
     return entry
 
 
-def get_zn_to_qf(d, cache=None, path=DEFAULT_CACHE, **kw):
-    """The labelling tuple -> qf for d, from cache or (re)computed from ls_rig."""
-    entry = get_disc_entry(d, cache, path=path, **kw)
-    if entry is None or not entry.get('success'):
-        return None
-    if 'zn_to_qf' in entry:
-        return _bij_from_json(entry['zn_to_qf'])
-    ls = _ls_descs(entry['ls_rig'])
-    return canonicalize_qf_labelling(
-        compute_bijection_zn(ls, qf_isog_data(d, ls), class_group_id(d)))
-
-
 ########################
 # End-to-end (cached)  #
 ########################
@@ -264,6 +252,56 @@ def populate(dmin, dmax=-3, path=DEFAULT_CACHE, pool=None,
     return cache
 
 
+def populate_ldata(dmin, dmax=-3, path=None, force=False, save_every=400,
+                   verbose=True):
+    """Fill data/qf_ldata.json -- the flat {str(d): disc_rigid_lset_search(d)}
+    map that ecqf_bij loads at import (read via ecqf_bij.disc_ldata).  The
+    lightweight sibling of the main cache: search output only, no bijections.
+    Skips discriminants already present unless force=True; after regenerating,
+    re-import ecqf_bij to pick up the new data.  (Absorbed from the former
+    ldata_cache.py.)"""
+    from ecqf_bij import ssprimes, _DATA_DIR
+    if path is None:
+        path = _DATA_DIR / 'qf_ldata.json'
+    data = {}
+    if os.path.exists(path):
+        with open(path) as f:
+            data = json.load(f)
+    todo = discriminants_in_range(dmin, dmax)
+    done = skipped = failed = 0
+    for d in todo:
+        key = str(d)
+        if (not force) and key in data:
+            skipped += 1
+            continue
+        try:
+            res = disc_rigid_lset_search(d, ssprimes)
+            data[key] = res
+            if not res.get('success'):
+                failed += 1
+        except Exception as e:            # never let one d abort the whole run
+            data[key] = {'d': d, 'success': False,
+                         'message': f'EXC: {type(e).__name__}: {e}'}
+            failed += 1
+        done += 1
+        if save_every and done % save_every == 0:
+            _atomic_save_json(data, path)
+            if verbose:
+                print(f'  ... {done} computed (at d={d}), {skipped} skipped', flush=True)
+    _atomic_save_json(data, path)
+    if verbose:
+        print(f'done: {done} computed, {skipped} already present, {failed} with no '
+              f'rigid l-set; file holds {len(data)} discriminants -> {path}', flush=True)
+    return data
+
+
+def _atomic_save_json(data, path):
+    tmp = str(path) + '.tmp'
+    with open(tmp, 'w') as f:
+        json.dump(data, f)
+    os.replace(tmp, path)                 # atomic on POSIX
+
+
 def _main(argv=None):
     import argparse
     ap = argparse.ArgumentParser(
@@ -272,17 +310,23 @@ def _main(argv=None):
                     help='most negative discriminant, inclusive (default -4000)')
     ap.add_argument('--max', type=int, default=-3,
                     help='least negative discriminant, inclusive (default -3)')
-    ap.add_argument('--path', default=DEFAULT_CACHE, help='cache JSON path')
+    ap.add_argument('--path', default=None, help='cache JSON path')
+    ap.add_argument('--ldata', action='store_true',
+                    help='populate the lightweight qf_ldata.json instead of the main cache')
     ap.add_argument('--no-bijection', action='store_true',
                     help='store only the search data, omit zn_to_qf (smaller file)')
     ap.add_argument('--force', action='store_true',
                     help='recompute entries even if already present')
-    ap.add_argument('--save-every', type=int, default=200,
+    ap.add_argument('--save-every', type=int, default=None,
                     help='checkpoint the JSON every N computed entries')
     args = ap.parse_args(argv)
-    populate(args.min, args.max, path=args.path,
-             include_bijection=not args.no_bijection,
-             force=args.force, save_every=args.save_every)
+    if args.ldata:
+        populate_ldata(args.min, args.max, path=args.path, force=args.force,
+                       save_every=args.save_every or 400)
+    else:
+        populate(args.min, args.max, path=args.path or DEFAULT_CACHE,
+                 include_bijection=not args.no_bijection,
+                 force=args.force, save_every=args.save_every or 200)
 
 
 if __name__ == '__main__':

@@ -29,8 +29,6 @@ def merge_dicts(diclist:list[dict])->dict:
                 dic[x]=dic1[x]
     return dic
 
-def invert_dict(dict):
-    return {dict[x]:x for x in dict}
 
 # Given two dictionaries with the same keys, returns
 # a dictionary whose keys are keys of dict, and values are keys of second dict

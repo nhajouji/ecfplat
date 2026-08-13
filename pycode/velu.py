@@ -66,16 +66,6 @@ def ec_mul(n, P, a):
     return R
 
 
-def point_order(P, a, bound):
-    """Smallest k > 0 with k*P == O, searching up to bound (None if not found)."""
-    R = P
-    for k in range(1, bound + 1):
-        if R is None:
-            return k
-        R = ec_add(R, P, a)
-    return None
-
-
 #########################
 # Velu's formulas       #
 #########################
@@ -429,7 +419,7 @@ def velu_walk_cycle(p, l, start, max_len=None, seed=0):
 
 
 def velu_nbr_data_ss_walk(p, l, sigs, seed=0):
-    """Drop-in replacement for velu_nbr_data_ss: computes each coset cycle by a
+    """Supersingular horizontal neighbour data: computes each coset cycle by a
     one-direction walk, |sigs| Velu isogenies at the MIN eigenline degree instead
     of 2|sigs| at the max.  The output dict is identical -- same neighbour pairs,
     listed in the same [direction-0, direction-1] order, deduplicated the same
@@ -450,30 +440,3 @@ def velu_nbr_data_ss_walk(p, l, sigs, seed=0):
     return out
 
 
-def velu_nbr_data_ss(p, l, sigs, max_degree=None):
-    """Horizontal l-isogeny neighbour graph {(j,s): [neighbour (j,s)]} for the
-    supersingular class over F_p, via Velu.  The objects are signatures (j, s)
-    (F_p-iso classes), and the trace is 0, so Frobenius has charpoly x^2 + p mod l;
-    when l splits there are two horizontal eigenline directions.  For each signature
-    we build its canonical model, push it through both directions, and read the
-    codomain's signature off the Velu model.  `sigs` is the signature set of the
-    class; only codomains whose signature lands back in `sigs` are kept (horizontal
-    isogenies preserve the level, hence the class)."""
-    from ecfp import js_to_fg, signature
-    sset = set(sigs)
-    out = {}
-    for js in sigs:
-        f, g = js_to_fg(js, p)
-        nbrs = []
-        for d in (0, 1):
-            res = velu_l_isog_codomain(f, g, l, p, 0, direction=d, max_degree=max_degree)
-            if res['status'] != 'ok':
-                continue
-            cf, cg = res['f'], res['g']
-            if not (isinstance(cf, int) and isinstance(cg, int)):
-                continue                          # horizontal codomain must be over F_p
-            nb = (res['j'] % p, signature(cf, cg, p))
-            if nb in sset:
-                nbrs.append(nb)
-        out[js] = list(dict.fromkeys(nbrs))
-    return out
