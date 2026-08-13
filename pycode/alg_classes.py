@@ -1,6 +1,6 @@
 from typing import Callable
 from functools import lru_cache
-from nt import gcd_list
+from nt import gcd_list, primefact
 
                 ###################
                 # General Classes #
@@ -204,6 +204,201 @@ def ZnProduct(ns: tuple[int, ...]) -> AbGrp:
 
     return AbGrp(membership, tuple(0 for _ in ns), negation, addition)
 
+
+                # Finite abelian group tools #
+
+# Generic machinery over any AbGrp whose groups are small enough to enumerate
+# (class groups, Z/n products, ...).  Everything works on raw element tuples,
+# and -- since it only ever combines elements the group already vouched for --
+# calls the raw addition_map rather than the membership-checking add_elements;
+# subgroups are materialized as sets, so storage is O(|H|).
+
+def _scale_raw(group: AbGrp, t: tuple, n: int) -> tuple:
+    """n*t by double-and-add on addition_map (no membership checks)."""
+    add = group.addition_map
+    if n < 0:
+        t, n = group.negation_map(t), -n
+    acc, sq = group.zero_element, t
+    while n > 0:
+        if n & 1:
+            acc = add(acc, sq)
+        sq = add(sq, sq)
+        n >>= 1
+    return acc
+
+
+def element_order(group: AbGrp, t: tuple, n: int) -> int:
+    """Order of t, given a known multiple n of that order (e.g. |G|)."""
+    o = n
+    z = group.zero_element
+    for p in primefact(n):
+        while o % p == 0 and _scale_raw(group, t, o // p) == z:
+            o //= p
+    return o
+
+
+def invariant_factors(orders) -> tuple[int, ...]:
+    """Canonicalize the multiset of orders of a direct-product basis into
+    invariant factors (d_1, ..., d_r) with d_1 | d_2 | ... | d_r:
+    prod Z_o = prod Z_{d_i} as abelian groups."""
+    by_p: dict = {}
+    for o in orders:
+        for p, e in primefact(o).items():
+            by_p.setdefault(p, []).append(p ** e)
+    for p in by_p:
+        by_p[p].sort()
+    r = max((len(v) for v in by_p.values()), default=0)
+    out = []
+    for i in range(r):                    # i-th largest factor from each prime
+        f = 1
+        for v in by_p.values():
+            if len(v) > r - 1 - i:
+                f *= v[len(v) - r + i]
+        out.append(f)
+    return tuple(out)
+
+
+class Subgroup:
+    """The subgroup <gens> of an AbGrp, materialized by closure enumeration."""
+    def __init__(self, group: AbGrp, gens):
+        self.group = group
+        self.gens = tuple(gens)
+        add = group.addition_map
+        elems = {group.zero_element}
+        frontier = [group.zero_element]
+        while frontier:
+            new = []
+            for t in frontier:
+                for g in self.gens:
+                    s = add(t, g)
+                    if s not in elems:
+                        elems.add(s)
+                        new.append(s)
+            frontier = new
+        self.elements = frozenset(elems)
+
+    def __contains__(self, t):
+        return t in self.elements
+
+    def __len__(self):
+        return len(self.elements)
+
+    def __iter__(self):
+        return iter(self.elements)
+
+    @property
+    def order(self) -> int:
+        return len(self.elements)
+
+
+class Coset:
+    """t + H as a hashable object; .rep is the canonical (min) representative."""
+    def __init__(self, t: tuple, subgroup: Subgroup):
+        G = subgroup.group
+        self.subgroup = subgroup
+        add = G.addition_map
+        self.elements = frozenset(add(t, h) for h in subgroup.elements)
+        self.rep = min(self.elements)
+
+    def __contains__(self, t):
+        return t in self.elements
+
+    def __eq__(self, other):
+        if not isinstance(other, Coset):
+            return NotImplemented
+        return self.elements == other.elements
+
+    def __hash__(self):
+        return hash(self.elements)
+
+    def __repr__(self):
+        return f'{self.rep} + H(order {len(self.subgroup)})'
+
+
+def coset_decomposition(subgroup: Subgroup, elements) -> list:
+    """Partition an iterable of group elements into cosets of subgroup."""
+    seen, out = set(), []
+    for t in elements:
+        if t in seen:
+            continue
+        c = Coset(t, subgroup)
+        out.append(c)
+        seen |= c.elements
+    return out
+
+
+def quotient_group(subgroup: Subgroup, elements) -> AbGrp:
+    """G/H as an AbGrp whose element tuples are the canonical coset
+    representatives.  Extra attributes: .coset_rep maps each element of G to
+    its coset's representative; .reps lists the representatives."""
+    G = subgroup.group
+    cs = coset_decomposition(subgroup, elements)
+    rep_of = {t: c.rep for c in cs for t in c.elements}
+
+    def membership(t):
+        return rep_of.get(t) == t
+
+    def negation(t):
+        return rep_of[G.negation_map(t)]
+
+    def addition(t1, t2):
+        return rep_of[G.addition_map(t1, t2)]
+
+    Q = AbGrp(membership, rep_of[G.zero_element], negation, addition)
+    Q.coset_rep = rep_of
+    Q.reps = [c.rep for c in cs]
+    return Q
+
+
+def abgrp_basis(group: AbGrp, elements, order: int = None) -> list:
+    """A direct-product basis of a finite abelian group: [(t_1, o_1), ...]
+    with G = prod <t_i> and o_i = ord(t_i), orders non-increasing.
+
+    Backtracking over elements sorted by decreasing order; starting from a
+    maximal-order element always extends (a maximal cyclic subgroup is a
+    direct factor), so the first branch usually succeeds, but partial bases
+    that admit no complement (e.g. <(2,0)> in Z_4 x Z_2) are backtracked."""
+    elements = list(elements)
+    n = order if order is not None else len(elements)
+    orders = {t: element_order(group, t, n) for t in elements}
+    cands = [t for t in elements if orders[t] > 1]
+    cands.sort(key=lambda t: (-orders[t], t))
+    add = group.addition_map
+    if n == 1:
+        return []
+
+    def extend(basis, span, start):
+        size = len(span)
+        if size == n:
+            return basis
+        for i in range(start, len(cands)):
+            t = cands[i]
+            o = orders[t]
+            if (size * o > n) or (n % (size * o)) or (t in span):
+                continue
+            # direct-sum condition: <t> and span meet only in 0
+            mults, kt, direct = [], t, True
+            for _ in range(o - 1):
+                if kt in span:
+                    direct = False
+                    break
+                mults.append(kt)
+                kt = add(kt, t)
+            if not direct:
+                continue
+            new_span = set(span)
+            for kt in mults:
+                new_span.update(add(s, kt) for s in span)
+            res = extend(basis + [(t, o)], new_span, i + 1)
+            if res is not None:
+                return res
+        return None
+
+    basis = extend([], {group.zero_element}, 0)
+    if basis is None:
+        raise ValueError('No direct-product basis found: elements do not '
+                         'form a group of the stated order')
+    return basis
 
 
                         # Rings #
