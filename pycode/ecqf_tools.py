@@ -1,3 +1,18 @@
+"""Per-form machinery under the ecqf classes.
+
+Three jobs: (1) the eagerly-loaded precomputed stores for p <= 1021
+(ecqf_ord_1K_pc, ecqf_ss_1K_pc) with their lookups (ap_in_pc_data, ec_look_up);
+(2) canonical Weierstrass models over F_p for a given j/signature
+(ecfp_js_to_model, twist_fg); (3) the Mordell-Weil chain on the lattice model:
+qf_to_ERGM_1T / qf_ap_FrMat build the matrix of Frobenius on the basis
+(1, tau), frob_to_mw_gens -> qf_mat_ker_gens -> qf_mat_ker_cyc compute
+generators of ker(Frob^k - 1) = E(F_{p^k}) via Hall multipliers, and
+pts_from_gendic enumerates the points.  (Invariant to test: the count equals
+p + 1 - a at k = 1.)
+
+The classes themselves (QFIsogenyClass, ECQFIsogenyClass) live in ecqf.py.
+"""
+
 import numpy as np
 import json
 from pathlib import Path

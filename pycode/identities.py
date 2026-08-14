@@ -1,3 +1,16 @@
+"""Class-number identities and mass counts.
+
+The twisted Euler phi (the conductor factor in h(f^2 d) / h(d)), class-number
+sums over conductor divisors (clgr_size_gen / clgr_sum, per the Hurwitz class
+number), the supersingular trace count supsingtrace (Eichler mass formula
+territory -- the 2p+2 identity of the p-l duality work), discriminant
+closures, and point counts x0l_fp_card for X_0(l)(F_p).
+
+Convention: everything here counts by pure character/divisor sums with no
+form enumeration, so it doubles as an independent cross-check of qfs/clgp
+(and is what the future test suite checks them against).
+"""
+
 from nt import gcd,quad_rec,gen_quad_symb,primefact,divisors,discfac,no_odd_prime_facs
 
 def twisted_phi(d:int,m:int)->int:

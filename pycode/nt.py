@@ -1,3 +1,14 @@
+"""Elementary number theory over Z and F_p.
+
+Factorization (trial division), divisors, primality, prime sieves, quadratic
+characters (quad_rec = the Legendre symbol), CRT, square roots mod p
+(sqrt_mod_prime = Tonelli-Shanks), multiplicative orders, Frobenius extension
+degrees, and the Gaussian/Eisenstein descent used for sums of two squares
+(sos / esos / x2_3y2 -- the geometry-of-numbers blog material).
+
+The leaf of the import graph: this module imports nothing from the package.
+"""
+
 
 def gcd(a:int,b:int)->int:
     a = abs(a)
@@ -249,7 +260,7 @@ def crt_pair(am1:tuple[int],am2:tuple[int])->tuple[int]:
     a1,m1 = am1
     a2,m2 = am2
     if gcd(m1,m2)>1:
-        return 'Check moduli'
+        raise ValueError(f'crt_pair needs coprime moduli, got {m1} and {m2}')
     m12 = m1*m2
     a12 = (a1 + m1*((a2-a1)*pow(m1,-1,m2))) % m12
     if 2*a12 > m12:

@@ -1,3 +1,15 @@
+"""Abstract graph machinery for the curve <-> form bijection.
+
+Works on 'neighbour data' dicts {l: {vertex: [descendants]}} with no knowledge
+of what the vertices are (forms, j-invariants, or signatures).  Provides the
+radical-word tree searches culminating in nbrdata_tree_search_zn (the public
+entry -- the _XC1/_XCyc/base functions beneath it are its implementation
+chain), cycle walks from neighbour data, adjacency matrices, and
+compute_bijection_zn, which assembles the Z/n1 x Z/n2 labelling that
+ecqf_bij's rigid l-set search consumes.  verify_bijection is the independent
+checker (destined for the test suite).
+"""
+
 from misctools import *
 
 ####################

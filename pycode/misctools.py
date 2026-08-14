@@ -1,3 +1,9 @@
+"""Small tuple/dict helpers shared by graph_tools and ecqf_bij.
+
+NB merge_dicts mutates its first argument (callers rely on the return value,
+but pass a copy if the input matters to you).
+"""
+
 def ext_tup(t,x):
     return tuple(list(t)+[x])
 

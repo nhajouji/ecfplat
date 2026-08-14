@@ -1,3 +1,20 @@
+"""Binary quadratic forms and the SL2(Z) / Gamma_0(l) action.
+
+A form is a tuple (a, b, c) of integers, standing for a x^2 + b xy + c y^2 --
+equivalently the point tau = (-b + sqrt(D))/2a of the upper half-plane and the
+CM lattice <1, tau>.  Provides: reduction into the fundamental domain
+(qf_mod_gamma / _qf_reduce), enumeration of the class group of a discriminant
+(get_qfs_strict / get_qfs_all / qfs_ordered_by_cond), l-isogeny neighbours
+(qf_isogs_hor = horizontal, qf_parents = ascending; cached), isogeny cycles,
+Gamma_0(l) coset orbits, the Fricke involution, and endomorphism points on
+X_0(l) (qf_x0_endos).
+
+Two DIFFERENT matrix encodings of a form coexist here -- don't mix them:
+qf_to_mat is the Gram matrix ((2a, b), (b, 2c)) of the bilinear form (used by
+the SL2 action act_qf); qf_2_mat is the matrix of multiplication by a*tau on
+the basis (1, tau) of the lattice (inverse: mat_2_qf).
+"""
+
 from functools import lru_cache
 
 from nt import discfac, gcd
