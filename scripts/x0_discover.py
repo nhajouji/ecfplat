@@ -185,6 +185,14 @@ class ECp:
             return 0, None
         return disc, pow(c4, 3, p) * pow(disc, p - 2, p) % p
 
+    def on(self, P):
+        if P is None:
+            return True
+        a1, a2, a3, a4, a6 = self.a
+        x, y = P
+        return (y * y + a1 * x * y + a3 * y
+                - x**3 - a2 * x * x - a4 * x - a6) % self.p == 0
+
     def neg(self, P):
         if P is None:
             return None
@@ -213,8 +221,19 @@ class ECp:
         y3 = (-(lam * x3 + nu) - a1 * x3 - a3) % p
         return (x3, y3)
 
-    def velu_j(self, reps):
-        """j-invariant of E/<kernel>, reps = (<P> - O)/{+-1} representatives."""
+    def c_invariants(self):
+        p = self.p
+        b2, b4, b6, b8 = self.b_invariants()
+        c4 = (b2 * b2 - 24 * b4) % p
+        c6 = (-b2 * b2 * b2 + 36 * b2 * b4 - 216 * b6) % p
+        return c4, c6
+
+    def velu_codomain(self, reps):
+        """E/<kernel> via Velu, reps = (<P> - O)/{+-1} representatives.
+
+        The isogeny is normalized (pulls the codomain differential back to the
+        domain one), so weight-k invariant ratios codomain/domain are honest
+        functions on X_0(ell)."""
         a1, a2, a3, a4, a6 = self.a
         p = self.p
         b2 = (a1 * a1 + 4 * a2) % p
@@ -228,7 +247,7 @@ class ECp:
             w = (w + uq + xq * tq) % p
         A4 = (a4 - 5 * t) % p
         A6 = (a6 - b2 * t - 7 * w) % p
-        return ECp(a1, a2, a3, A4, A6, p).disc_j()[1]
+        return ECp(a1, a2, a3, A4, A6, p)
 
 
 def tate_curve(u0, v0, p):
@@ -307,22 +326,21 @@ def invariants(ell, u0, v0, p):
             return None          # P0 had smaller order: not on the good locus
         reps.append(Q)
         Q = E.add(Q, P0)
-    # Central-moment ratios of the kernel x-multiset: the diamond operators
-    # act on {x_i} by an affine map x -> lam^2 (x - xQ), so m_k transforms
-    # with weight lam^(2k) and the ratios below are functions on X_0(ell).
-    xs = [x for x, _ in reps]
-    n = len(xs)
-    xbar = sum(xs) * pow(n, p - 2, p) % p
-    m2 = sum((x - xbar) ** 2 for x in xs) % p
-    m3 = sum((x - xbar) ** 3 for x in xs) % p
-    m4 = sum((x - xbar) ** 4 for x in xs) % p
-    if m2 == 0 or m3 == 0:
+    # Eisenstein ratios: with the normalized Velu isogeny E -> E' = E/<P0>,
+    # A = c4'/c4 and c6'/c6 are weight-0, hence independent of the model of
+    # (E, <P0>) and diamond-invariant: on the modular side they are
+    # E4(ell tau)/E4(tau) (degree ~ (ell+1)/3) and E6(ell tau)/E6(tau)
+    # (degree ~ (ell+1)/2) -- low-degree functions on X_0(ell).
+    Eq = E.velu_codomain(reps)
+    disc2, jp = Eq.disc_j()
+    if disc2 == 0 or jp is None:
         return None
-    A = m4 * pow(m2 * m2 % p, p - 2, p) % p
-    B = pow(m2, 3, p) * pow(m3 * m3 % p, p - 2, p) % p
-    jp = E.velu_j(reps)
-    if jp is None:
+    c4, c6 = E.c_invariants()
+    c4q, c6q = Eq.c_invariants()
+    if c4 == 0 or c6 == 0:
         return None
+    A = c4q * pow(c4, p - 2, p) % p
+    B = c6q * pow(c6, p - 2, p) % p
     return A, B, jval, jp
 
 
@@ -381,22 +399,28 @@ def find_relation(samples, p, maxD=16):
     return None
 
 
-def find_map(samples, vals, p, monos):
+def find_map(samples, vals, p, monos_num, monos_den=None):
     """vec (num_coeffs | den_coeffs) with  N(A,B) - val*Dn(A,B) = 0 at samples.
 
-    monos: list of (a, b) used for both numerator and denominator."""
+    Keeping monos_den restricted to pure powers of the first coordinate (the
+    function-field canonical form N(u,v)/d(u)) makes the minimal-degree kernel
+    1-dimensional, so the vector is canonical across primes (CRT-safe)."""
+    if monos_den is None:
+        monos_den = monos_num
     rows = []
     for (A, B, *_r), val in zip(samples, vals):
         Apow = {}
         Bpow = {}
-        row = []
-        for (a, b) in monos:
+
+        def mval(a, b):
             Apow.setdefault(a, pow(A, a, p))
             Bpow.setdefault(b, pow(B, b, p))
-            row.append(Apow[a] * Bpow[b] % p)
-        row += [(-val * x) % p for x in row]
+            return Apow[a] * Bpow[b] % p
+
+        row = [mval(a, b) for (a, b) in monos_num]
+        row += [(-val * mval(a, b)) % p for (a, b) in monos_den]
         rows.append(row)
-    return nullspace_mod(rows, 2 * len(monos), p)
+    return nullspace_mod(rows, len(monos_num) + len(monos_den), p)
 
 
 # ---------------------------------------------------------------------------
@@ -430,7 +454,8 @@ def crt_pair(a1, m1, a2, m2):
 # ---------------------------------------------------------------------------
 # driver
 # ---------------------------------------------------------------------------
-PRIMES = [10**9 + 7, 10**9 + 9, 10**9 + 21, 10**9 + 33]
+PRIMES = [10**9 + 7, 10**9 + 9, 10**9 + 21, 10**9 + 33, 10**9 + 87,
+          10**9 + 93, 10**9 + 97, 10**9 + 103, 10**9 + 123, 10**9 + 181]
 
 
 def _discover_one_prime(ell, p, nsamples, seed):
@@ -444,7 +469,10 @@ def _discover_one_prime(ell, p, nsamples, seed):
             continue
         seen.add((r[0], r[1]))
         invs.append(r)
-    D, monos, ker = find_relation(invs, p)
+    res = find_relation(invs, p, maxD=24)
+    if res is None:
+        raise RuntimeError('no relation found up to degree 24 for ell=%d' % ell)
+    D, monos, ker = res
     if len(ker) != 1:
         raise RuntimeError('relation kernel dim %d at degree %d' % (len(ker), D))
     rel = ker[0]
