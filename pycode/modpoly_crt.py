@@ -26,12 +26,11 @@ Steps 3-4 of the CRT modular-polynomial project, on top of the Hilbert library
    Broker-Sutherland height bound  ln height(Phi_p) <= 6p ln p + 16p + 14 sqrt(p) ln p,
    which is provable but loose (~1.6x on the log scale), so certification is
    conservative.  Output is the dense (p+2)x(p+2) matrix M[i][j] used by
-   classical_modpoly / modpoly_nbrs, validated against the Kronecker congruence
+   classical_modpoly, validated against the Kronecker congruence
    Phi_p = (X^p - Y)(X - Y^p) mod p before returning.
 """
 
 import math
-import json
 from pathlib import Path
 
 import numpy as np
@@ -41,7 +40,6 @@ from identities import disc_closure
 from qfs import get_qfs_strict, qf_isogs_hor
 from ecqf_tools import ecqf_ord_1K_pc, ecqf_ss_1K_pc
 from alg_classes import poly_ring, ZZ
-from modularpolynomials import hilb_polys_dict
 
 _DATA_DIR = Path(__file__).parent / 'data'
 

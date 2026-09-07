@@ -42,22 +42,8 @@ def poly_eval_mod(coefs_lc_to_const:list[int],x:int,p:int,rev = False):
     return evx
 
 
-def rat_eval_mod(coefdic_lc_to_const:dict,x:int,p:int,rev = False):
-    ev = 1
-    for e in coefdic_lc_to_const:
-        fac_coefs = coefdic_lc_to_const[e]
-        fac_ev = poly_eval_mod(coefs_lc_to_const=fac_coefs,x=x,p=p,rev=rev)
-        if e>= 0 or fac_ev %p != 0:
-            ev = (ev*pow(fac_ev,e,p)) %p
-        else:
-            return 'Infinity'
-    return ev
-
-
 ## Count roots
 
-def count_roots_fp_bf(coefs_lc_to_const:list[int],p:int)->int:
-    return len([x for x in range(p) if poly_eval_mod(coefs_lc_to_const,x,p)==0])
 
 ## Evaluating modular polynomials
 
@@ -100,11 +86,6 @@ def atk_at_j(j:int,l:int,p=0):
     return j2-j*a+b
 
 
-def atk_at_j_fpfac(j:int,l:int,p:int):
-    poly = atk_at_j(j,l,p).mod(p)
-    return poly.fp_factor()
-
-
 ## Classical modular polynomials Phi_l(X, Y), computed from the j-function q-expansion
 # The Atkin polynomials above only cover the 15 Atkin primes (those dividing |Monster|,
 # i.e. with X_0(l)^+ of genus 0).  For an arbitrary prime l
@@ -135,10 +116,6 @@ def _smulser(A, B, emax):
             e = e1 + e2
             if e <= emax: R[e] = R.get(e, 0) + v1*v2
     return {e: v for e, v in R.items() if v}
-def _spow(A, k, emax):
-    R = {0: 1}
-    for _ in range(k): R = _smulser(R, A, emax)
-    return R
 
 def compute_modpoly(l:int):
     """Classical modular polynomial Phi_l(X, Y) as a dense (l+2)x(l+2) integer matrix M with
@@ -215,16 +192,6 @@ def save_modpoly_cache(path=_MODPOLY_CACHE_PATH):
     with open(path, 'w') as f:
         json.dump({str(l): M for l, M in _modpoly_cache.items()}, f)
 
-def modpoly_from_terms(l:int, terms):
-    """Dense (l+2)x(l+2) Phi_l matrix from a list of (i, j, coeff) terms.  Phi_l is
-    symmetric, so each unordered pair may be listed once; both (i,j) and (j,i) are set.
-    Use this to ingest a *sourced* classical modular polynomial (e.g. for large l, where
-    computing from the q-expansion is slow) into the same cache the computed ones use."""
-    M = [[0]*(l+2) for _ in range(l+2)]
-    for i, j, co in terms:
-        M[i][j] = co
-        M[j][i] = co
-    return M
 
 def register_modpoly(l:int, M, save=False):
     """Add a Phi_l matrix (computed or sourced) to the in-memory cache; persist if save."""
@@ -241,10 +208,6 @@ def modpoly_at_j(j:int, l:int, p:int):
         jpows[i] = (jpows[i-1]*jp) % p
     return [sum(M[i][d]*jpows[i] for i in range(l+2)) % p for d in range(l+2)]
 
-def modpoly_nbrs(j:int, l:int, p:int):
-    """The j-invariants l-isogenous to j over F_p: the roots of Phi_l(j, Y) mod p."""
-    coeffs = modpoly_at_j(j, l, p)                        # low-to-high
-    return [y for y in range(p) if poly_eval_mod(coeffs, y, p, rev=True) == 0]
 
 def modpoly_roots_among(j:int, l:int, p:int, candidates) -> dict:
     """{y: multiplicity} of the roots of Phi_l(j, Y) mod p among candidates.
@@ -269,9 +232,6 @@ def modpoly_roots_among(j:int, l:int, p:int, candidates) -> dict:
             out[y] = m
     return out
 
-def modpoly_primes() -> list[int]:
-    """Primes with a classical Phi_l in the cache (grows via register_modpoly)."""
-    return sorted(_modpoly_cache)
 
 def modular_prime_pool() -> list[int]:
     """Every prime with a modular polynomial in SOME format: the 15 genus-0

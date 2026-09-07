@@ -1,12 +1,25 @@
+"""Per-form machinery under the ecqf classes.
+
+Three jobs: (1) the eagerly-loaded precomputed stores for p <= 1021
+(ecqf_ord_1K_pc, ecqf_ss_1K_pc) with their lookups (ap_in_pc_data, ec_look_up);
+(2) canonical Weierstrass models over F_p for a given j/signature
+(ecfp_js_to_model, twist_fg); (3) the Mordell-Weil chain on the lattice model:
+qf_to_ERGM_1T / qf_ap_FrMat build the matrix of Frobenius on the basis
+(1, tau), frob_to_mw_gens -> qf_mat_ker_gens -> qf_mat_ker_cyc compute
+generators of ker(Frob^k - 1) = E(F_{p^k}) via Hall multipliers, and
+pts_from_gendic enumerates the points.  (Invariant to test: the count equals
+p + 1 - a at k = 1.)
+
+The classes themselves (QFIsogenyClass, ECQFIsogenyClass) live in ecqf.py.
+"""
+
 import numpy as np
-import pandas as pd
 import json
 from pathlib import Path
 
 from nt import primesBetween,discfac,find_prim_root,quad_rec,gcd,hall_multiplier,axby
 from alg_classes import *
 from qfs import *
-from graph_tools import nbrdata_to_isomat,cycle_from_neighbor_data
 
 M2Z = Mat_n_Z(2)
 
@@ -107,18 +120,6 @@ def ec_eq_str_base(fg:tuple[int,int]):
 def ec_eq_str(fg:tuple[int,int],p:int):
     return ec_eq_str_base(fg)+(f' mod {p}')
 
-def export_points(grp:list,filename:str):
-    file = open(filename,'a')
-    for i in range((len(grp)//3)+1):
-        stri = ''
-        for vec in grp[3*i:3*(i+1)]:
-            stri += '['+str(vec[0])[:10]+','+str(vec[1])[:10]+'],'
-        stri+='\n'
-        file.write(stri)
-    file.close()
-
-def qf_cond(qf:tuple[int,int,int])->int:
-    return discfac(qf_disc(qf))[1]
 
 def m2_tup_to_vec(m:tuple[tuple[int]])->tuple[int,int,int,int]:
     return tuple(list(m[0])+list(m[1]))
@@ -129,6 +130,9 @@ def m2_tup_det(m:tuple[tuple[int]])->int:
 
 
 def pts_from_gendic(gendic:dict)->list[tuple[int,int]]:
+    """All points of the subgroup of (Z/e)^2 spanned by a generator dict
+    {vector: order} (as produced by qf_mat_ker_gens / frob_to_mw_gens), where
+    e = max order.  Empty dict = trivial group = [(0, 0)]."""
     if len(gendic)== 0:
         return [(0,0)]
     gen_tups = [v for v in gendic]
@@ -136,18 +140,16 @@ def pts_from_gendic(gendic:dict)->list[tuple[int,int]]:
         l = gendic[gen_tups[0]]
         return [(a,b) for a in range(l) for b in range(l)]
     lm = max(gendic.values())
-    A = ZnProduct((lm.lm))
+    A = ZnProduct((lm,lm))
     if len(gen_tups)==1:
         v = gen_tups[0]
         g = AbGrElt(v,A)
         return [(m*g).vec for m in range(lm)]
     else:
-        v1,v2 = gen_tups[1],gen_tups[2]
+        v1,v2 = gen_tups[0],gen_tups[1]
         g1,g2 = AbGrElt(v1,A),AbGrElt(v2,A)
         n1,n2 = gendic[v1],gendic[v2]
         return [(x*g1+y*g2).vec for x in range(n1) for y in range(n2)]
-
-
 
 
 ######
@@ -270,7 +272,6 @@ def ecfp_js_to_model(js,ap,nsp):
             return fga[0]
 
 
-
                 ###################################
                 # Mordell-Weil Group Computations #
                 ###################################
@@ -314,10 +315,8 @@ def qf_mat_ker_cyc(mat:tuple[tuple[int]])->dict:
     # Note that gcd(xg,yg, l) should now be equal to 1.
     # If gcd(xg,yg) is not 1, we can factor it out
     gxy = gcd(xg,yg)
-    if gcd(gxy,l)!= 1:
-        return 'Something went wrong'
-    if gxy == 0:
-        return 'Something wrong'
+    if gxy == 0 or gcd(gxy,l)!= 1:
+        raise ArithmeticError(f'kernel generator ({xg}, {yg}) shares a factor with l={l}')
     return {(xg//gxy,yg//gxy):l}
 
 # This combines the previous functions - given a matrix, it returns generators of the kernel as a dictionary.
@@ -334,7 +333,7 @@ def divide_cyclic_gen(gen:dict,m:int)->dict:
     if gcd(x,y)>1:
         g =gcd(x,y)
         if gcd(g,l)>1:
-            return'The generator has the wrong order'
+            raise ArithmeticError(f'generator {v} does not have order {l}')
         v = x//g, y//g
         x,y = v
     v1 = (l*x)%(l*m),(l*y)%(l*m) 
@@ -402,25 +401,6 @@ def frob_to_mw_gens(frmat:MatrixElement,k:int):
     return qf_mat_ker_gens(frk_fxp_mat(frmat,k))
 
 # The following computes Frobenius matrices for all qfs in a given isogeny class
-def ap_FrbMats_1T(ap:tuple[int,int],s=1):
-    a,p = ap
-    d = a*a-4*p
-    d0,c_ap = discfac(d)
-    qfs = get_qfs_all(d)
-    I2m = MatrixElement(((1,0),(0,1)),M2Z)
-    qf_to_Fr_mat = {}
-    for qf in qfs:
-        atau_mat = qf_to_ERGM_1T(qf)
-        c_qf = qf_cond(qf)
-        assert c_ap % c_qf == 0
-        tau_scalar = s*(c_ap//c_qf)
-        trace_diff = a- (tau_scalar * atau_mat.trace)
-        assert trace_diff % 2 == 0
-        one_scalar = trace_diff//2
-        frmat_tup = (one_scalar * I2m + tau_scalar * atau_mat).vec
-        frmat= MatrixElement(frmat_tup,M2Z)
-        qf_to_Fr_mat[qf] = frmat
-    return qf_to_Fr_mat
 
 def mw_arr_from_gens(abc:tuple,gens:dict)->np.array:
     den = max(gens.values())

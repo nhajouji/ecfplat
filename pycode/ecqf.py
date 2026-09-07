@@ -15,17 +15,16 @@ import numpy as np
 import pandas as pd
 
 from nt import discfac, quad_rec, primeQ
-from qfs import (qfs_ordered_by_cond, qf_disc, qf_isogs_hor, qf_parents,
-                 class_group_id)
-from graph_tools import nbrdata_to_isomat, cycle_from_neighbor_data
+from qfs import qfs_ordered_by_cond, qf_disc, qf_isogs_hor, qf_parents
+from graph_tools import cycle_from_neighbor_data
 from ecqf_tools import (
     # lookups and stores
-    ec_look_up, ap_in_pc_data, get_aps_pc, get_ssps_pc,
+    ap_in_pc_data, get_aps_pc, get_ssps_pc,
     ecqf_ord_1K_pc, ecqf_ss_1K_pc,
     # per-form machinery used by the classes
-    qf_l_order, qf_ap_FrMat, ecfp_js_to_model,
-    frob_to_mw_gens, pts_from_gendic, mw_arr_from_gens,
-    abc_to_tau, abc_to_tau_str, ec_eq_str_base, ec_eq_str,
+    qf_ap_FrMat, ecfp_js_to_model,
+    frob_to_mw_gens, pts_from_gendic,
+    abc_to_tau, abc_to_tau_str,
 )
 
 
@@ -50,16 +49,9 @@ class QFIsogenyClass:
         d0, c = discfac(d)
         self.field_disc = d0
         self.cond = c
-        self.qfs_leaves = [qf for qf in self.qfs_all if qf_disc(qf) == d]
         # discriminant / conductor of each form's endomorphism ring
         self.endo_disc_dict = {qf: qf_disc(qf) for qf in self.qfs_all}
         self.endo_cond_dict = {qf: discfac(qf_disc(qf))[1] for qf in self.qfs_all}
-        self.l_dict = {}
-        self.ord_dict = {}
-        for qf in self.qfs_all:
-            l, n = qf_l_order(qf)
-            self.l_dict[qf] = l
-            self.ord_dict[qf] = n
 
     def get_isog_neighbors_horz(self, l: int):
         if l in self.neighbor_data_horz:
@@ -102,32 +94,11 @@ class QFIsogenyClass:
         self.neighbor_data[l] = neighbors_data_l
         return neighbors_data_l
 
-    def adjacency_matrix(self, l):
-        data = self.get_neighbor_data_all(l)
-        return nbrdata_to_isomat(nbrdata=data, verts_ordered=self.qfs_ordered)
-
     def isog_cycle(self, qf0: tuple, l: int):
         if qf0 not in self.qfs_all:
             raise ValueError(f'{qf0} is not in isogeny class')
         lnbr_data = self.get_isog_neighbors_horz(l)
         return cycle_from_neighbor_data(qf0, lnbr_data)
-
-    def isog_cycle_partition(self, l):
-        cond_dict = self.endo_cond_dict
-        qfs_by_cond = {c: [] for c in cond_dict.values()}
-        for qf, c in cond_dict.items():
-            qfs_by_cond[c].append(qf)
-        cycles_by_cond = {c: [] for c in qfs_by_cond if c % l != 0}
-        for c in cycles_by_cond:
-            qfs_c = qfs_by_cond[c]
-            while len(qfs_c) > 0:
-                cyc_new = self.isog_cycle(qfs_c[0], l)
-                assert len(cyc_new) > 0
-                cycles_by_cond[c].append(cyc_new)
-                qfs_c_new = [qf for qf in qfs_c if qf not in cyc_new]
-                assert len(qfs_c_new) + len(cyc_new) == len(qfs_c)
-                qfs_c = qfs_c_new
-        return qfs_by_cond
 
 
 class ECQFIsogenyClass(QFIsogenyClass):
@@ -185,17 +156,6 @@ class ECQFIsogenyClass(QFIsogenyClass):
         qf_gens = self.qf_to_mw_gens_dict(k)
         return {qf: pts_from_gendic(qf_gens[qf]) for qf in qf_gens}
 
-    def qf_to_mwgr_arr_single(self, k: int = 1, qf: tuple = None):
-        if qf is None:
-            qf = (self.qfs_all)[0]
-        if qf not in self.qf_to_frob_mats:
-            raise ValueError('Form not in dictionary')
-        frm = self.qf_to_frob_mats[qf]
-        mwgens = frob_to_mw_gens(frm, k)
-        if len(mwgens) == 0:
-            return [np.array([0, 0])]
-        return mw_arr_from_gens(qf, mwgens)
-
     def ecqf_df(self):
         if self.js_to_qf is None:
             raise ValueError('No data available')
@@ -218,39 +178,6 @@ class ECQFIsogenyClass(QFIsogenyClass):
                              'endo_cond': qf_cs, 'endo_cocond': qf_ccs,
                              'frobmat': frobmats, 'tau_s': tau_strs,
                              'tau_xy': tau_xys})
-
-    def ecqf_mw_df(self, k: int):
-        if self.js_to_qf is None:
-            raise ValueError('No data available')
-        jss = self.jsigs
-        if type(jss[0]) == tuple:
-            jlist = [js[0] for js in jss]
-        else:
-            jlist = jss
-        fgs = [(self.js_to_models)[js] for js in jss]
-        qfs = [(self.js_to_qf)[js] for js in jss]
-        frmats = [self.qf_to_frob_mats[qf] for qf in qfs]
-        qfds = [qf_disc(qf) for qf in qfs]
-        qf_cs = [discfac(d)[1] for d in qfds]
-        qf_ccs = [self.cond // c for c in qf_cs]
-        tau_xys = [abc_to_tau(qf) for qf in qfs]
-        tau_strs = [abc_to_tau_str(qf) for qf in qfs]
-        frmat_tups = [frm.vec for frm in frmats]
-        mwgsets = []
-        mwntups = []
-        for frm in frmats:
-            gendic = frob_to_mw_gens(frm, k)
-            genvs = [g for g in gendic]
-            genvs.sort(key=lambda g: gendic[g], reverse=True)
-            mwgsets.append(genvs)
-            mwntups.append(tuple([gendic[g] for g in genvs]))
-        return pd.DataFrame({'ec_invs': jss, 'j_inv': jlist, 'EC_coefs': fgs,
-                             'qf_coefs': qfs, 'endo_disc': qfds,
-                             'endo_cond': qf_cs, 'endo_cocond': qf_ccs,
-                             'frobmat': frmat_tups, 'tau_s': tau_strs,
-                             'tau_xys': tau_xys, 'MW_gens': mwgsets,
-                             'MW_iso_type': mwntups})
-
 
 # ══ Explorer assembly ═════════════════════════════════════════════════════════
 

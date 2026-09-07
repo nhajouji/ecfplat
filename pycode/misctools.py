@@ -1,3 +1,9 @@
+"""Small tuple/dict helpers shared by graph_tools and ecqf_bij.
+
+NB merge_dicts mutates its first argument (callers rely on the return value,
+but pass a copy if the input matters to you).
+"""
+
 def ext_tup(t,x):
     return tuple(list(t)+[x])
 
@@ -29,8 +35,6 @@ def merge_dicts(diclist:list[dict])->dict:
                 dic[x]=dic1[x]
     return dic
 
-def invert_dict(dict):
-    return {dict[x]:x for x in dict}
 
 # Given two dictionaries with the same keys, returns
 # a dictionary whose keys are keys of dict, and values are keys of second dict

@@ -32,10 +32,10 @@ import math
 import time
 from pathlib import Path
 
-from nt import primeQ, primesBetween, crt_pair
+from nt import primesBetween, crt_pair
 from qfs import qf_isogs_hor
 from ecqf_tools import ecqf_ord_1K_pc
-from modularpolynomials import classical_modpoly, register_modpoly, _modpoly_cache
+from modularpolynomials import register_modpoly, _modpoly_cache
 from modpoly_crt import (phi_monomials, phi_diagonal, special_value_rows,
                          solve_phi_from_pairs, isogenous_pairs_mod_ell,
                          modpoly_height_bound_log2, kronecker_check)

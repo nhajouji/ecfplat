@@ -1,3 +1,14 @@
+"""Elementary number theory over Z and F_p.
+
+Factorization (trial division), divisors, primality, prime sieves, quadratic
+characters (quad_rec = the Legendre symbol), CRT, square roots mod p
+(sqrt_mod_prime = Tonelli-Shanks), multiplicative orders, Frobenius extension
+degrees, and the Gaussian/Eisenstein descent used for sums of two squares
+(sos / esos / x2_3y2 -- the geometry-of-numbers blog material).
+
+The leaf of the import graph: this module imports nothing from the package.
+"""
+
 
 def gcd(a:int,b:int)->int:
     a = abs(a)
@@ -46,7 +57,7 @@ def axby(ab:tuple[int])->tuple[int]:
 
 def hall_multiplier(l:int,m:int)->int:
     if min(l,m)< 1:
-        return 'Not defined'
+        raise ValueError(f'hall_multiplier needs positive arguments, got ({l}, {m})')
     l0 = gcd(l,m)
     l1 = m//l0
     multiplier = 1
@@ -56,14 +67,6 @@ def hall_multiplier(l:int,m:int)->int:
         l1 = l1//g
         multiplier*=g
     return multiplier
-
-# Mod p
-
-def mod_sfd(a,m):
-    a = a % m
-    if 2*a > m:
-        a-=m
-    return a
 
 ## Prime factorization
 
@@ -107,11 +110,6 @@ def primeQ(n:int)->bool:
     pfn = primefact(n)
     return len(pfn)==1 and max(pfn.values())==1
 
-def pf_to_int(pf:dict)->int:
-    n = 1
-    for p in pf:
-        n*=(p**pf[p])
-    return n
 
 def pf_to_divisors(pf:dict)->list:
     divs = [1]
@@ -126,23 +124,6 @@ def divisors(n):
 def no_odd_prime_facs(d):
     return len([p for p in primefact(abs(d)) if p % 2 == 1])
 
-def quad_gcd(a1:int,a2:int)->int:
-    pf2 = primefact(a2)
-    a2rt = pf_to_int({p:pf2[p]//2 for p in pf2})
-    return gcd(a1,a2rt)
-
-
-def ap_to_lm(ap:tuple[int])->tuple[int]:
-    a, p = ap
-    #min poly of frob is x^2 - ax + p
-    #trace of frob - 1 is a-2 and norm is p+a+1
-    t = a - 2
-    n = p - a + 1
-    m = quad_gcd(t,n)
-    l = n//(m**2)
-    if n!= l*(m**2):
-        return 'Something went wrong'
-    return (l,m)
 
 ########################
 # Quadratic characters #
@@ -165,12 +146,6 @@ def find_nonsquare(p):
         d -= 1
     return d
 
-def jacobi_symbol(d:int,n:int):
-    pfn = primefact(n)
-    s = 1
-    for p in pfn:
-        s*=(quad_rec(d,p)**pfn[p])
-    return s
 
 def gen_quad_symb(a,b):
     pf_b = primefact(b)
@@ -182,20 +157,6 @@ def gen_quad_symb(a,b):
             s *= quad_rec(a,p)
     return s
 # Applications
-
-def class_no_formula(d):
-    # We pull out the conductor, if there is 1, and assume d is a fundamental discriminant
-    d, c = discfac(d)
-    # We compute class number of d
-    md = 1
-    if d >-5:
-        if d == -3:
-            md = 3
-        elif d == -4:
-            md = 2
-    qsum = sum([jacobi_symbol(d,n) for n in range(1,(abs(d)+1)//2)])
-    den =2-jacobi_symbol(d,2)
-    return (md*qsum*twisted_phi(d,c))//den
 
 
 ## Generating prime lists for testing
@@ -293,31 +254,13 @@ def discfac(d):
     
 
 
-def twisted_phi(d:int,m:int)->int:
-    if m < 0:
-        return 0
-    pfm = primefact(m)
-    phim = 1
-    for p in pfm:
-        phim*=(p-quad_rec(d,p))*(p**(pfm[p]-1))
-    if d == -3 and m > 1:
-        return phim//3
-    elif d == - 4 and m > 1:
-        return phim//2
-    else:
-        return phim
-
-def twisted_phi_sum(d:int,m:int)->int:
-    divsm = divisors(m)
-    return sum([twisted_phi(d,m) for m in divsm])
-
 ## CRT
 
 def crt_pair(am1:tuple[int],am2:tuple[int])->tuple[int]:
     a1,m1 = am1
     a2,m2 = am2
     if gcd(m1,m2)>1:
-        return 'Check moduli'
+        raise ValueError(f'crt_pair needs coprime moduli, got {m1} and {m2}')
     m12 = m1*m2
     a12 = (a1 + m1*((a2-a1)*pow(m1,-1,m2))) % m12
     if 2*a12 > m12:
@@ -333,29 +276,6 @@ def crt_list(amlist:list[tuple[int,int]]):
     return am0
 
 ## Root of unity
-def get_rou_mod(m,p):
-    m0 = gcd(m,p-1)
-    k = (p-1)//m0
-    for x in range(2,p-1):
-        xk = pow(x,k,p)
-        xkg = [pow(xk,i,p) for i in range(m0)]
-        if len(set(xkg))== m0:
-            return xk
-    return 0
-
-
-def int_sqrt(n:int)->int:
-    if not isinstance(n,int) or n<0:
-        raise ValueError('n must be a nonnegative integer')
-    if n < 2:
-        return n
-    r = 1
-    while r**2 + 1 < n:
-        b = 2
-        while (r+b)**2 < n:
-            b*=2
-        r+= (b//2)
-    return r
 
 
 #####################################

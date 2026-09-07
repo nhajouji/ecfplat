@@ -119,7 +119,6 @@ pycode/           # Core Python library
                       #   drivers, ordinary and supersingular
   rigid_cache.py      # Per-discriminant cache (search + lattice-side labelling) with
                       #   a populate/update CLI and a cached (a, p) entrypoint
-  ldata_cache.py      # Per-discriminant rigid-l-set-data cache + populate/update CLI
   ss_bij_cache.py     # Recompute the supersingular equivalence from scratch over a
                       #   prime range into the (Velu) data files + populate/update CLI
   ecqf_tools.py       # Equivalence utilities, Frobenius matrices, Mordell–Weil
@@ -227,7 +226,7 @@ The per-discriminant layer is regenerated/extended with incremental command-line
 
 ```bash
 python pycode/rigid_cache.py --min -32768  # search + lattice-side labelling
-python pycode/ldata_cache.py --min -32768  # search data only (smaller)
+python pycode/rigid_cache.py --ldata --min -32768  # search data only (smaller)
 python pycode/ss_bij_cache.py --max 1024   # supersingular equivalences, from scratch
 ```
 

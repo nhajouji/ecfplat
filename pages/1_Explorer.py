@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "pycode"))
 import streamlit as st
 import streamlit.components.v1 as components
 
-from nt import primeQ, primefact, discfac, primesBetween
+from nt import primeQ, primefact, primesBetween
 from ecqf import (QFIsogenyClass, ECQFIsogenyClass, class_graph_descriptor,
                   disc_to_aps, GUARDS, P_MAX)
 from ecqf_tools import (ec_eq_str_base, frob_to_mw_gens, abc_to_tau,

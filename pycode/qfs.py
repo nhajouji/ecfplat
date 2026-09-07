@@ -1,9 +1,24 @@
+"""Binary quadratic forms and the SL2(Z) / Gamma_0(l) action.
+
+A form is a tuple (a, b, c) of integers, standing for a x^2 + b xy + c y^2 --
+equivalently the point tau = (-b + sqrt(D))/2a of the upper half-plane and the
+CM lattice <1, tau>.  Provides: reduction into the fundamental domain
+(qf_mod_gamma / _qf_reduce), enumeration of the class group of a discriminant
+(get_qfs_strict / get_qfs_all / qfs_ordered_by_cond), l-isogeny neighbours
+(qf_isogs_hor = horizontal, qf_parents = ascending; cached), isogeny cycles,
+Gamma_0(l) coset orbits, the Fricke involution, and endomorphism points on
+X_0(l) (qf_x0_endos).
+
+Two DIFFERENT matrix encodings of a form coexist here -- don't mix them:
+qf_to_mat is the Gram matrix ((2a, b), (b, 2c)) of the bilinear form (used by
+the SL2 action act_qf); qf_2_mat is the matrix of multiplication by a*tau on
+the basis (1, tau) of the lattice (inverse: mat_2_qf).
+"""
+
 from functools import lru_cache
 
 from nt import discfac, gcd
-from identities import *
 from alg_classes import MatrixElement, Mat_n_Z
-# from modularpolynomials import *
 
 M2Z = Mat_n_Z(2)
 
@@ -51,9 +66,6 @@ def qf_disc(qf:tuple[int,int,int])->tuple[int,int,int]:
     a,b,c = qf_make_prim(qf)
     return b*b-4*a*c
 
-def qf_to_dc(qf:tuple[int,int,int])->tuple[int,int]:
-    return discfac(qf_disc(qf))
-
 
 ########################
 # Modular group action #
@@ -81,41 +93,12 @@ def act_qf(qf:tuple[int,int,int], m:MatrixElement):
     return mat_to_qf(qfm_new)
 
 
-def qf_to_fun_dom(qf:tuple)->tuple:
-    d = qf_disc(qf)
-    if d >= 0:
-        raise ValueError('Discriminant must be negative')
-    matrix = MatrixElement(((1,0),(0,1)), M2Z)
-    while not qf_in_fundom(qf):
-        a,b,c = qf
-        if a > c:
-            m0 = MatrixElement(((0,-1),(1,0)), M2Z)
-            matrix = m0 * matrix
-            qf = act_qf(qf, m0)
-        elif a < abs(b):
-            k = b // (2*a)
-            if b % (2*a) >= a:
-                k += 1
-            m0 = MatrixElement(((1,k),(0,1)), M2Z)
-            matrix = m0 * matrix
-            qf = act_qf(qf, m0)
-        elif a + b == 0:
-            m0 = MatrixElement(((1,-1),(0,1)), M2Z)
-            matrix = m0 * matrix
-            qf = act_qf(qf, m0)
-        elif a == c and b < 0:
-            m0 = MatrixElement(((0,-1),(1,0)), M2Z)
-            matrix = m0 * matrix
-            qf = act_qf(qf, m0)
-        else:
-            return qf, matrix
-    return qf, matrix
-
 def _qf_reduce(qf:tuple[int,int,int])->tuple[int,int,int]:
-    """qf_to_fun_dom without the SL2(Z) matrix bookkeeping: same reduction steps
-    with the transformed form written out directly, no MatrixElement arithmetic.
-    (The matrix-tracking version validated every 2x2 product through the generic
-    ring classes -- millions of checks per rigid-l-set search.)"""
+    """SL2(Z) reduction of a form into the fundamental domain, with the
+    transformed form written out directly -- no MatrixElement arithmetic.  (An
+    older matrix-tracking twin, qf_to_fun_dom, validated every 2x2 product
+    through the generic ring classes -- millions of checks per rigid-l-set
+    search -- and was removed in the 2026-08 cleanup; see tag pre-cleanup.)"""
     while not qf_in_fundom(qf):
         a,b,c = qf
         if a > c:
@@ -196,7 +179,6 @@ def gamma_0_orb(qf:tuple[int,int,int],l:int)->list[tuple[int,int,int]]:
     return [act_qf(qf,m) for m in gamma_0_coset_reps(l)]
 
 
-
 def qf_parents(qf:tuple[int,int,int],l:int):
     d = qf_disc(qf)
     return [qf0 for qf0 in _qf_isogs_up_cached(tuple(qf),l) if qf_disc(qf0)>d]
@@ -209,11 +191,6 @@ def mat_2_qf(m):
     s = c//abs(c)
     return (s*c,s*(a-d),-s*b)
 
-def prod_tup(t):
-    p = 1
-    for x in t:
-        p *= x
-    return p
 
 ### Computing isogeny codomains
 # Two cached enumerations of the index-l sublattice forms:
@@ -261,22 +238,11 @@ def qf_isogs_hor(qf0,l):
     d = qf_disc(qf0)
     return [qf for qf in _qf_isogs_up_cached(tuple(qf0),l) if qf_disc(qf)==d]
 
-def qf_isogs_asc(qf0,l):
-    d = qf_disc(qf0)
-    return [qf for qf in _qf_isogs_up_cached(tuple(qf0),l) if qf_disc(qf)>d]
 
 def qf_isogs_des(qf0,l):
     d = qf_disc(qf0)
     return [qf for qf in qf_isogs(qf0,l) if qf_disc(qf)<d]
 
-def qfs_isogs_int(qfl1,qfl2):
-    qf1,l1 = qfl1
-    qf2,l2 = qfl2
-    qf3s = {qf for qf in qf_isogs_hor(qf1,l1) if qf2 in qf_isogs_hor(qf2,l2)}
-    if len(qf3s)==1:
-        return list(qf3s)[0]
-    else:
-        return qf3s
 
 def qf_isog_parent(qf,l):
     d,c = discfac(qf_disc(qf))
@@ -321,68 +287,14 @@ def qf_sibs(qf0:tuple[int,int,int],l:int):
     sibs = qf_isogs_des(qf_isog_parent(qf0,l),l)
     return [qf0]+[qf for qf in sibs if qf != qf0]
 
-def cycs_from_ancestors(qf0):
-    d, c = discfac(qf_disc(qf0))
-    cycs = {}
-    if c % 2 == 0:
-        sibs = qf_sibs(qf0,2)
-        if len(sibs)>1:
-            cycs[2] = sibs
-    if c % 3 == 0:
-        sibs = qf_sibs(qf0,3)
-        if len(sibs)<4:
-            cycs[3] = sibs
-    return cycs
-
 
 ##########
 # X_0(l) #
 ##########
 
-def minv(m:MatrixElement)->MatrixElement:
-    return m.adjugate
-
-def find_rrep_g0(m:MatrixElement, l:int)->MatrixElement:
-    reps = gamma_0_coset_reps(l)
-    cands = [m0 for m0 in reps if (m * minv(m0)).vec[1][0] % l == 0]
-    if len(cands) != 1:
-        raise ValueError('No unique rep')
-    return cands[0]
-
-def qf_to_gamma_0_fd(qf:tuple[int,int,int], l:int)->tuple[tuple[int,int,int], MatrixElement]:
-    qf0, m = qf_to_fun_dom(qf)
-    if m.vec[1][0] % l == 0:
-        return qf0, m
-    ml = minv(find_rrep_g0(m, l))
-    return act_qf(qf, ml), m * ml
-
-def qf_mod_gamma_0(qf:tuple[int,int,int], l:int)->tuple[int,int,int]:
-    return qf_to_gamma_0_fd(qf, l)[0]
 
 def qf_x0_endos(qf:tuple[int,int,int], l:int)->list[tuple[int,int,int]]:
     qf0 = qf_mod_gamma(qf)
     return [qf1 for qf1 in gamma_0_orb(qf0,l) if qf_mod_gamma(fricke_inv(qf1,l))==qf0]
 
-def x0_endos_all(p:int)->dict:
-    endos_by_trace = {}
-    a = 0
-    while a*a < 4*p:
-        d = a*a-4*p
-        qfs = get_qfs_all(d)
-        endos_by_trace[a] = {qf:qf_x0_endos(qf,p) for qf in qfs}
-        a += 1
-    return endos_by_trace
 
-def iso_taus_x0_l(qf,l):
-    qf_reps = gamma_0_orb(qf_mod_gamma(qf),l)
-    return [qf1 for qf1 in qf_reps if qf_disc(qf1)==qf_disc(qf)]
-
-def isos_x0_l_all(d,l):
-    qfs = get_qfs_all(d)
-    iso_taus = {}
-    for qf0 in qfs:
-        qf1s = gamma_0_orb(qf0,l)
-        for qf1 in qf1s:
-            if qf_mod_gamma(fricke_inv(qf1,l)) in qfs:
-                iso_taus[qf1] = fricke_inv(qf1,l)
-    return iso_taus
