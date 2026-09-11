@@ -320,8 +320,7 @@ def qf_mat_ker_gens(mat:tuple[tuple[int]]):
 # The generator is multiplication-by-(a * tau), where a is the leading coef
 
 def qf_to_ERGM_1T(qf:tuple[int,int,int])->MatrixElement:
-    a,b,c = qf
-    return MatrixElement(((0,-c),(a,-b)),M2Z)
+    return MatrixElement(tuple(tuple(r) for r in qf_2_mat(qf)), M2Z)
 
 # This computes the matrix that represents multiplication by
 #  the root of x^2-ax + p whose imaginary part has sign equal to s

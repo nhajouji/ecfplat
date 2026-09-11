@@ -224,10 +224,12 @@ def _save_ext_bijections(store: dict, path=_EXT_BIJ_PATH):
 
 
 def compute_and_save(pmin: int = 1024, pmax: int = 2048, path=_EXT_BIJ_PATH,
-                     verbose: bool = True) -> dict:
+                     verbose: bool = True, save_every: int = 5) -> dict:
     """Compute the bijection for every class over a spanning disc in the range
-    and append it to the extension store.  Checkpoints after every prime;
-    re-running skips what is already stored.  Returns run statistics."""
+    and append it to the extension store.  Checkpoints every save_every primes
+    (the store grows to ~85 MB, so a per-prime rewrite is several GB of disk
+    traffic per run); re-running skips what is already stored.  Returns run
+    statistics."""
     from rigid_cache import ecqf_ord_bij_cached
     by_d = aps_by_disc(pmin, pmax)
     parts = partition_discs(list(by_d), verbose=verbose)
@@ -242,6 +244,7 @@ def compute_and_save(pmin: int = 1024, pmax: int = 2048, path=_EXT_BIJ_PATH,
     stats = {'computed': 0, 'skipped_existing': 0, 'failed': 0,
              'classes_blocked': sum(len(by_d[d]) for d in parts['open'] + parts['conductor'])}
     t0 = time.time()
+    unsaved = 0
     for n, p in enumerate(sorted(by_p)):
         t1 = time.time()
         fresh = 0
@@ -258,17 +261,24 @@ def compute_and_save(pmin: int = 1024, pmax: int = 2048, path=_EXT_BIJ_PATH,
                 continue
             raw[str(ap)] = {str(j): list(qf) for j, qf in bij.items()}
             fresh += 1
-        if fresh:
+        stats['computed'] += fresh
+        unsaved += fresh
+        if unsaved and (n + 1) % save_every == 0:
             tmp = str(path) + '.tmp'
             with open(tmp, 'w') as f:
                 json.dump(raw, f)
             Path(tmp).replace(path)
-            stats['computed'] += fresh
+            unsaved = 0
         if verbose:
             done = stats['computed'] + stats['skipped_existing']
             total = sum(len(v) for v in by_p.values())
             print(f'p={p} ({n+1}/{len(by_p)}): {fresh} classes in {time.time()-t1:.1f}s '
                   f'-- {done}/{total} done, {(time.time()-t0)/60:.1f} min elapsed', flush=True)
+    if unsaved:
+        tmp = str(path) + '.tmp'
+        with open(tmp, 'w') as f:
+            json.dump(raw, f)
+        Path(tmp).replace(path)
     stats['elapsed_s'] = time.time() - t0
     return stats
 
