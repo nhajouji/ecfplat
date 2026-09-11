@@ -732,15 +732,15 @@ def std_model(j, p, s):
     c = fq_mul(j, fq_inv(fq_sub((1728 % p, 0), j, p), p, s), p, s)
     return fq_mul((3, 0), c, p, s), fq_mul((2, 0), c, p, s)
 
-_phi_cache = {}
+_phi_cache = None                       # whole file, parsed once on first use
 
 def _load_phi(l):
-    if l not in _phi_cache:
+    global _phi_cache
+    if _phi_cache is None:
         with open(_DATA_DIR / 'classical_modpolys.json') as f:
-            raw = json.load(f)
-        if str(l) not in raw:
-            raise ValueError(f'no classical modular polynomial for l = {l}')
-        _phi_cache[l] = raw[str(l)]
+            _phi_cache = {int(k): M for k, M in json.load(f).items()}
+    if l not in _phi_cache:
+        raise ValueError(f'no classical modular polynomial for l = {l}')
     return _phi_cache[l]
 
 def phi_check(l, j1, j2, p, s):

@@ -16,7 +16,6 @@ are ecqf_bij.ecqf_full_bijection_ord and the ecqf_tools Mordell-Weil chain
 """
 
 from nt import quad_rec, discfac, find_nonsquare
-from modularpolynomials import atk_at_j, atk_poly_a
 
 import numpy as np
 from functools import lru_cache
@@ -106,10 +105,21 @@ def trace_frob(fg:tuple[int,int],p:int)->int:
 
 
 def fp_isog_codomains(j:int,l:int,p:int):
-    """j-invariants l-isogenous to j over F_p, via the Atkin modular polynomial."""
-    y0s = atk_at_j(j,l,p).mod(p).find_roots_BrFo()
-    atkin_linear = atk_poly_a(l,p).mod(p)
-    return [(atkin_linear.eval(y0)-j)%p for y0 in y0s]
+    """j-invariants l-isogenous to j over F_p, via the Atkin modular polynomial.
+
+    Roots of the Atkin polynomial at j are found by a vectorized Horner scan
+    over all of F_p; each root y0 maps to the codomain a(y0) - j.  (The
+    modularpolynomials import is deferred so importing ecfp stays cheap --
+    that module loads its polynomial stores eagerly.)"""
+    from modularpolynomials import atk_at_j_coeffs, atk_a_coeffs, poly_eval_mod
+    coeffs = atk_at_j_coeffs(j, l, p)
+    x = np.arange(p, dtype=np.int64)
+    vals = np.zeros(p, dtype=np.int64)
+    for c in reversed(coeffs):
+        vals = (vals * x + c) % p
+    ca = atk_a_coeffs(l)
+    return [(poly_eval_mod(ca[::-1], int(y0), p) - j) % p
+            for y0 in np.flatnonzero(vals == 0)]
 
 
 TRACE_TABLE_IMPL = None   # optional faster backend; see trace_gpu.enable()

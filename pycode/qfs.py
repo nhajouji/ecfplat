@@ -125,10 +125,11 @@ def qf_mod_gamma(qf:tuple[int,int,int])->tuple[int,int,int]:
 # Generating lists of quadratic forms #
 #######################################
 
-def get_qfs_all(d:int):
+@lru_cache(maxsize=1<<14)
+def _qfs_all_cached(d:int)->tuple:
     reps_found = []
     if d % 4 > 1 or d >= 0:
-        return reps_found
+        return ()
     b = d % 4
     while 3*b*b <= abs(d):
         num = (b*b-d)//4
@@ -144,10 +145,14 @@ def get_qfs_all(d:int):
                     reps_found.append(qf_make_prim((a,-b,c)))
             a += 1
         b += 2
-    return reps_found
+    return tuple(reps_found)
+
+def get_qfs_all(d:int):
+    """All reduced forms of disc d or d/f^2 (fresh list; enumeration cached)."""
+    return list(_qfs_all_cached(d))
 
 def get_qfs_strict(d:int):
-    return [qf for qf in get_qfs_all(d) if qf_disc(qf)==d]
+    return [qf for qf in _qfs_all_cached(d) if qf_disc(qf)==d]
 
 def qfs_ordered_by_cond(d):
     qfs = get_qfs_all(d)
@@ -263,10 +268,12 @@ def qf_isog_cycle(qf0,l):
     elif len(cyc)>2:
         raise ValueError('Too many isogenies')
     cyc = [qf0,cyc[0]]
-    nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in cyc]
+    seen = set(cyc)                       # O(1) membership; cyc keeps the order
+    nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in seen]
     while len(nextbatch)>0:
         cyc.append(nextbatch[0])
-        nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in cyc]
+        seen.add(nextbatch[0])
+        nextbatch = [qf for qf in _qf_isogs_up_cached(cyc[-1],l) if qf not in seen]
     return cyc
 
 def qf_isog_cycle_power(qf0,lk):

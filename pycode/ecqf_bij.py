@@ -752,7 +752,7 @@ def _atk_rab_counts(l, p):
     return counts
 
 
-def ecfp_nbr_data_ord_X1(ap,l,jdata = {}):
+def ecfp_nbr_data_ord_X1(ap,l,jdata=None):
     """In-class l-isogeny neighbour data {j: [neighbours, with multiplicity]}.
 
     Dispatch by modular-polynomial format: the 15 genus-0 primes use the Atkin
@@ -766,6 +766,8 @@ def ecfp_nbr_data_ord_X1(ap,l,jdata = {}):
     logic never treats 0 or 1728 as a leaf or mid-tree vertex -- their CM
     discs are fundamental, so they always sit on the crater."""
     a,p = ap
+    if jdata is None:
+        jdata = {}
     js = jdata['js'] if len(jdata) > 0 else trfr_to_js(a,p)
     if l in atkin_polys_dict:
         rabs = jdata['rabs'] if len(jdata) > 0 else js_to_rabs(js,p)
@@ -983,19 +985,25 @@ def canonicalize_qf_labelling(zn_to_qf):
         return {t:class_group_inv(v) for t,v in zn_to_qf.items()}
     return zn_to_qf
 
-def canonicalize_j_labelling(zn_to_j):
-    """Pin the same global freedom on the j side (smaller j at root's +1 nbr)."""
-    if not zn_to_j:
-        return zn_to_j
-    orders = _labelling_orders(zn_to_j)
+def _canonicalize_zn_labelling(zn_to_v):
+    """Pin the global x -> -x freedom of a Z/n labelling: the root's +1
+    neighbour in coord 0 gets the smaller value (j, or (j, s) lexicographic).
+    Shared by the j side and the signature side."""
+    if not zn_to_v:
+        return zn_to_v
+    orders = _labelling_orders(zn_to_v)
     if len(orders) == 0 or orders[0] <= 2:        # coord 0 is 2-torsion => trivial
-        return zn_to_j
+        return zn_to_v
     n = len(orders)
     e1  = (1,)+(0,)*(n-1)
     em1 = (orders[0]-1,)+(0,)*(n-1)
-    if zn_to_j[e1] > zn_to_j[em1]:
-        return {_neg_tuple(t,orders):v for t,v in zn_to_j.items()}
-    return zn_to_j
+    if zn_to_v[e1] > zn_to_v[em1]:
+        return {_neg_tuple(t,orders):v for t,v in zn_to_v.items()}
+    return zn_to_v
+
+def canonicalize_j_labelling(zn_to_j):
+    """Pin the same global freedom on the j side (smaller j at root's +1 nbr)."""
+    return _canonicalize_zn_labelling(zn_to_j)
 
 
 def ecqf_full_bijection_ord(a:int,p:int,ls:tuple[int]=None,zn_to_qf=None):
@@ -1086,17 +1094,7 @@ def canonicalize_sig_labelling(zn_to_sig):
     """Pin the global x->-x freedom on the signature side, as canonicalize_j_labelling
     does on the j side: the root's +1 neighbour in coord 0 is the lexicographically
     smaller signature (j, then s)."""
-    if not zn_to_sig:
-        return zn_to_sig
-    orders = _labelling_orders(zn_to_sig)
-    if len(orders) == 0 or orders[0] <= 2:
-        return zn_to_sig
-    n = len(orders)
-    e1  = (1,) + (0,) * (n - 1)
-    em1 = (orders[0] - 1,) + (0,) * (n - 1)
-    if zn_to_sig[e1] > zn_to_sig[em1]:
-        return {_neg_tuple(t, orders): v for t, v in zn_to_sig.items()}
-    return zn_to_sig
+    return _canonicalize_zn_labelling(zn_to_sig)
 
 def ecqf_full_bijection_ss(p, ls=None):
     """Supersingular signature <-> qf bijection over F_p, from scratch via Velu.

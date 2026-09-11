@@ -20,6 +20,7 @@ Fourier series enters only through this bound, never the exact computation.
 import math
 import cmath
 import json
+from functools import lru_cache
 from pathlib import Path
 
 from alg_classes import GF_p, poly_ring, poly_crt, Poly
@@ -37,14 +38,20 @@ def modular_set() -> frozenset:
     return frozenset(modular_prime_pool())
 
 
+@lru_cache(maxsize=1)
+def _hilb_crt_file() -> dict:
+    """Parsed hilbpolys_crt.json (cached; save_hilbert_library invalidates)."""
+    crt_path = _DATA_DIR / 'hilbpolys_crt.json'
+    if not crt_path.exists():
+        return {}
+    with open(crt_path) as f:
+        return {int(d): cs for d, cs in json.load(f).items()}
+
 def hilbert_library() -> dict:
     """{d: coefs of H_d, low-to-high}: hilbpolys.json merged with the CRT library."""
     lib = dict(hilb_polys_dict)
-    crt_path = _DATA_DIR / 'hilbpolys_crt.json'
-    if crt_path.exists():
-        with open(crt_path) as f:
-            for d, cs in json.load(f).items():
-                lib.setdefault(int(d), cs)
+    for d, cs in _hilb_crt_file().items():
+        lib.setdefault(d, cs)
     return lib
 
 
@@ -238,6 +245,7 @@ def save_hilbert_library(lib: dict, path=None):
         path = _DATA_DIR / 'hilbpolys_crt.json'
     with open(path, 'w') as f:
         json.dump({str(d): lib[d] for d in sorted(lib, reverse=True)}, f)
+    _hilb_crt_file.cache_clear()          # the cached parse is now stale
     return path
 
 

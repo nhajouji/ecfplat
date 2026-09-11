@@ -20,6 +20,7 @@ from pathlib import Path
 from nt import primesBetween,discfac,find_prim_root,quad_rec,gcd,hall_multiplier,axby
 from alg_classes import *
 from qfs import *
+from ecfp import trace_frob, fg_to_j, j_to_fg
 
 M2Z = Mat_n_Z(2)
 
@@ -174,48 +175,7 @@ def qf_l_order(qf,mm = 64):
 
 ### ECFP
 
-def trace_frob(fg:tuple[int,int],p:int)->int:
-    f,g = fg
-    return - sum([quad_rec(x**3+f*x+g,p) for x in range(p)])
-def fg_to_j(fg:tuple[int,int],char =0):
-    f,g = fg
-    if f == 0 or char>0 and f%char ==0:
-        return 0
-    elif g == 0 or char>0 and g % char ==0:
-        return 1728
-    else:
-        f3 = 4*(f**3)
-        jnum = 1728 *f3
-        jden = f3+27*(g**2)
-        if char == 0:
-            if jden == 0:
-                raise ZeroDivisionError('Singular curve')
-            elif jnum % jden == 0:
-                return jnum//jden
-            else:
-                return jnum/jden
-        else:
-            jnum = jnum % char
-            jden = jden % char
-            if jden == 0:
-                raise ZeroDivisionError('Singular curve')
-            jdeninv = pow(jden,-1,char)
-            return (jnum*jdeninv)%char
 
-
-def j_to_fg(j:int,char = 0):
-    if j == 0:
-        return (0,1)
-    elif j == 1728 or char>0 and (j-1728)%char == 0:
-        return (1,0)
-    else:
-        f = -3*j*(j-1728)
-        g = 2*j*((j-1728)**2)
-        if char == 0:
-            return (f,g)
-        else:
-            return (f % char, g% char)
-        
 def twist_fg(fg,t,char = 0):
     f,g = fg
     ft, gt = t**2 * f, t**3*g
@@ -360,8 +320,7 @@ def qf_mat_ker_gens(mat:tuple[tuple[int]]):
 # The generator is multiplication-by-(a * tau), where a is the leading coef
 
 def qf_to_ERGM_1T(qf:tuple[int,int,int])->MatrixElement:
-    a,b,c = qf
-    return MatrixElement(((0,-c),(a,-b)),M2Z)
+    return MatrixElement(tuple(tuple(r) for r in qf_2_mat(qf)), M2Z)
 
 # This computes the matrix that represents multiplication by
 #  the root of x^2-ax + p whose imaginary part has sign equal to s

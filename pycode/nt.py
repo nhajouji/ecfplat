@@ -10,16 +10,7 @@ The leaf of the import graph: this module imports nothing from the package.
 """
 
 
-def gcd(a:int,b:int)->int:
-    a = abs(a)
-    b = abs(b)
-    if min(a,b)==0:
-        return max(a,b)
-    while b % a != 0:
-        r = b % a 
-        b = a
-        a = r
-    return a
+from math import gcd
 
 def lcm(a:int,b:int):
     d = gcd(a,b)
@@ -294,15 +285,6 @@ def mult_order_mod(x:int, m:int)->int:
     return k
 
 
-def sqrt_mod(d:int, l:int):
-    """A square root of d mod l (l prime), or None if d is a non-residue.
-    Brute force -- intended for small l."""
-    d %= l
-    for r in range(l):
-        if (r * r) % l == d:
-            return r
-    return None
-
 
 def _order_in_fl2(a:int, p:int, l:int)->int:
     """Order of t (a Frobenius eigenvalue) in F_l[t]/(t^2 - a t + p), the inert
@@ -347,7 +329,7 @@ def frob_ext_degrees(a:int, p:int, l:int)->dict:
         eigs = sorted({x for x in range(2) if (x*x - a0*x + p0) % 2 == 0})
         kind = 'split' if len(eigs) == 2 else ('ramified' if len(eigs) == 1 else 'inert')
     else:
-        r = sqrt_mod(disc, l)
+        r = sqrt_mod_prime(disc, l)
         if r is None:
             kind, eigs = 'inert', []
         else:

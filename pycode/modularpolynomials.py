@@ -1,8 +1,8 @@
 ## Data loading
 
 import json
+from functools import lru_cache
 from pathlib import Path
-from alg_classes import Polynomial
 from nt import discfac
 from qfs import class_group_id
 
@@ -56,34 +56,46 @@ def eval_atk(x:int,l:int,p:int):
     return ((-a)%p,b)
 
 
-def atk_poly_a(l:int,p=0):
+def _poly_mul_z(A:list[int], B:list[int]) -> list[int]:
+    """Product of two integer polynomials (low-to-high coefficients)."""
+    R = [0]*(len(A)+len(B)-1)
+    for i, a in enumerate(A):
+        if a:
+            for k, b in enumerate(B):
+                R[i+k] += a*b
+    return R
+
+def atk_a_coeffs(l:int) -> list[int]:
+    """Coefficients (low-to-high) of the Atkin a(Y): a(y0) - j0 is the codomain
+    j-invariant at the Atkin-parameter root y0."""
     if l not in atkin_polys_dict:
         raise ValueError('l does not divide order of the Monster group')
-    return Polynomial(atkin_polys_dict[l][0],char=p)
+    return atkin_polys_dict[l][0]
 
-#This, in isolation, captures endorphisms of degree l for j = 0
-def atk_poly_b1(l:int,p=0):
+@lru_cache(maxsize=None)
+def _atk_b_coeffs(l:int) -> tuple[int, ...]:
+    """b(Y) = b1(Y) * b3(Y)^3 over Z (low-to-high), cached per l."""
+    _, cb1, cb3 = atkin_polys_dict[l]
+    b33 = _poly_mul_z(_poly_mul_z(cb3, cb3), cb3)
+    return tuple(_poly_mul_z(cb1, b33))
+
+def atk_at_j_coeffs(j:int, l:int, p:int) -> list[int]:
+    """Coefficients (low-to-high) of the Atkin polynomial at j over F_p:
+    j^2 - j*a(Y) + b(Y), whose roots Y are the Atkin parameters of the
+    l-isogenies out of j (evaluate a there to get the codomain, see eval_atk)."""
     if l not in atkin_polys_dict:
         raise ValueError('l does not divide order of the Monster group')
-    return Polynomial(atkin_polys_dict[l][1],char=p)
-
-def atk_poly_b3(l:int,p=0):
-    if l not in atkin_polys_dict:
-        raise ValueError('l does not divide order of the Monster group')
-    return Polynomial(atkin_polys_dict[l][2],char=p)
-
-def atk_poly_b(l:int,p=0):
-    b1 = atk_poly_b1(l,p)
-    b3 = atk_poly_b3(l,p)
-    return b1*(b3**3)
-
-def atk_poly_ab(l:int,p=0):
-    return (atk_poly_a(l,p),atk_poly_b(l,p))
-
-def atk_at_j(j:int,l:int,p=0):
-    j2 = Polynomial([j**2],char=p)
-    a,b = atk_poly_ab(l,p)
-    return j2-j*a+b
+    ca = atkin_polys_dict[l][0]
+    cb = _atk_b_coeffs(l)
+    out = [0]*max(len(ca), len(cb), 1)
+    for i, c in enumerate(cb):
+        out[i] = c % p
+    for i, c in enumerate(ca):
+        out[i] = (out[i] - j*c) % p
+    out[0] = (out[0] + j*j) % p
+    while len(out) > 1 and out[-1] == 0:
+        out.pop()
+    return out
 
 
 ## Classical modular polynomials Phi_l(X, Y), computed from the j-function q-expansion

@@ -1,7 +1,5 @@
 """Small tuple/dict helpers shared by graph_tools and ecqf_bij.
 
-NB merge_dicts mutates its first argument (callers rely on the return value,
-but pass a copy if the input matters to you).
 """
 
 def ext_tup(t,x):
@@ -13,11 +11,11 @@ def rotate_tuple(v:tuple,k:int):
         return v
     return tuple(list(v[k:])+list(v[:k]))
 
-def sort_tuple(v:tuple[int],l_scores:dict={}):
+def sort_tuple(v:tuple[int],l_scores:dict=None):
     if len(v)<2:
         return v
     lv = list(v)
-    if len(l_scores)==0:
+    if not l_scores:
         lv.sort()
     else:
         lv.sort(key=lambda l:l_scores[l])
@@ -26,7 +24,7 @@ def sort_tuple(v:tuple[int],l_scores:dict={}):
 def merge_dicts(diclist:list[dict])->dict:
     if len(diclist)==0:
         return {}
-    dic = diclist[0]
+    dic = dict(diclist[0])
     for dic1 in diclist[1:]:
         for x in dic1:
             if x in dic:
